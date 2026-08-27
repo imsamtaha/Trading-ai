@@ -13,13 +13,16 @@ from app.database.repository import (
 )
 
 from app.performance.metrics import calculate_metrics
+from app.dashboard import router as dashboard_router
 
 
 app = FastAPI(
     title="Trading AI",
     description="AI-powered market analysis and paper-trading platform",
-    version="0.7.0",
+    version="0.8.0",
 )
+
+app.include_router(dashboard_router)
 
 
 @app.get("/")
@@ -28,7 +31,8 @@ def root():
         "system": "Trading AI",
         "status": "online",
         "mode": "paper_trading",
-        "version": "0.7.0",
+        "version": "0.8.0",
+        "dashboard": "/dashboard",
     }
 
 
@@ -85,7 +89,6 @@ def analysis(
     limit: int = 100,
 ):
     try:
-
         market_data = get_candles(
             symbol.upper(),
             interval,
@@ -93,24 +96,10 @@ def analysis(
         )
 
         candles_data = market_data["candles"]
-
-        technical = analyze_candles(
-            candles_data
-        )
-
-        structure = analyze_structure(
-            candles_data
-        )
-
-        signal = generate_signal(
-            technical,
-            structure,
-        )
-
-        trade = create_trade_candidate(
-            signal,
-            technical,
-        )
+        technical = analyze_candles(candles_data)
+        structure = analyze_structure(candles_data)
+        signal = generate_signal(technical, structure)
+        trade = create_trade_candidate(signal, technical)
 
         ai_analysis = analyze_market(
             symbol=market_data["symbol"],
@@ -133,34 +122,23 @@ def analysis(
         }
 
     except ValueError as exc:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        )
+        raise HTTPException(status_code=400, detail=str(exc))
 
     except Exception as exc:
-
-        raise HTTPException(
-            status_code=502,
-            detail=str(exc),
-        )
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @app.get("/performance/{account_id}")
 def performance(account_id: int):
-
     account = get_account(account_id)
 
     if not account:
-
         raise HTTPException(
             status_code=404,
             detail="Paper account not found.",
         )
 
     trades = get_trades(account_id)
-
     metrics = calculate_metrics(
         trades,
         initial_balance=account["initial_balance"],
