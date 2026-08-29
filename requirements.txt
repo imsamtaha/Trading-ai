@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+requests
+numpy
+python-dotenv
+openai
+PyYAML
+pytest
+MetaTrader5; sys_platform == "win32"
