@@ -44,7 +44,7 @@ class AtlasHeartbeat:
 
     def publish_connection(self, account: dict[str, Any], status: str = "connected") -> None:
         payload = {
-            "environment": "demo",
+            "environment": os.getenv("ATLAS_ENVIRONMENT", "demo"),
             "broker": "MetaTrader 5",
             "server": account.get("server"),
             "mt5_login": account.get("login"),
