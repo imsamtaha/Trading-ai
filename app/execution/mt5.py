@@ -39,11 +39,7 @@ class MT5ExecutionError(RuntimeError):
 
 
 class MT5Broker:
-    """Small MT5 adapter used by ATLAS.
-
-    MT5 must be running on a Windows host with an authenticated terminal.
-    Live order submission is disabled unless ATLAS_LIVE_TRADING=true.
-    """
+    """ATLAS adapter for a locally running MetaTrader 5 terminal."""
 
     def __init__(self, config: MT5Config | None = None):
         self.config = config or MT5Config.from_env()
@@ -61,16 +57,14 @@ class MT5Broker:
             else mt5.initialize()
         )
         if not initialized:
-            code = mt5.last_error()
-            raise MT5ExecutionError(f"MT5 initialize failed: {code}")
+            raise MT5ExecutionError(f"MT5 initialize failed: {mt5.last_error()}")
 
         if self.config.login and self.config.password and self.config.server:
-            logged_in = mt5.login(
+            if not mt5.login(
                 self.config.login,
                 password=self.config.password,
                 server=self.config.server,
-            )
-            if not logged_in:
+            ):
                 code = mt5.last_error()
                 mt5.shutdown()
                 raise MT5ExecutionError(f"MT5 login failed: {code}")
@@ -115,6 +109,8 @@ class MT5Broker:
         tick = mt5.symbol_info_tick(symbol)
         if tick is None:
             raise MT5ExecutionError(f"No tick available for {symbol}")
+        if info.point <= 0:
+            raise MT5ExecutionError(f"Invalid point size for {symbol}")
         return {
             "symbol": symbol,
             "bid": float(tick.bid),
@@ -126,6 +122,8 @@ class MT5Broker:
         }
 
     def candles(self, symbol: str, timeframe: int, count: int = 200) -> list[dict[str, Any]]:
+        if count < 1:
+            raise MT5ExecutionError("Candle count must be positive.")
         self.symbol_info(symbol)
         rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
         if rates is None:
@@ -165,14 +163,32 @@ class MT5Broker:
         ]
 
     def _normalized_volume(self, symbol: str, volume: float) -> float:
+        if volume <= 0:
+            raise MT5ExecutionError("Order volume must be greater than zero.")
         info = self.symbol_info(symbol)
         minimum = float(info.volume_min)
         maximum = float(info.volume_max)
         step = float(info.volume_step)
+        if step <= 0 or maximum < minimum:
+            raise MT5ExecutionError(f"Invalid volume constraints for {symbol}")
         volume = min(max(volume, minimum), maximum)
-        steps = round(volume / step)
+        steps = int(volume / step)
         normalized = steps * step
+        if normalized < minimum:
+            normalized = minimum
         return round(normalized, 8)
+
+    def _filling_type(self, info: Any) -> int:
+        mode = getattr(info, "filling_mode", None)
+        for candidate_name in (
+            "ORDER_FILLING_FOK",
+            "ORDER_FILLING_IOC",
+            "ORDER_FILLING_RETURN",
+        ):
+            candidate = getattr(mt5, candidate_name, None)
+            if candidate is not None and mode == candidate:
+                return int(candidate)
+        return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
 
     def market_order(
         self,
@@ -196,6 +212,15 @@ class MT5Broker:
 
         price = float(tick.ask if side == "BUY" else tick.bid)
         volume = self._normalized_volume(symbol, volume)
+        digits = int(info.digits)
+        price = round(price, digits)
+        stop_loss = round(float(stop_loss), digits)
+        take_profit = round(float(take_profit), digits)
+
+        if side == "BUY" and not (stop_loss < price < take_profit):
+            raise MT5ExecutionError("BUY requires SL < entry < TP.")
+        if side == "SELL" and not (take_profit < price < stop_loss):
+            raise MT5ExecutionError("SELL requires TP < entry < SL.")
 
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
@@ -203,13 +228,13 @@ class MT5Broker:
             "volume": volume,
             "type": mt5.ORDER_TYPE_BUY if side == "BUY" else mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": float(stop_loss),
-            "tp": float(take_profit),
+            "sl": stop_loss,
+            "tp": take_profit,
             "deviation": self.config.deviation,
             "magic": self.config.magic,
             "comment": comment[:31],
             "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": getattr(info, "filling_mode", mt5.ORDER_FILLING_IOC),
+            "type_filling": self._filling_type(info),
         }
 
         if self.config.dry_run:
@@ -219,11 +244,12 @@ class MT5Broker:
                 "side": side,
                 "volume": volume,
                 "price": price,
-                "sl": float(stop_loss),
-                "tp": float(take_profit),
+                "sl": stop_loss,
+                "tp": take_profit,
             }
 
-        if not bool(mt5.account_info().trade_allowed):
+        account = mt5.account_info()
+        if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
 
         result = mt5.order_send(request)
@@ -242,8 +268,8 @@ class MT5Broker:
             "side": side,
             "volume": float(result.volume),
             "price": float(result.price),
-            "sl": float(stop_loss),
-            "tp": float(take_profit),
+            "sl": stop_loss,
+            "tp": take_profit,
             "comment": str(result.comment),
         }
 
@@ -256,6 +282,9 @@ class MT5Broker:
         tick = mt5.symbol_info_tick(position.symbol)
         if tick is None:
             raise MT5ExecutionError(f"No quote for {position.symbol}")
+        info = mt5.symbol_info(position.symbol)
+        if info is None:
+            raise MT5ExecutionError(f"Unknown symbol: {position.symbol}")
 
         close_type = (
             mt5.ORDER_TYPE_SELL
@@ -263,6 +292,7 @@ class MT5Broker:
             else mt5.ORDER_TYPE_BUY
         )
         price = float(tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask)
+        price = round(price, int(info.digits))
 
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
@@ -275,7 +305,7 @@ class MT5Broker:
             "magic": self.config.magic,
             "comment": "ATLAS-CLOSE",
             "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": getattr(mt5.symbol_info(position.symbol), "filling_mode", mt5.ORDER_FILLING_IOC),
+            "type_filling": self._filling_type(info),
         }
 
         if self.config.dry_run:
