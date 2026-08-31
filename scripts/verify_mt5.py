@@ -1,3 +1,9 @@
+from pathlib import Path
+import sys
+
+# Allow `python scripts/verify_mt5.py` from the repository root.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from app.execution.heartbeat import AtlasHeartbeat
 
 
