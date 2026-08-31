@@ -2,6 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from pathlib import Path
+
+# Allow `python scripts/atlas_mt5_cycle.py` from the repository root.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import MetaTrader5 as mt5
 
@@ -25,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--symbol",
         default="EURUSD",
-        help="Exact FxPro MT5 symbol, e.g. EURUSD or XAUUSD",
+        help="Exact FxPro MT5 symbol, e.g. EURUSD or GOLD",
     )
     parser.add_argument(
         "--count",
@@ -90,8 +97,6 @@ def build_decision(results: dict[str, dict]) -> dict:
     weights = {"5m": 0.20, "15m": 0.25, "30m": 0.25, "1h": 0.30}
     technical_score = sum(results[tf]["component"] * weights[tf] for tf in weights)
 
-    # Context remains explicitly neutral until the corresponding macro/news
-    # providers are wired into the decision engine.
     data = DecisionInput(
         technical_score=technical_score,
         macro_score=0.0,
