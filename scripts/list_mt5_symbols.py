@@ -2,6 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from pathlib import Path
+
+# Allow `python scripts/list_mt5_symbols.py` from the repository root.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import MetaTrader5 as mt5
 
@@ -9,7 +16,9 @@ from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="List relevant symbols available in the connected MT5 terminal")
+    parser = argparse.ArgumentParser(
+        description="List relevant symbols available in the connected MT5 terminal"
+    )
     parser.add_argument("--limit", type=int, default=2000)
     return parser.parse_args()
 
@@ -23,7 +32,17 @@ def main() -> int:
         if symbols is None:
             raise MT5ExecutionError(f"symbols_get failed: {mt5.last_error()}")
 
-        keywords = ("EURUSD", "XAU", "GOLD", "XAG", "SILVER", "GAS", "NATGAS", "XRP", "SOL")
+        keywords = (
+            "EURUSD",
+            "XAU",
+            "GOLD",
+            "XAG",
+            "SILVER",
+            "GAS",
+            "NATGAS",
+            "XRP",
+            "SOL",
+        )
         rows = []
         for symbol in symbols[: args.limit]:
             name = symbol.name
