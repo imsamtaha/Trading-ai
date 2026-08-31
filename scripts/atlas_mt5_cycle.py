@@ -26,6 +26,8 @@ TIMEFRAMES = {
     "1h": mt5.TIMEFRAME_H1,
 }
 
+TF_WEIGHTS = {"5m": 0.15, "15m": 0.20, "30m": 0.25, "1h": 0.40}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ATLAS MT5 dry-run analysis cycle")
@@ -43,27 +45,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def directional_component(analysis: dict, signal: dict) -> float:
-    direction = signal.get("direction")
-    value = 0.0
-    if direction == "LONG":
-        value += 0.5
-    elif direction == "SHORT":
-        value -= 0.5
+def side_value(value: str | None) -> float:
+    return {"LONG": 1.0, "SHORT": -1.0}.get(str(value).upper(), 0.0)
 
-    trend = analysis["technical"].get("trend")
-    if trend == "bullish":
-        value += 0.25
-    elif trend == "bearish":
-        value -= 0.25
 
-    structure = analysis["structure"].get("structure")
-    if structure == "bullish":
-        value += 0.25
-    elif structure == "bearish":
-        value -= 0.25
+def timeframe_component(analysis: dict, signal: dict) -> float:
+    score = side_value(signal.get("direction")) * 0.50
+    score += side_value(analysis["technical"].get("trend")) * 0.25
+    score += side_value(analysis["technical"].get("momentum")) * 0.15
+    score += side_value(analysis["structure"].get("structure")) * 0.10
+    return max(-1.0, min(1.0, score))
 
-    return max(-1.0, min(1.0, value))
+
+def alignment_label(score: float) -> str:
+    magnitude = abs(score)
+    if magnitude >= 0.75:
+        return "STRONG"
+    if magnitude >= 0.45:
+        return "MODERATE"
+    if magnitude >= 0.20:
+        return "WEAK"
+    return "MIXED"
 
 
 def analyze_timeframe(broker: MT5Broker, symbol: str, timeframe: int, count: int) -> dict:
@@ -76,7 +78,7 @@ def analyze_timeframe(broker: MT5Broker, symbol: str, timeframe: int, count: int
     technical = analyze_candles(candles)
     structure = analyze_structure(candles)
     signal = generate_signal(technical, structure)
-    component = directional_component(
+    component = timeframe_component(
         {"technical": technical, "structure": structure}, signal
     )
 
@@ -94,11 +96,10 @@ def analyze_timeframe(broker: MT5Broker, symbol: str, timeframe: int, count: int
 
 
 def build_decision(results: dict[str, dict]) -> dict:
-    weights = {"5m": 0.20, "15m": 0.25, "30m": 0.25, "1h": 0.30}
-    technical_score = sum(results[tf]["component"] * weights[tf] for tf in weights)
-
+    mtf_score = sum(results[tf]["component"] * TF_WEIGHTS[tf] for tf in TF_WEIGHTS)
+    # The contextual providers are intentionally neutral until explicitly wired.
     data = DecisionInput(
-        technical_score=technical_score,
+        technical_score=mtf_score,
         macro_score=0.0,
         news_score=0.0,
         geopolitical_score=0.0,
@@ -109,7 +110,11 @@ def build_decision(results: dict[str, dict]) -> dict:
         volatility_score=0.0,
         event_risk_score=0.0,
     )
-    return UnifiedDecisionEngine().analyze(data)
+    decision = UnifiedDecisionEngine().analyze(data)
+    decision["mtf_score"] = round(mtf_score, 4)
+    decision["mtf_alignment"] = alignment_label(mtf_score)
+    decision["timeframe_weights"] = TF_WEIGHTS
+    return decision
 
 
 def main() -> int:
