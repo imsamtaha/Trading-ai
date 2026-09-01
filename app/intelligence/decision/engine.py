@@ -6,11 +6,7 @@ from typing import Any
 
 @dataclass
 class DecisionInput:
-    """Evidence supplied to the deterministic ATLAS decision engine.
-
-    Directional inputs are normalized to [-1, 1]. Risk inputs are normalized
-    to [0, 1], where higher values represent more risk.
-    """
+    """Evidence supplied to the deterministic ATLAS decision engine."""
 
     technical_score: float
     macro_score: float
@@ -27,9 +23,8 @@ class DecisionInput:
 class UnifiedDecisionEngine:
     """ATLAS v2 deterministic decision matrix.
 
-    The engine separates directional evidence from risk penalties. It returns a
-    stable 0-100 score, a directional bias, confidence, risk level and action.
-    It never submits orders.
+    Directional evidence is normalized to [-1, 1]. Risk inputs are normalized
+    to [0, 1]. The engine never submits orders.
     """
 
     CONTEXT_WEIGHTS = {
@@ -42,6 +37,8 @@ class UnifiedDecisionEngine:
     ACTION_THRESHOLDS = {
         "buy_score": 70.0,
         "sell_score": 30.0,
+        "legacy_buy_directional": 0.40,
+        "legacy_sell_directional": -0.40,
         "min_confidence": 55.0,
         "max_conflict": 0.45,
         "max_event_risk": 0.80,
@@ -60,6 +57,7 @@ class UnifiedDecisionEngine:
             "RISK_ON": 0.40,
             "RISK_OFF": -0.40,
             "SIDEWAYS": 0.00,
+            "RANGE": 0.00,
             "TRANSITION": 0.00,
             "HIGH_VOLATILITY": 0.00,
             "LOW_VOLATILITY": 0.00,
@@ -78,8 +76,6 @@ class UnifiedDecisionEngine:
         )
 
     def calculate_risk_context(self, data: DecisionInput) -> float:
-        # Positive context supports the trade; it is not used as an independent
-        # risk penalty. Risk penalties are calculated separately below.
         return self.clamp((data.macro_score + data.cross_asset_score) / 2.0)
 
     def calculate_directional_score(self, data: DecisionInput) -> float:
@@ -88,7 +84,6 @@ class UnifiedDecisionEngine:
         reaction = self.clamp(data.reaction_score)
         regime = self.regime_score(data.regime)
 
-        # Context is additive but cannot overwhelm the price/technical signal.
         score = (
             technical * 0.55
             + context * 0.20
@@ -144,8 +139,14 @@ class UnifiedDecisionEngine:
         confidence: float,
         conflict_score: float,
         event_risk_score: float,
-        risk_level: str,
+        risk_level: str = "LOW",
     ) -> str:
+        """Return BUY/SELL/WAIT while preserving the legacy helper contract.
+
+        New callers pass the 0-100 score produced by ``analyze``. Existing
+        callers/tests may pass the historical directional score in [-1, 1].
+        ``risk_level`` remains optional for backward compatibility.
+        """
         if risk_level == "EXTREME":
             return "NO_TRADE"
         if conflict_score >= self.ACTION_THRESHOLDS["max_conflict"]:
@@ -154,6 +155,15 @@ class UnifiedDecisionEngine:
             return "WAIT"
         if confidence < self.ACTION_THRESHOLDS["min_confidence"]:
             return "WAIT"
+
+        # Backward-compatible path for the previous [-1, 1] API.
+        if -1.0 <= float(score_100) <= 1.0:
+            if score_100 >= self.ACTION_THRESHOLDS["legacy_buy_directional"]:
+                return "BUY"
+            if score_100 <= self.ACTION_THRESHOLDS["legacy_sell_directional"]:
+                return "SELL"
+            return "WAIT"
+
         if score_100 >= self.ACTION_THRESHOLDS["buy_score"]:
             return "BUY"
         if score_100 <= self.ACTION_THRESHOLDS["sell_score"]:
@@ -196,23 +206,3 @@ class UnifiedDecisionEngine:
             "event_risk_score": round(self.unit(data.event_risk_score), 4),
             "volatility_score": round(self.unit(data.volatility_score), 4),
         }
-
-
-if __name__ == "__main__":
-    engine = UnifiedDecisionEngine()
-    result = engine.analyze(
-        DecisionInput(
-            technical_score=0.75,
-            macro_score=0.30,
-            news_score=0.45,
-            geopolitical_score=-0.20,
-            cross_asset_score=0.40,
-            reaction_score=0.60,
-            regime="BULL_TREND",
-            conflict_score=0.18,
-            volatility_score=0.25,
-            event_risk_score=0.15,
-        )
-    )
-    for key, value in result.items():
-        print(f"{key}: {value}")
