@@ -20,31 +20,37 @@ def direction_value(value: Any) -> float:
     return DIRECTION_VALUES.get(str(value).upper(), 0.0)
 
 
-def _mean(values: list[float]) -> float:
-    return sum(values) / len(values) if values else 0.0
+def weighted_score(values: dict[str, float], weights: dict[str, float]) -> float:
+    total_weight = sum(weights.get(tf, 0.0) for tf in values)
+    if total_weight <= 0:
+        return 0.0
+    return sum(values[tf] * weights.get(tf, 0.0) for tf in values) / total_weight
 
 
 def build_mtf_context(results: dict[str, dict], weights: dict[str, float]) -> dict:
-    """Derive deterministic context from already-validated MT5 timeframe results.
+    """Derive deterministic context from validated MT5 timeframe results.
 
-    This layer does not invent macro/news data. Those providers can be added later.
+    Macro, news, geopolitical and external cross-asset feeds remain separate
+    providers; this layer never fabricates those values.
     """
     trend = {tf: direction_value(item["technical"].get("trend")) for tf, item in results.items()}
     momentum = {tf: direction_value(item["technical"].get("momentum")) for tf, item in results.items()}
     macd = {tf: direction_value(item["technical"].get("macd_signal")) for tf, item in results.items()}
     structure = {tf: direction_value(item["structure"].get("structure")) for tf, item in results.items()}
-    signal = {tf: (float(item["signal"].get("score", 50)) - 50.0) / 50.0 for tf, item in results.items()}
+    signal = {
+        tf: max(-1.0, min(1.0, (float(item["signal"].get("score", 50)) - 50.0) / 50.0))
+        for tf, item in results.items()
+    }
 
-    weighted = lambda values: _mean([values[tf] * weights.get(tf, 0.0) for tf in values])
-    mtf_score = sum(values * weights.get(tf, 0.0) for tf, values in signal.items())
-    trend_score = sum(values * weights.get(tf, 0.0) for tf, values in trend.items())
-    momentum_score = sum(values * weights.get(tf, 0.0) for tf, values in momentum.items())
-    macd_score = sum(values * weights.get(tf, 0.0) for tf, values in macd.items())
-    structure_score = sum(values * weights.get(tf, 0.0) for tf, values in structure.items())
+    mtf_score = weighted_score(signal, weights)
+    trend_score = weighted_score(trend, weights)
+    momentum_score = weighted_score(momentum, weights)
+    macd_score = weighted_score(macd, weights)
+    structure_score = weighted_score(structure, weights)
 
     evidence = [mtf_score, trend_score, momentum_score, macd_score, structure_score]
-    directional = _mean(evidence)
-    dispersion = _mean([abs(value - directional) for value in evidence])
+    directional = sum(evidence) / len(evidence)
+    dispersion = sum(abs(value - directional) for value in evidence) / len(evidence)
     conflict = min(1.0, dispersion)
 
     if directional >= 0.45:
