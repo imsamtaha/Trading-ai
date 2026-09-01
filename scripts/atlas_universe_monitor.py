@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
@@ -76,11 +82,3 @@ def main() -> int:
             LOG.error("MT5 connection/cycle failed: %s", exc)
             broker.disconnect()
             time.sleep(30)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    )
-    raise SystemExit(main())
