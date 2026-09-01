@@ -1,0 +1,25 @@
+platform:
+  name: windows
+  environment: development
+  timezone: America/New_York
+
+brokers:
+  mt5:
+    enabled: true
+    terminal_path: "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
+    magic_number: 260830
+    dry_run: true
+
+ai:
+  confidence_threshold: 70
+
+risk:
+  max_daily_loss_percent: 2.0
+  max_risk_per_trade_percent: 1.0
+  max_leverage: 5.0
+  stop_loss_atr: 1.5
+  take_profit_atr: 2.5
+
+monitor:
+  refresh_seconds: 15
+  candle_limit: 200
