@@ -4,19 +4,11 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-
 load_dotenv()
 
 API_KEY = os.getenv("OPENAI_API_KEY")
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6")
-
-if not API_KEY or API_KEY == "YOUR_API_KEY_HERE":
-    raise RuntimeError(
-        "OPENAI_API_KEY is not configured."
-    )
-
-client = OpenAI(api_key=API_KEY)
-
+client = OpenAI(api_key=API_KEY) if API_KEY and API_KEY != "YOUR_API_KEY_HERE" else None
 
 SYSTEM_PROMPT = """
 You are the AI reasoning layer of a professional market-analysis
@@ -62,7 +54,7 @@ def analyze_market(
     signal: dict,
     trade: dict,
 ) -> dict:
-
+    """Run optional LLM analysis; deterministic trading logic remains independent."""
     market_context = {
         "symbol": symbol,
         "interval": interval,
@@ -72,25 +64,33 @@ def analyze_market(
         "risk_assessment": trade,
     }
 
+    if client is None:
+        return {
+            "status": "unavailable",
+            "reason": "OPENAI_API_KEY is not configured",
+            "market_bias": "NEUTRAL",
+            "decision": "WAIT",
+            "confidence": 0,
+            "bull_case": "",
+            "bear_case": "",
+            "key_evidence": [],
+            "key_risks": ["LLM analysis unavailable"],
+            "reasoning": "Deterministic analysis remains available.",
+            "recommendation": "WAIT",
+        }
+
     response = client.chat.completions.create(
         model=MODEL,
         temperature=0.1,
         response_format={"type": "json_object"},
         messages=[
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT,
-            },
+            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": json.dumps(
-                    market_context,
-                    separators=(",", ":"),
-                ),
+                "content": json.dumps(market_context, separators=(",", ":")),
             },
         ],
     )
 
     content = response.choices[0].message.content
-
     return json.loads(content)
