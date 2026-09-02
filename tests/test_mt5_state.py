@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from app.execution.mt5 import MT5ExecutionError
 from app.execution.mt5_state import MT5CockpitAdapter
 
 
@@ -29,7 +30,7 @@ class FakeBroker:
 
     def symbol_info(self, symbol):
         if symbol != "EURUSD":
-            raise RuntimeError("not found")
+            raise MT5ExecutionError("not found")
         return SimpleNamespace()
 
     def quote(self, symbol):
