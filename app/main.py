@@ -9,6 +9,7 @@ from app.ai.analyst import analyze_market
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.execution.mt5_state import MT5CockpitAdapter
 
 from app.database.repository import (
     get_account,
@@ -52,6 +53,7 @@ def root():
         "version": "1.0.0",
         "dashboard": "/dashboard",
         "mt5_status": "/mt5/status",
+        "mt5_cockpit": "/mt5/cockpit-state",
     }
 
 
@@ -134,6 +136,18 @@ def mt5_status():
         }
     finally:
         broker.disconnect()
+
+
+@app.get("/mt5/cockpit-state")
+def mt5_cockpit_state():
+    """Read-only MT5 demo snapshot for the Trader Cockpit."""
+    adapter = MT5CockpitAdapter()
+    try:
+        return adapter.snapshot()
+    except MT5ExecutionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    finally:
+        adapter.broker.disconnect()
 
 
 @app.get("/mt5/positions")
