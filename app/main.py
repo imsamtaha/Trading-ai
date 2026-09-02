@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -26,6 +26,26 @@ app = FastAPI(
 )
 
 app.include_router(dashboard_router)
+
+
+@app.middleware("http")
+async def dashboard_only_guard(request: Request, call_next):
+    """Optional public-dashboard safety mode.
+
+    When ATLAS_DASHBOARD_ONLY=true, only the read-only dashboard and health
+    endpoints are exposed through the FastAPI origin. This is intended for
+    Cloudflare Tunnel + Access deployments where friends need observation
+    access without access to MT5/API routes.
+    """
+    import os
+
+    dashboard_only = os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true"
+    if dashboard_only:
+        path = request.url.path
+        allowed = path in {"/", "/health", "/dashboard", "/dashboard/", "/dashboard/state", "/docs", "/openapi.json"}
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Dashboard-only mode is enabled.")
+    return await call_next(request)
 
 
 def _mt5_service() -> AtlasExecutionService:
