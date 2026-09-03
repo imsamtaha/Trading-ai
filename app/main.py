@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -9,6 +10,7 @@ from app.ai.analyst import analyze_market
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.execution.mt5_state import MT5CockpitAdapter
 
 from app.database.repository import (
     get_account,
@@ -32,19 +34,33 @@ app.include_router(dashboard_router)
 async def dashboard_only_guard(request: Request, call_next):
     """Optional public-dashboard safety mode.
 
-    When ATLAS_DASHBOARD_ONLY=true, only the read-only dashboard and health
-    endpoints are exposed through the FastAPI origin. This is intended for
-    Cloudflare Tunnel + Access deployments where friends need observation
-    access without access to MT5/API routes.
+    When ATLAS_DASHBOARD_ONLY=true, mutating/execution endpoints remain blocked.
+    The read-only cockpit snapshot is allowed so the dashboard can observe the
+    MT5 demo connection without enabling order execution.
     """
     import os
 
     dashboard_only = os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true"
     if dashboard_only:
         path = request.url.path
-        allowed = path in {"/", "/health", "/dashboard", "/dashboard/", "/dashboard/state", "/docs", "/openapi.json"}
+        allowed = path in {
+            "/",
+            "/health",
+            "/dashboard",
+            "/dashboard/",
+            "/dashboard/state",
+            "/mt5/cockpit-state",
+            "/docs",
+            "/openapi.json",
+        }
         if not allowed:
-            raise HTTPException(status_code=403, detail="Dashboard-only mode is enabled.")
+            # Do not raise HTTPException from middleware: it can bypass FastAPI's
+            # exception handler and surface as an HTTP 500. Return the response
+            # directly instead.
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Dashboard-only mode is enabled."},
+            )
     return await call_next(request)
 
 
@@ -63,6 +79,15 @@ def _mt5_service() -> AtlasExecutionService:
     )
 
 
+def _redact_cockpit_state(state: dict) -> dict:
+    """Mask the account identifier on the read-only HTTP endpoint."""
+    account_id = str(state.get("account", {}).get("id", ""))
+    masked = f"***{account_id[-4:]}" if account_id else "***"
+    state["account"]["id"] = masked
+    state["broker"]["account_id"] = masked
+    return state
+
+
 @app.get("/")
 def root():
     return {
@@ -72,6 +97,7 @@ def root():
         "version": "1.0.0",
         "dashboard": "/dashboard",
         "mt5_status": "/mt5/status",
+        "mt5_cockpit": "/mt5/cockpit-state",
     }
 
 
@@ -156,6 +182,19 @@ def mt5_status():
         broker.disconnect()
 
 
+@app.get("/mt5/cockpit-state")
+def mt5_cockpit_state():
+    """Read-only MT5 snapshot. This endpoint cannot place an order."""
+    adapter = MT5CockpitAdapter()
+    try:
+        state = adapter.snapshot()
+        return _redact_cockpit_state(state)
+    except MT5ExecutionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    finally:
+        adapter.broker.disconnect()
+
+
 @app.get("/mt5/positions")
 def mt5_positions():
     broker = MT5Broker(MT5Config.from_env())
@@ -194,6 +233,7 @@ def mt5_test_order(
 
     Default configuration is dry-run. A real order is impossible unless
     ATLAS_LIVE_TRADING=true and the MT5 terminal/account also permits trading.
+    Dashboard-only mode blocks this endpoint entirely.
     """
     service = _mt5_service()
     try:
