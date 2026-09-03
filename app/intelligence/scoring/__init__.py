@@ -12,6 +12,7 @@ from .engine import (
     ScoringInput,
     calculate_position_size,
 )
+from .integration import build_scoring_input, score_analysis
 
 __all__ = [
     "AtlasDecision",
@@ -24,4 +25,6 @@ __all__ = [
     "RiskFlags",
     "ScoringInput",
     "calculate_position_size",
+    "build_scoring_input",
+    "score_analysis",
 ]
