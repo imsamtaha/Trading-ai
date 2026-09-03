@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timezone
 
@@ -9,8 +10,7 @@ from app.data.market import get_candles
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
-from app.strategies.signal import generate_signal
-from app.strategies.trade import create_trade_candidate
+from app.strategies.router import generate_strategy_candidate
 
 
 TIMEFRAME_MAP = {
@@ -25,7 +25,7 @@ TIMEFRAME_MAP = {
 
 
 class AtlasMT5Monitor:
-    """Live/paper monitor that routes approved ATLAS decisions to MT5."""
+    """Live/paper monitor routing qualified strategy candidates through ATLAS decision and execution gates."""
 
     def __init__(
         self,
@@ -41,6 +41,7 @@ class AtlasMT5Monitor:
         self.interval = interval
         self.candle_limit = candle_limit
         self.cycle_seconds = cycle_seconds
+        self.strategy_mode = os.getenv("ATLAS_STRATEGY_MODE", "BALANCED").upper()
 
         config = MT5Config.from_env()
         self.broker = MT5Broker(config)
@@ -64,19 +65,9 @@ class AtlasMT5Monitor:
         except (TypeError, ValueError):
             return default
 
-    def _decision_from_components(
-        self,
-        technical: dict,
-        structure: dict,
-        signal: dict,
-    ) -> dict:
-        # Existing modules remain the signal source. Scores unavailable from
-        # the legacy pipeline are neutral rather than fabricated.
-        signal_direction = signal.get("direction")
-        technical_score = {
-            "LONG": 1.0,
-            "SHORT": -1.0,
-        }.get(signal_direction, 0.0)
+    def _decision_from_candidate(self, candidate: dict) -> dict:
+        direction = candidate.get("direction")
+        technical_score = {"LONG": 1.0, "SHORT": -1.0}.get(direction, 0.0)
 
         data = DecisionInput(
             technical_score=technical_score,
@@ -85,7 +76,7 @@ class AtlasMT5Monitor:
             geopolitical_score=0.0,
             cross_asset_score=0.0,
             reaction_score=0.0,
-            regime="TRANSITION",
+            regime=candidate.get("regime", "TRANSITION"),
             conflict_score=0.0,
             volatility_score=0.0,
             event_risk_score=0.0,
@@ -97,16 +88,20 @@ class AtlasMT5Monitor:
         candles = market_data["candles"]
         technical = analyze_candles(candles)
         structure = analyze_structure(candles)
-        signal = generate_signal(technical, structure)
-        trade = create_trade_candidate(signal, technical)
-        decision = self._decision_from_components(technical, structure, signal)
+        candidate_obj = generate_strategy_candidate(
+            symbol,
+            technical,
+            structure,
+            mode=self.strategy_mode,
+        )
+        candidate = candidate_obj.to_dict() if candidate_obj else None
+        decision = self._decision_from_candidate(candidate or {})
         return {
             "symbol": symbol,
             "market": market_data,
             "technical": technical,
             "structure": structure,
-            "signal": signal,
-            "trade": trade,
+            "candidate": candidate,
             "decision": decision,
         }
 
@@ -117,29 +112,40 @@ class AtlasMT5Monitor:
         for symbol in self.symbols:
             try:
                 analysis = self.analyze_symbol(symbol)
-                trade = analysis["trade"]
+                candidate = analysis["candidate"]
                 decision = analysis["decision"]
 
-                if trade.get("status") != "TRADE_CANDIDATE":
+                if not candidate:
                     events.append({
+                        "timestamp": timestamp,
                         "symbol": symbol,
                         "status": "NO_TRADE",
-                        "reason": trade.get("reason", "No trade candidate."),
+                        "reason": "No strategy setup qualified for scoring.",
                         "decision": decision,
                     })
                     continue
 
-                quote = self.broker.quote(symbol)
-                entry = quote["ask"] if trade["direction"] == "LONG" else quote["bid"]
+                if not candidate.get("qualified"):
+                    events.append({
+                        "timestamp": timestamp,
+                        "symbol": symbol,
+                        "status": "NO_TRADE",
+                        "reason": "Candidate failed confidence or risk qualification.",
+                        "candidate": candidate,
+                        "decision": decision,
+                    })
+                    continue
 
-                # Use the live MT5 quote as the execution price while keeping
-                # the strategy's calculated SL/TP structure.
+                risk = candidate.get("metadata", {}).get("risk", {})
+                quote = self.broker.quote(symbol)
+                entry = quote["ask"] if candidate["direction"] == "LONG" else quote["bid"]
+
                 result = self.execution.execute(
                     symbol=symbol,
                     decision=decision,
-                    volume=self._safe_float(trade["risk"].get("position_size")),
-                    stop_loss=self._safe_float(trade["stop_loss"]),
-                    take_profit=self._safe_float(trade["take_profit"]),
+                    volume=self._safe_float(risk.get("position_size")),
+                    stop_loss=self._safe_float(candidate["stop_loss"]),
+                    take_profit=self._safe_float(candidate["take_profit"]),
                 )
 
                 events.append({
@@ -147,6 +153,11 @@ class AtlasMT5Monitor:
                     "symbol": symbol,
                     "status": result.get("status"),
                     "entry_quote": entry,
+                    "strategy": candidate["strategy"],
+                    "classification": candidate["classification"],
+                    "setup_lane": candidate["setup_lane"],
+                    "confidence": candidate["confidence"],
+                    "candidate": candidate,
                     "decision": decision,
                     "execution": result,
                 })
@@ -173,6 +184,7 @@ class AtlasMT5Monitor:
         account = self.broker.connect()
         print("ATLAS MT5 monitor started")
         print(f"MODE: {'LIVE' if not self.broker.config.dry_run else 'DRY RUN'}")
+        print(f"STRATEGY MODE: {self.strategy_mode}")
         print(f"ACCOUNT: {account['login']} / {account['server']}")
         print(f"SYMBOLS: {self.symbols}")
         print(f"TIMEFRAME: {self.interval}")

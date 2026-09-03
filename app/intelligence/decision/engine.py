@@ -53,12 +53,16 @@ class UnifiedDecisionEngine:
     def regime_score(self, regime: str) -> float:
         return {
             "BULL_TREND": 0.70,
+            "TRENDING_BULL": 0.70,
             "BEAR_TREND": -0.70,
+            "TRENDING_BEAR": -0.70,
             "RISK_ON": 0.40,
             "RISK_OFF": -0.40,
             "SIDEWAYS": 0.00,
             "RANGE": 0.00,
             "TRANSITION": 0.00,
+            "VOLATILITY_EXPANSION": 0.00,
+            "VOLATILITY_COMPRESSION": 0.00,
             "HIGH_VOLATILITY": 0.00,
             "LOW_VOLATILITY": 0.00,
             "EVENT_DRIVEN": 0.00,
@@ -141,12 +145,7 @@ class UnifiedDecisionEngine:
         event_risk_score: float,
         risk_level: str = "LOW",
     ) -> str:
-        """Return BUY/SELL/WAIT while preserving the legacy helper contract.
-
-        New callers pass the 0-100 score produced by ``analyze``. Existing
-        callers/tests may pass the historical directional score in [-1, 1].
-        ``risk_level`` remains optional for backward compatibility.
-        """
+        """Return BUY/SELL/WAIT while preserving the legacy helper contract."""
         if risk_level == "EXTREME":
             return "NO_TRADE"
         if conflict_score >= self.ACTION_THRESHOLDS["max_conflict"]:
@@ -156,7 +155,6 @@ class UnifiedDecisionEngine:
         if confidence < self.ACTION_THRESHOLDS["min_confidence"]:
             return "WAIT"
 
-        # Backward-compatible path for the previous [-1, 1] API.
         if -1.0 <= float(score_100) <= 1.0:
             if score_100 >= self.ACTION_THRESHOLDS["legacy_buy_directional"]:
                 return "BUY"
