@@ -11,6 +11,7 @@ from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.strategies.router import generate_strategy_candidate
+from app.strategy.universe import build_universe
 
 
 TIMEFRAME_MAP = {
@@ -25,23 +26,25 @@ TIMEFRAME_MAP = {
 
 
 class AtlasMT5Monitor:
-    """Live/paper monitor routing qualified strategy candidates through ATLAS decision and execution gates."""
+    """Live/paper monitor routing ranked multi-asset candidates through ATLAS gates."""
 
     def __init__(
         self,
-        symbols: list[str],
+        symbols: list[str] | None = None,
         interval: str = "5m",
         candle_limit: int = 200,
         cycle_seconds: int = 30,
+        top_n: int = 30,
     ):
         if interval not in TIMEFRAME_MAP:
             raise ValueError(f"Unsupported ATLAS interval: {interval}")
-
-        self.symbols = symbols
+        self.symbols = symbols or []
         self.interval = interval
         self.candle_limit = candle_limit
         self.cycle_seconds = cycle_seconds
+        self.top_n = max(1, int(top_n))
         self.strategy_mode = os.getenv("ATLAS_STRATEGY_MODE", "BALANCED").upper()
+        self.auto_discover = os.getenv("ATLAS_AUTO_DISCOVER_SYMBOLS", "true").lower() == "true"
 
         config = MT5Config.from_env()
         self.broker = MT5Broker(config)
@@ -57,6 +60,7 @@ class AtlasMT5Monitor:
         )
         self.decision_engine = UnifiedDecisionEngine()
         self.running = False
+        self.universe: list[dict] = []
 
     @staticmethod
     def _safe_float(value: object, default: float = 0.0) -> float:
@@ -65,10 +69,19 @@ class AtlasMT5Monitor:
         except (TypeError, ValueError):
             return default
 
+    def discover_symbols(self) -> list[str]:
+        if not self.auto_discover and self.symbols:
+            return self.symbols
+        ranked = build_universe(self.broker.symbols(), top_n=self.top_n)
+        self.universe = [item.to_dict() for item in ranked]
+        discovered = [item.broker_symbol for item in ranked if item.tradeable]
+        if discovered:
+            self.symbols = discovered
+        return self.symbols
+
     def _decision_from_candidate(self, candidate: dict) -> dict:
         direction = candidate.get("direction")
         technical_score = {"LONG": 1.0, "SHORT": -1.0}.get(direction, 0.0)
-
         data = DecisionInput(
             technical_score=technical_score,
             macro_score=0.0,
@@ -88,58 +101,32 @@ class AtlasMT5Monitor:
         candles = market_data["candles"]
         technical = analyze_candles(candles)
         structure = analyze_structure(candles)
-        candidate_obj = generate_strategy_candidate(
-            symbol,
-            technical,
-            structure,
-            mode=self.strategy_mode,
-        )
+        candidate_obj = generate_strategy_candidate(symbol, technical, structure, mode=self.strategy_mode)
         candidate = candidate_obj.to_dict() if candidate_obj else None
         decision = self._decision_from_candidate(candidate or {})
-        return {
-            "symbol": symbol,
-            "market": market_data,
-            "technical": technical,
-            "structure": structure,
-            "candidate": candidate,
-            "decision": decision,
-        }
+        return {"symbol": symbol, "market": market_data, "technical": technical, "structure": structure, "candidate": candidate, "decision": decision}
 
     def cycle(self) -> list[dict]:
         timestamp = datetime.now(timezone.utc).isoformat()
         events: list[dict] = []
+        if self.auto_discover:
+            self.discover_symbols()
 
         for symbol in self.symbols:
             try:
                 analysis = self.analyze_symbol(symbol)
                 candidate = analysis["candidate"]
                 decision = analysis["decision"]
-
                 if not candidate:
-                    events.append({
-                        "timestamp": timestamp,
-                        "symbol": symbol,
-                        "status": "NO_TRADE",
-                        "reason": "No strategy setup qualified for scoring.",
-                        "decision": decision,
-                    })
+                    events.append({"timestamp": timestamp, "symbol": symbol, "status": "NO_TRADE", "reason": "No strategy setup qualified for scoring.", "decision": decision})
                     continue
-
                 if not candidate.get("qualified"):
-                    events.append({
-                        "timestamp": timestamp,
-                        "symbol": symbol,
-                        "status": "NO_TRADE",
-                        "reason": "Candidate failed confidence or risk qualification.",
-                        "candidate": candidate,
-                        "decision": decision,
-                    })
+                    events.append({"timestamp": timestamp, "symbol": symbol, "status": "NO_TRADE", "reason": "Candidate failed confidence or risk qualification.", "candidate": candidate, "decision": decision})
                     continue
 
                 risk = candidate.get("metadata", {}).get("risk", {})
                 quote = self.broker.quote(symbol)
                 entry = quote["ask"] if candidate["direction"] == "LONG" else quote["bid"]
-
                 result = self.execution.execute(
                     symbol=symbol,
                     decision=decision,
@@ -147,7 +134,6 @@ class AtlasMT5Monitor:
                     stop_loss=self._safe_float(candidate["stop_loss"]),
                     take_profit=self._safe_float(candidate["take_profit"]),
                 )
-
                 events.append({
                     "timestamp": timestamp,
                     "symbol": symbol,
@@ -161,34 +147,23 @@ class AtlasMT5Monitor:
                     "decision": decision,
                     "execution": result,
                 })
-
             except MT5ExecutionError as exc:
-                events.append({
-                    "timestamp": timestamp,
-                    "symbol": symbol,
-                    "status": "MT5_ERROR",
-                    "error": str(exc),
-                })
+                events.append({"timestamp": timestamp, "symbol": symbol, "status": "MT5_ERROR", "error": str(exc)})
             except Exception as exc:
-                events.append({
-                    "timestamp": timestamp,
-                    "symbol": symbol,
-                    "status": "ERROR",
-                    "error": str(exc),
-                })
-
+                events.append({"timestamp": timestamp, "symbol": symbol, "status": "ERROR", "error": str(exc)})
         return events
 
     def run_forever(self) -> None:
         self.running = True
         account = self.broker.connect()
+        self.discover_symbols()
         print("ATLAS MT5 monitor started")
         print(f"MODE: {'LIVE' if not self.broker.config.dry_run else 'DRY RUN'}")
         print(f"STRATEGY MODE: {self.strategy_mode}")
         print(f"ACCOUNT: {account['login']} / {account['server']}")
-        print(f"SYMBOLS: {self.symbols}")
+        print(f"AUTO DISCOVERY: {self.auto_discover}")
+        print(f"SYMBOLS ({len(self.symbols)}): {self.symbols}")
         print(f"TIMEFRAME: {self.interval}")
-
         try:
             while self.running:
                 for event in self.cycle():
