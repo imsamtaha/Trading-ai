@@ -4,7 +4,11 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-import MetaTrader5 as mt5
+try:
+    import MetaTrader5 as mt5
+except ImportError:  # pragma: no cover - Windows worker dependency
+    mt5 = None
+
 from fastapi import APIRouter, HTTPException
 
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
@@ -105,6 +109,8 @@ def atlas_dashboard_state() -> dict[str, Any]:
     broker = MT5Broker(MT5Config.from_env())
     try:
         account = broker.connect()
+        if mt5 is None:
+            raise MT5ExecutionError("MetaTrader5 package unavailable on this host.")
         raw_account = mt5.account_info()
         if raw_account is None:
             raise MT5ExecutionError("MT5 account metadata unavailable.")
