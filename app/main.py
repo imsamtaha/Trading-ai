@@ -7,36 +7,32 @@ from app.analysis.structure import analyze_structure
 from app.strategies.signal import generate_signal
 from app.strategies.trade import create_trade_candidate
 from app.ai.analyst import analyze_market
-from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.mt5_state import MT5CockpitAdapter
-
-from app.database.repository import (
-    get_account,
-    get_trades,
-)
-
+from app.database.repository import get_account, get_trades
 from app.performance.metrics import calculate_metrics
 from app.dashboard import router as dashboard_router
+from app.subscription import router as subscription_router
 
 
 app = FastAPI(
     title="ATLAS Trading AI",
     description="Multi-asset AI trading analysis, decision support, and MT5 execution gateway",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 app.include_router(dashboard_router)
+app.include_router(subscription_router)
 
 
 @app.middleware("http")
 async def dashboard_only_guard(request: Request, call_next):
-    """Optional public-dashboard safety mode.
+    """Public-view safety mode.
 
-    When ATLAS_DASHBOARD_ONLY=true, mutating/execution endpoints remain blocked.
-    The read-only cockpit snapshot is allowed so the dashboard can observe the
-    MT5 demo connection without enabling order execution.
+    With ATLAS_DASHBOARD_ONLY=true, only the subscriber landing page, live
+    read-only dashboard telemetry, health, and documentation routes are public.
+    Execution/mutation endpoints remain blocked at the FastAPI origin.
     """
     import os
 
@@ -46,17 +42,15 @@ async def dashboard_only_guard(request: Request, call_next):
         allowed = path in {
             "/",
             "/health",
+            "/subscribe",
             "/dashboard",
             "/dashboard/",
-            "/dashboard/state",
+            "/dashboard/atlas",
             "/mt5/cockpit-state",
             "/docs",
             "/openapi.json",
         }
         if not allowed:
-            # Do not raise HTTPException from middleware: it can bypass FastAPI's
-            # exception handler and surface as an HTTP 500. Return the response
-            # directly instead.
             return JSONResponse(
                 status_code=403,
                 content={"detail": "Dashboard-only mode is enabled."},
@@ -73,14 +67,10 @@ def _mt5_service() -> AtlasExecutionService:
         allow_buy=True,
         allow_sell=True,
     )
-    return AtlasExecutionService(
-        broker=MT5Broker(config),
-        policy=policy,
-    )
+    return AtlasExecutionService(broker=MT5Broker(config), policy=policy)
 
 
 def _redact_cockpit_state(state: dict) -> dict:
-    """Mask the account identifier on the read-only HTTP endpoint."""
     account_id = str(state.get("account", {}).get("id", ""))
     masked = f"***{account_id[-4:]}" if account_id else "***"
     state["account"]["id"] = masked
@@ -94,19 +84,16 @@ def root():
         "system": "ATLAS",
         "status": "online",
         "mode": "live_gateway_disabled_by_default",
-        "version": "1.0.0",
+        "version": "1.1.0",
+        "subscribe": "/subscribe",
         "dashboard": "/dashboard",
-        "mt5_status": "/mt5/status",
         "mt5_cockpit": "/mt5/cockpit-state",
     }
 
 
 @app.get("/health")
 def health():
-    return {
-        "status": "healthy",
-        "service": "atlas-trading-api",
-    }
+    return {"status": "healthy", "service": "atlas-trading-api"}
 
 
 @app.get("/market/{symbol}")
@@ -136,7 +123,6 @@ def analysis(symbol: str, interval: str = "1h", limit: int = 100):
         structure = analyze_structure(candles_data)
         signal = generate_signal(technical, structure)
         trade = create_trade_candidate(signal, technical)
-
         ai_analysis = analyze_market(
             symbol=market_data["symbol"],
             interval=market_data["interval"],
@@ -145,7 +131,6 @@ def analysis(symbol: str, interval: str = "1h", limit: int = 100):
             signal=signal,
             trade=trade,
         )
-
         return {
             "symbol": market_data["symbol"],
             "interval": market_data["interval"],
@@ -184,7 +169,6 @@ def mt5_status():
 
 @app.get("/mt5/cockpit-state")
 def mt5_cockpit_state():
-    """Read-only MT5 snapshot. This endpoint cannot place an order."""
     adapter = MT5CockpitAdapter()
     try:
         state = adapter.snapshot()
@@ -200,9 +184,7 @@ def mt5_positions():
     broker = MT5Broker(MT5Config.from_env())
     try:
         broker.connect()
-        return {
-            "positions": broker.positions(),
-        }
+        return {"positions": broker.positions()}
     except MT5ExecutionError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     finally:
@@ -229,11 +211,9 @@ def mt5_test_order(
     stop_loss: float,
     take_profit: float,
 ):
-    """Submit through the ATLAS gateway.
+    """Route an order only through the private ATLAS execution gate.
 
-    Default configuration is dry-run. A real order is impossible unless
-    ATLAS_LIVE_TRADING=true and the MT5 terminal/account also permits trading.
-    Dashboard-only mode blocks this endpoint entirely.
+    The default is dry-run; dashboard-only mode blocks this endpoint.
     """
     service = _mt5_service()
     try:
@@ -261,13 +241,8 @@ def performance(account_id: int):
     account = get_account(account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Paper account not found.")
-
     trades = get_trades(account_id)
-    metrics = calculate_metrics(
-        trades,
-        initial_balance=account["initial_balance"],
-    )
-
+    metrics = calculate_metrics(trades, initial_balance=account["initial_balance"])
     return {
         "account_id": account_id,
         "account": account,
