@@ -11,6 +11,7 @@ except ImportError:  # pragma: no cover - Windows worker dependency
 
 from fastapi import APIRouter, HTTPException
 
+from app.dashboard.market_briefing import get_market_briefing
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
@@ -88,7 +89,7 @@ def _monitor_symbol(
         tf: analyze_timeframe(broker, symbol, mt5_tf, count)
         for tf, mt5_tf in timeframes.items()
     }
-    decision = build_decision(results)
+    decision, _, _, _ = build_decision(results)
     quality = quality_engine.evaluate(decision, decision.get("mtf_alignment", "UNKNOWN"))
     quote = broker.quote(symbol)
     price = quote.get("last") or quote.get("bid") or quote.get("ask") or 0.0
@@ -119,6 +120,11 @@ def _monitor_symbol(
 def financial_market_state() -> dict[str, Any]:
     """Server-side Wall Street board and financial-news snapshot."""
     return _market_intelligence.snapshot()
+
+
+@router.get("/market-briefing")
+def market_briefing() -> dict[str, Any]:
+    return get_market_briefing()
 
 
 @router.get("/atlas")
