@@ -266,7 +266,7 @@ class StripeBilling:
             from stripe import StripeClient
         except ImportError as exc:
             raise BillingConfigurationError("Install the Stripe Python SDK to enable billing.") from exc
-        return StripeClient(self.secret_key)
+        return StripeClient(self.secret_key, stripe_version=STRIPE_API_VERSION)
 
     def _supabase_headers(self, preference: str) -> dict[str, str]:
         return {
