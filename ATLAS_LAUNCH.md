@@ -1,16 +1,54 @@
 # ATLAS Subscriber Launch
 
-This launch path exposes the subscriber-facing ATLAS dashboard while keeping live order execution disabled.
+ATLAS is launched as a read-only intelligence dashboard by default. Live MT5
+execution remains disabled until it separately passes documented risk gates.
 
 ## Safety defaults
 
 - `ATLAS_LIVE_TRADING=false`
 - `ATLAS_DASHBOARD_ONLY=true`
-- Public access is read-only.
-- MT5 credentials stay private on the Windows worker and must never be committed.
-- The bundled Stripe URL is sandbox/test mode only.
+- The public dashboard contains no MT5 credentials or order controls.
+- The Wall Street board labels provider data as delayed until a data licence
+  explicitly grants real-time display rights.
+- Billing webhooks are signature-verified and auditable in Supabase.
 
-## One-command Windows launch
+## Commercial plans
+
+| Plan | Price | Trial | Includes |
+| --- | ---: | ---: | --- |
+| ATLAS Reader | $49/month | 3 days | Read-only MT5 cockpit, Wall Street board, financial news, demo reports |
+| ATLAS Trader | $99/month | 3 days | Reader plus demo MT5 connector, advanced risk reports, live-execution eligibility after approval |
+
+The payment provider hosts Checkout. ATLAS never receives card data.
+
+## Required production settings
+
+Set these only in the private deployment environment:
+
+```text
+ATLAS_FINNHUB_API_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+ATLAS_STRIPE_PRICE_READER=
+ATLAS_STRIPE_PRICE_TRADER=
+ATLAS_APP_URL=https://your-domain.example
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Create one Stripe Product and recurring monthly Price for each plan. The
+application creates subscription Checkout Sessions with a three-day trial and
+does not force payment method types. Configure the Stripe webhook endpoint as:
+
+```text
+https://your-domain.example/billing/stripe/webhook
+```
+
+Do not enable automatic tax until the business has the required tax
+registrations. Do not activate Stripe live mode until the legal business entity
+is eligible for the selected payment provider.
+
+## Windows demo launch
 
 From the repository root:
 
@@ -18,66 +56,18 @@ From the repository root:
 powershell -ExecutionPolicy Bypass -File .\scripts\start_atlas_public.ps1
 ```
 
-The launcher:
-
-1. verifies `.venv\Scripts\python.exe` exists,
-2. verifies `cloudflared` is installed,
-3. forces live trading off,
-4. starts FastAPI on `127.0.0.1:8000`,
-5. verifies `/health`,
-6. configures the ATLAS Stripe sandbox subscription checkout,
-7. starts a Cloudflare Quick Tunnel.
-
-Cloudflare will print a URL similar to:
+After the local health check succeeds, validate:
 
 ```text
-https://example.trycloudflare.com
+/subscribe
+/dashboard
+/dashboard/markets
+/mt5/cockpit-state
 ```
 
-Use:
+## Execution readiness
 
-```text
-https://example.trycloudflare.com/subscribe
-https://example.trycloudflare.com/dashboard
-```
-
-## Install Cloudflared
-
-If the launcher reports that `cloudflared` is missing, run:
-
-```powershell
-winget install --id Cloudflare.cloudflared
-```
-
-Close and reopen PowerShell, then verify:
-
-```powershell
-cloudflared --version
-```
-
-## Stripe sandbox
-
-Current sandbox configuration:
-
-- Product: `ATLAS Subscriber Access`
-- Price: `$19/month`
-- Trial: `7 days`
-- Checkout mode: Stripe-hosted subscription checkout
-- Environment: sandbox/test
-
-The sandbox Payment Link is configured through `ATLAS_CHECKOUT_URL`. Test mode cannot collect live funds.
-
-## Production conversion
-
-Do not switch payments or trading execution to live at the same time.
-
-Recommended sequence:
-
-1. validate `/subscribe`, Checkout, and `/dashboard` end-to-end in sandbox,
-2. replace the Quick Tunnel with a named Cloudflare Tunnel and stable domain,
-3. protect `/dashboard*` with Cloudflare Access,
-4. create a live Stripe product/price/payment link only when commercial settings are approved,
-5. replace `ATLAS_CHECKOUT_URL` with the live Payment Link,
-6. keep `ATLAS_LIVE_TRADING=false` until the private execution system has separately passed broker/risk validation.
-
-Subscriber access remains observational and must not expose broker credentials or execution endpoints.
+Twenty to thirty demo executions validate wiring only. Keep
+`ATLAS_LIVE_TRADING=false` until the risk review confirms order reconciliation,
+daily-loss stops, a working kill switch, and a sufficiently broad forward-test
+record across different market conditions.

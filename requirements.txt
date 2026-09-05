@@ -6,4 +6,5 @@ python-dotenv
 openai
 PyYAML
 pytest
+stripe==15.4.0
 MetaTrader5; sys_platform == "win32"

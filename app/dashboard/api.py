@@ -14,10 +14,11 @@ from fastapi import APIRouter, HTTPException
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
+from app.dashboard.market_intelligence import MarketIntelligenceFeed
 from app.strategy.universe import build_universe
-from scripts.atlas_mt5_cycle import TIMEFRAMES, analyze_timeframe, build_decision
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+_market_intelligence = MarketIntelligenceFeed()
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -64,6 +65,15 @@ def _public_account(account: dict[str, Any], raw_account: Any) -> dict[str, Any]
     }
 
 
+def _analysis_tools() -> tuple[dict[str, int], Any, Any]:
+    """Load Windows-only MT5 analysis helpers only when the cockpit needs them."""
+    try:
+        from scripts.atlas_mt5_cycle import TIMEFRAMES, analyze_timeframe, build_decision
+    except ImportError as exc:  # Linux dashboard tests have no MetaTrader5 package.
+        raise MT5ExecutionError("MT5 analysis helpers are unavailable on this host.") from exc
+    return TIMEFRAMES, analyze_timeframe, build_decision
+
+
 def _monitor_symbol(
     broker: MT5Broker,
     symbol: str,
@@ -73,9 +83,10 @@ def _monitor_symbol(
     count: int = 120,
 ) -> dict[str, Any]:
     quality_engine = SignalQualityEngine()
+    timeframes, analyze_timeframe, build_decision = _analysis_tools()
     results = {
         tf: analyze_timeframe(broker, symbol, mt5_tf, count)
-        for tf, mt5_tf in TIMEFRAMES.items()
+        for tf, mt5_tf in timeframes.items()
     }
     decision = build_decision(results)
     quality = quality_engine.evaluate(decision, decision.get("mtf_alignment", "UNKNOWN"))
@@ -102,6 +113,12 @@ def _monitor_symbol(
             for tf, item in results.items()
         },
     }
+
+
+@router.get("/markets")
+def financial_market_state() -> dict[str, Any]:
+    """Server-side Wall Street board and financial-news snapshot."""
+    return _market_intelligence.snapshot()
 
 
 @router.get("/atlas")
@@ -164,6 +181,7 @@ def atlas_dashboard_state() -> dict[str, Any]:
         except SupabaseJournalError:
             journal_status = "NOT_CONFIGURED"
 
+        financial_market = _market_intelligence.snapshot()
         account_type = _account_type(raw_account)
         execution_enabled = (
             _env_bool("ATLAS_LIVE_TRADING", False)
@@ -181,11 +199,13 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "floating_position_pnl": round(sum(float(p.get("profit", 0.0) or 0.0) for p in positions), 2),
             "alerts": alerts,
             "symbol_errors": symbol_errors,
+            "financial_market": financial_market,
             "services": {
                 "mt5": "ONLINE",
                 "supabase": journal_status,
                 "execution_gate": "ENABLED" if execution_enabled else "DISABLED",
                 "subscriber_access": "READ_ONLY",
+                "financial_markets": financial_market["status"],
             },
             "disclaimer": "Read-only account and strategy telemetry. Past or current results do not guarantee future performance.",
         }

@@ -19,7 +19,7 @@ from app.subscription import router as subscription_router
 app = FastAPI(
     title="ATLAS Trading AI",
     description="Multi-asset AI trading analysis, decision support, and MT5 execution gateway",
-    version="1.1.0",
+    version="1.2.0",
 )
 
 app.include_router(dashboard_router)
@@ -39,13 +39,14 @@ async def dashboard_only_guard(request: Request, call_next):
     dashboard_only = os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true"
     if dashboard_only:
         path = request.url.path
-        allowed = path in {
+        allowed = path.startswith("/billing/") or path in {
             "/",
             "/health",
             "/subscribe",
             "/dashboard",
             "/dashboard/",
             "/dashboard/atlas",
+            "/dashboard/markets",
             "/mt5/cockpit-state",
             "/docs",
             "/openapi.json",
@@ -84,7 +85,7 @@ def root():
         "system": "ATLAS",
         "status": "online",
         "mode": "live_gateway_disabled_by_default",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "subscribe": "/subscribe",
         "dashboard": "/dashboard",
         "mt5_cockpit": "/mt5/cockpit-state",
