@@ -10,6 +10,7 @@ from app.billing.stripe_checkout import (
     BillingConfigurationError,
     BillingProviderError,
     StripeBilling,
+    public_plans,
 )
 
 LOG = logging.getLogger("atlas.billing")
@@ -20,11 +21,31 @@ def _app_url(request: Request) -> str:
     return os.getenv("ATLAS_APP_URL", "").strip().rstrip("/") or str(request.base_url).rstrip("/")
 
 
+@router.get("/plans")
+def plans() -> dict:
+    return {
+        "plans": [
+            {
+                "id": plan.id,
+                "name": plan.name,
+                "monthly_price": plan.monthly_price,
+                "trial_days": plan.trial_days,
+                "features": list(plan.features),
+            }
+            for plan in public_plans()
+        ]
+    }
+
+
 @router.post("/checkout/{plan_id}")
 def checkout(plan_id: str, request: Request) -> dict[str, str]:
     try:
         session = StripeBilling(app_url=_app_url(request)).create_checkout_session(plan_id)
-        return {"checkout_url": session["url"], "plan": session["plan_id"]}
+        return {
+            "url": session["url"],
+            "checkout_url": session["url"],
+            "plan": session["plan_id"],
+        }
     except BillingConfigurationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except BillingProviderError as exc:
@@ -33,6 +54,7 @@ def checkout(plan_id: str, request: Request) -> dict[str, str]:
 
 
 @router.post("/webhook")
+@router.post("/stripe/webhook")
 async def stripe_webhook(request: Request) -> dict[str, bool]:
     try:
         billing = StripeBilling()
