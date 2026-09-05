@@ -11,7 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import MetaTrader5 as mt5
+try:
+    import MetaTrader5 as mt5
+except ImportError:  # Allows pure decision logic and CI to run on non-Windows hosts.
+    mt5 = None
+
 import requests
 
 from app.analysis.structure import analyze_structure
@@ -23,7 +27,7 @@ from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngin
 from app.intelligence.regime.engine import MarketRegimeEngine, MarketState
 from app.strategies.signal import generate_signal
 
-TIMEFRAMES = {
+TIMEFRAMES = {} if mt5 is None else {
     "5m": mt5.TIMEFRAME_M5,
     "15m": mt5.TIMEFRAME_M15,
     "30m": mt5.TIMEFRAME_M30,
@@ -165,6 +169,10 @@ def build_decision(results: dict[str, dict]) -> tuple[dict, dict, dict, dict]:
 
 
 def main() -> int:
+    if mt5 is None:
+        print(json.dumps({"status": "ERROR", "error": "MetaTrader5 is available only on the Windows MT5 worker."}))
+        return 1
+
     args = parse_args()
     broker = MT5Broker(MT5Config.from_env())
     try:
