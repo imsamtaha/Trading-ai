@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from app.website import router as website_router
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -26,6 +27,7 @@ app = FastAPI(
 app.include_router(dashboard_router)
 app.include_router(subscription_router)
 app.include_router(billing_router)
+app.include_router(website_router)
 
 
 @app.middleware("http")
@@ -44,6 +46,7 @@ async def dashboard_only_guard(request: Request, call_next):
         allowed = path.startswith("/billing/") or path in {
             "/",
             "/health",
+            "/api",
             "/subscribe",
             "/dashboard",
             "/dashboard/",
@@ -53,7 +56,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/mt5/cockpit-state",
             "/docs",
             "/openapi.json",
-        } or path.startswith("/billing/")
+        } or path.startswith("/assets/")
         if not allowed:
             return JSONResponse(
                 status_code=403,
@@ -82,7 +85,7 @@ def _redact_cockpit_state(state: dict) -> dict:
     return state
 
 
-@app.get("/")
+@app.get("/api")
 def root():
     return {
         "system": "ATLAS",

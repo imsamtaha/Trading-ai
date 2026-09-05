@@ -9,3 +9,9 @@ node_modules/
 *.sqlite
 *.sqlite3
 .DS_Store
+out/
+dist/
+*.tar.gz
+.vercel/
+.netlify/
+.pytest_cache/

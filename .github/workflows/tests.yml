@@ -26,3 +26,14 @@ jobs:
           ATLAS_LIVE_TRADING: 'false'
           ATLAS_DASHBOARD_ONLY: 'true'
         run: python -m pytest -q
+
+      - name: Set up Node for public demo validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate public website
+        run: |
+          node --check web/assets/site.js
+          node --test tests/test_demo_model.cjs
+          python scripts/build_website.py
