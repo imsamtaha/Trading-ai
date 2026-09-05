@@ -50,18 +50,18 @@ PLANS: dict[str, SubscriptionPlan] = {
         ),
         price_env="ATLAS_STRIPE_PRICE_READER",
     ),
-    "trader": SubscriptionPlan(
-        id="trader",
-        name="ATLAS Trader",
+    "pro": SubscriptionPlan(
+        id="pro",
+        name="ATLAS Pro Reader",
         monthly_price=99,
         trial_days=3,
         features=(
             "Everything in Reader",
-            "Demo MT5 connector",
+            "Expanded multi-asset opportunity matrix",
             "Advanced risk reports",
-            "Live execution eligibility after risk approval",
+            "Priority subscriber briefings",
         ),
-        price_env="ATLAS_STRIPE_PRICE_TRADER",
+        price_env="ATLAS_STRIPE_PRICE_PRO",
     ),
 }
 
@@ -82,7 +82,7 @@ class StripeBilling:
         supabase_url: str | None = None,
         supabase_service_role_key: str | None = None,
     ) -> None:
-        self.secret_key = (secret_key if secret_key is not None else os.getenv("STRIPE_SECRET_KEY", "")).strip()
+        self.secret_key = (secret_key if secret_key is not None else (os.getenv("STRIPE_RESTRICTED_KEY", "") or os.getenv("STRIPE_SECRET_KEY", ""))).strip()
         self.webhook_secret = (
             webhook_secret if webhook_secret is not None else os.getenv("STRIPE_WEBHOOK_SECRET", "")
         ).strip()
@@ -117,7 +117,7 @@ class StripeBilling:
         price_id = os.getenv(plan.price_env, "").strip()
         if not self.secret_key or not self.app_url or not price_id:
             raise BillingConfigurationError(
-                f"Billing for {plan.name} is not configured. Set STRIPE_SECRET_KEY, "
+                f"Billing for {plan.name} is not configured. Set STRIPE_RESTRICTED_KEY, "
                 f"ATLAS_APP_URL, and {plan.price_env}."
             )
 
@@ -261,12 +261,12 @@ class StripeBilling:
 
     def _client(self) -> Any:
         if not self.secret_key:
-            raise BillingConfigurationError("STRIPE_SECRET_KEY is required.")
+            raise BillingConfigurationError("STRIPE_RESTRICTED_KEY is required.")
         try:
             from stripe import StripeClient
         except ImportError as exc:
             raise BillingConfigurationError("Install the Stripe Python SDK to enable billing.") from exc
-        return StripeClient(self.secret_key, stripe_version=STRIPE_API_VERSION)
+        return StripeClient(self.secret_key)
 
     def _supabase_headers(self, preference: str) -> dict[str, str]:
         return {
