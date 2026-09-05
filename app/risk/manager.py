@@ -28,10 +28,10 @@ def calculate_risk(
             "reason": "Account balance must be greater than zero.",
         }
 
-    if risk_percent <= 0 or risk_percent > 5:
+    if risk_percent <= 0 or risk_percent > 2:
         return {
             "approved": False,
-            "reason": "Risk percentage must be between 0 and 5.",
+            "reason": "Risk percentage must be between 0 and 2.",
         }
 
     if direction == "LONG":
