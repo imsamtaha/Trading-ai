@@ -14,10 +14,12 @@ from fastapi import APIRouter, HTTPException
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
+from app.dashboard.market_intelligence import MarketIntelligenceFeed
 from app.strategy.universe import build_universe
 from scripts.atlas_mt5_cycle import TIMEFRAMES, analyze_timeframe, build_decision
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+_market_intelligence = MarketIntelligenceFeed()
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -104,6 +106,12 @@ def _monitor_symbol(
     }
 
 
+@router.get("/markets")
+def financial_market_state() -> dict[str, Any]:
+    """Server-side Wall Street board and financial-news snapshot."""
+    return _market_intelligence.snapshot()
+
+
 @router.get("/atlas")
 def atlas_dashboard_state() -> dict[str, Any]:
     broker = MT5Broker(MT5Config.from_env())
@@ -164,6 +172,7 @@ def atlas_dashboard_state() -> dict[str, Any]:
         except SupabaseJournalError:
             journal_status = "NOT_CONFIGURED"
 
+        financial_market = _market_intelligence.snapshot()
         account_type = _account_type(raw_account)
         execution_enabled = (
             _env_bool("ATLAS_LIVE_TRADING", False)
@@ -181,11 +190,13 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "floating_position_pnl": round(sum(float(p.get("profit", 0.0) or 0.0) for p in positions), 2),
             "alerts": alerts,
             "symbol_errors": symbol_errors,
+            "financial_market": financial_market,
             "services": {
                 "mt5": "ONLINE",
                 "supabase": journal_status,
                 "execution_gate": "ENABLED" if execution_enabled else "DISABLED",
                 "subscriber_access": "READ_ONLY",
+                "financial_markets": financial_market["status"],
             },
             "disclaimer": "Read-only account and strategy telemetry. Past or current results do not guarantee future performance.",
         }
