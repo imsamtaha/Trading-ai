@@ -16,7 +16,6 @@ from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
 from app.dashboard.market_intelligence import MarketIntelligenceFeed
 from app.strategy.universe import build_universe
-from scripts.atlas_mt5_cycle import TIMEFRAMES, analyze_timeframe, build_decision
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 _market_intelligence = MarketIntelligenceFeed()
@@ -66,6 +65,15 @@ def _public_account(account: dict[str, Any], raw_account: Any) -> dict[str, Any]
     }
 
 
+def _analysis_tools() -> tuple[dict[str, int], Any, Any]:
+    """Load Windows-only MT5 analysis helpers only when the cockpit needs them."""
+    try:
+        from scripts.atlas_mt5_cycle import TIMEFRAMES, analyze_timeframe, build_decision
+    except ImportError as exc:  # Linux dashboard tests have no MetaTrader5 package.
+        raise MT5ExecutionError("MT5 analysis helpers are unavailable on this host.") from exc
+    return TIMEFRAMES, analyze_timeframe, build_decision
+
+
 def _monitor_symbol(
     broker: MT5Broker,
     symbol: str,
@@ -75,9 +83,10 @@ def _monitor_symbol(
     count: int = 120,
 ) -> dict[str, Any]:
     quality_engine = SignalQualityEngine()
+    timeframes, analyze_timeframe, build_decision = _analysis_tools()
     results = {
         tf: analyze_timeframe(broker, symbol, mt5_tf, count)
-        for tf, mt5_tf in TIMEFRAMES.items()
+        for tf, mt5_tf in timeframes.items()
     }
     decision = build_decision(results)
     quality = quality_engine.evaluate(decision, decision.get("mtf_alignment", "UNKNOWN"))
