@@ -14,6 +14,7 @@ from app.database.repository import get_account, get_trades
 from app.performance.metrics import calculate_metrics
 from app.dashboard import router as dashboard_router
 from app.subscription import router as subscription_router
+from app.billing import router as billing_router
 
 
 app = FastAPI(
@@ -24,6 +25,7 @@ app = FastAPI(
 
 app.include_router(dashboard_router)
 app.include_router(subscription_router)
+app.include_router(billing_router)
 
 
 @app.middleware("http")
@@ -46,11 +48,12 @@ async def dashboard_only_guard(request: Request, call_next):
             "/dashboard",
             "/dashboard/",
             "/dashboard/atlas",
+            "/dashboard/market-briefing",
             "/dashboard/markets",
             "/mt5/cockpit-state",
             "/docs",
             "/openapi.json",
-        }
+        } or path.startswith("/billing/")
         if not allowed:
             return JSONResponse(
                 status_code=403,
@@ -89,6 +92,7 @@ def root():
         "subscribe": "/subscribe",
         "dashboard": "/dashboard",
         "mt5_cockpit": "/mt5/cockpit-state",
+        "market_briefing": "/dashboard/market-briefing",
     }
 
 
