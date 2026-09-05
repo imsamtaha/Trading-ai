@@ -29,7 +29,7 @@ def main() -> int:
                 timeframe: analyze_timeframe(broker, args.symbol, mt5_timeframe, args.count)
                 for timeframe, mt5_timeframe in TIMEFRAMES.items()
             }
-            decision = build_decision(results)
+            decision, _, _, _ = build_decision(results)
             record = journal.append({
                 "mode": "DRY_RUN" if broker.config.dry_run else "LIVE_GATEWAY",
                 "symbol": args.symbol,
