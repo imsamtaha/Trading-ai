@@ -368,6 +368,17 @@ class AtlasMT5Monitor:
                 events.append(event)
         return events
 
+    def run_once(self) -> list[dict[str, Any]]:
+        """Run one connected demo cycle and return its audit events."""
+        account = self.broker.connect()
+        self.account_equity = float(account["equity"])
+        self.heartbeat.publish_connection(account, "connected")
+        self.discover_symbols()
+        try:
+            return self.cycle()
+        finally:
+            self.broker.disconnect()
+
     def run_forever(self) -> None:
         self.running = True
         account = self.broker.connect()
