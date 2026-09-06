@@ -90,17 +90,17 @@ class TestDecisionEngine(unittest.TestCase):
 
     def test_buy_sell_wait_directly(self):
         self.assertEqual(
-            self.engine.determine_action(0.445, 70, 0.18, 0.15),
+            self.engine.determine_action(72.25, 72.25, 0.18, 0.15, "LOW"),
             "BUY",
         )
 
         self.assertEqual(
-            self.engine.determine_action(-0.445, 70, 0.18, 0.15),
+            self.engine.determine_action(27.75, 72.25, 0.18, 0.15, "LOW"),
             "SELL",
         )
 
         self.assertEqual(
-            self.engine.determine_action(0.05, 70, 0.18, 0.15),
+            self.engine.determine_action(50.0, 70, 0.18, 0.15, "LOW"),
             "WAIT",
         )
 

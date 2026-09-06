@@ -28,7 +28,6 @@ def calculate_risk(
             "reason": "Account balance must be greater than zero.",
         }
 
-    # ATLAS hard risk ceiling: never allow more than 2% account risk per trade.
     if risk_percent <= 0 or risk_percent > 2:
         return {
             "approved": False,
@@ -76,19 +75,25 @@ def calculate_risk(
         }
 
     risk_amount = account_balance * (risk_percent / 100)
+
     position_size = risk_amount / risk_per_unit
+
     position_value = position_size * entry
 
-    max_position_value = account_balance * max_position_percent / 100
+    max_position_value = (
+        account_balance * max_position_percent / 100
+    )
 
     if position_value > max_position_value:
         position_size = max_position_value / entry
         position_value = max_position_value
+
         actual_risk = position_size * risk_per_unit
     else:
         actual_risk = risk_amount
 
     risk_reward = reward_per_unit / risk_per_unit
+
     approved = risk_reward >= 1.5
 
     if not approved:

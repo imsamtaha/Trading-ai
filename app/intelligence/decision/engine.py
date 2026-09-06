@@ -1,377 +1,206 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class DecisionInput:
+    """Evidence supplied to the deterministic ATLAS decision engine."""
+
     technical_score: float
     macro_score: float
     news_score: float
     geopolitical_score: float
     cross_asset_score: float
     reaction_score: float
-
     regime: str
     conflict_score: float
-
     volatility_score: float
     event_risk_score: float
 
 
 class UnifiedDecisionEngine:
+    """ATLAS v2 deterministic decision matrix.
 
-    WEIGHTS = {
-        "technical": 0.20,
-        "macro": 0.15,
-        "news": 0.10,
-        "geopolitical": 0.10,
-        "cross_asset": 0.15,
-        "reaction": 0.10,
-        "regime": 0.10,
-        "risk": 0.10,
+    Directional evidence is normalized to [-1, 1]. Risk inputs are normalized
+    to [0, 1]. The engine never submits orders.
+    """
+
+    CONTEXT_WEIGHTS = {
+        "macro": 0.35,
+        "news": 0.20,
+        "geopolitical": 0.20,
+        "cross_asset": 0.25,
     }
 
-    def clamp(self, value, low=-1.0, high=1.0):
-        return max(
-            low,
-            min(high, float(value)),
-        )
+    ACTION_THRESHOLDS = {
+        "buy_score": 70.0,
+        "sell_score": 30.0,
+        "legacy_buy_directional": 0.40,
+        "legacy_sell_directional": -0.40,
+        "min_confidence": 55.0,
+        "max_conflict": 0.45,
+        "max_event_risk": 0.80,
+    }
 
-    def regime_score(self, regime):
+    def clamp(self, value: float, low: float = -1.0, high: float = 1.0) -> float:
+        return max(low, min(high, float(value)))
 
-        mapping = {
+    def unit(self, value: float) -> float:
+        return max(0.0, min(1.0, float(value)))
+
+    def regime_score(self, regime: str) -> float:
+        return {
             "BULL_TREND": 0.70,
+            "TRENDING_BULL": 0.70,
             "BEAR_TREND": -0.70,
+            "TRENDING_BEAR": -0.70,
             "RISK_ON": 0.40,
             "RISK_OFF": -0.40,
-            "SIDEWAYS": 0.0,
-            "TRANSITION": 0.0,
-            "HIGH_VOLATILITY": 0.0,
-            "LOW_VOLATILITY": 0.0,
-            "EVENT_DRIVEN": 0.0,
-        }
+            "SIDEWAYS": 0.00,
+            "RANGE": 0.00,
+            "TRANSITION": 0.00,
+            "VOLATILITY_EXPANSION": 0.00,
+            "VOLATILITY_COMPRESSION": 0.00,
+            "HIGH_VOLATILITY": 0.00,
+            "LOW_VOLATILITY": 0.00,
+            "EVENT_DRIVEN": 0.00,
+        }.get(str(regime).upper(), 0.00)
 
-        return mapping.get(
-            regime,
-            0.0,
+    def calculate_context_score(self, data: DecisionInput) -> float:
+        values = {
+            "macro": self.clamp(data.macro_score),
+            "news": self.clamp(data.news_score),
+            "geopolitical": self.clamp(data.geopolitical_score),
+            "cross_asset": self.clamp(data.cross_asset_score),
+        }
+        return self.clamp(
+            sum(values[name] * weight for name, weight in self.CONTEXT_WEIGHTS.items())
         )
 
-    def calculate_directional_score(
-        self,
-        data,
-    ):
+    def calculate_risk_context(self, data: DecisionInput) -> float:
+        return self.clamp((data.macro_score + data.cross_asset_score) / 2.0)
 
-        values = {
-            "technical":
-                self.clamp(
-                    data.technical_score
-                ),
+    def calculate_directional_score(self, data: DecisionInput) -> float:
+        technical = self.clamp(data.technical_score)
+        context = self.calculate_context_score(data)
+        reaction = self.clamp(data.reaction_score)
+        regime = self.regime_score(data.regime)
 
-            "macro":
-                self.clamp(
-                    data.macro_score
-                ),
-
-            "news":
-                self.clamp(
-                    data.news_score
-                ),
-
-            "geopolitical":
-                self.clamp(
-                    data.geopolitical_score
-                ),
-
-            "cross_asset":
-                self.clamp(
-                    data.cross_asset_score
-                ),
-
-            "reaction":
-                self.clamp(
-                    data.reaction_score
-                ),
-
-            "regime":
-                self.regime_score(
-                    data.regime
-                ),
-
-            "risk":
-                self.clamp(
-                    (
-                        data.macro_score
-                        + data.cross_asset_score
-                    ) / 2
-                ),
-        }
-
-        score = 0.0
-
-        for name, weight in self.WEIGHTS.items():
-
-            score += (
-                values[name]
-                * weight
-            )
-
+        score = (
+            technical * 0.55
+            + context * 0.20
+            + reaction * 0.10
+            + regime * 0.15
+        )
         return self.clamp(score)
 
-    def calculate_conflict_penalty(
-        self,
-        conflict_score,
-    ):
+    def calculate_conflict_penalty(self, conflict_score: float) -> float:
+        return self.unit(conflict_score) * 0.35
 
-        conflict_score = max(
-            0.0,
-            min(
-                1.0,
-                float(conflict_score),
-            ),
-        )
+    def calculate_event_penalty(self, event_risk_score: float) -> float:
+        return self.unit(event_risk_score) * 0.25
 
-        return conflict_score * 0.35
-
-    def calculate_event_penalty(
-        self,
-        event_risk_score,
-    ):
-
-        event_risk_score = max(
-            0.0,
-            min(
-                1.0,
-                float(event_risk_score),
-            ),
-        )
-
-        return event_risk_score * 0.25
-
-    def calculate_volatility_penalty(
-        self,
-        volatility_score,
-    ):
-
-        volatility_score = max(
-            0.0,
-            min(
-                1.0,
-                float(volatility_score),
-            ),
-        )
-
-        return volatility_score * 0.20
+    def calculate_volatility_penalty(self, volatility_score: float) -> float:
+        return self.unit(volatility_score) * 0.20
 
     def calculate_confidence(
         self,
-        directional_score,
-        conflict_score,
-        event_risk_score,
-        volatility_score,
-    ):
+        directional_score: float,
+        conflict_score: float,
+        event_risk_score: float,
+        volatility_score: float,
+    ) -> float:
+        confidence = abs(directional_score) * 100.0
+        confidence -= self.calculate_conflict_penalty(conflict_score) * 100.0
+        confidence -= self.calculate_event_penalty(event_risk_score) * 100.0
+        confidence -= self.calculate_volatility_penalty(volatility_score) * 100.0
+        return round(max(0.0, min(100.0, confidence)), 2)
 
-        directional_strength = abs(
-            directional_score
+    def risk_level(
+        self,
+        conflict_score: float,
+        event_risk_score: float,
+        volatility_score: float,
+    ) -> str:
+        risk = (
+            self.unit(conflict_score) * 0.40
+            + self.unit(event_risk_score) * 0.35
+            + self.unit(volatility_score) * 0.25
         )
-
-        confidence = (
-            directional_strength
-            * 100
-        )
-
-        confidence -= (
-            self.calculate_conflict_penalty(
-                conflict_score
-            )
-            * 100
-        )
-
-        confidence -= (
-            self.calculate_event_penalty(
-                event_risk_score
-            )
-            * 100
-        )
-
-        confidence -= (
-            self.calculate_volatility_penalty(
-                volatility_score
-            )
-            * 100
-        )
-
-        return round(
-            max(
-                0.0,
-                min(
-                    100.0,
-                    confidence,
-                ),
-            ),
-            2,
-        )
+        if risk >= 0.70:
+            return "EXTREME"
+        if risk >= 0.50:
+            return "HIGH"
+        if risk >= 0.30:
+            return "MEDIUM"
+        return "LOW"
 
     def determine_action(
         self,
-        directional_score,
-        confidence,
-        conflict_score,
-        event_risk_score,
-    ):
-        """
-        Conservative decision gate.
-
-        The engine does not trade merely because the market bias
-        is bullish/bearish. It requires sufficient confidence,
-        directional strength, and acceptable event/conflict risk.
-
-        This is for paper-trading/testing until validated by
-        historical out-of-sample results.
-        """
-
-        # 1. Severe information conflict
-        if conflict_score >= 0.45:
+        score_100: float,
+        confidence: float,
+        conflict_score: float,
+        event_risk_score: float,
+        risk_level: str = "LOW",
+    ) -> str:
+        """Return BUY/SELL/WAIT while preserving the legacy helper contract."""
+        if risk_level == "EXTREME":
+            return "NO_TRADE"
+        if conflict_score >= self.ACTION_THRESHOLDS["max_conflict"]:
+            return "WAIT"
+        if event_risk_score >= self.ACTION_THRESHOLDS["max_event_risk"]:
+            return "WAIT"
+        if confidence < self.ACTION_THRESHOLDS["min_confidence"]:
             return "WAIT"
 
-        # 2. Major event risk
-        if event_risk_score >= 0.80:
+        if -1.0 <= float(score_100) <= 1.0:
+            if score_100 >= self.ACTION_THRESHOLDS["legacy_buy_directional"]:
+                return "BUY"
+            if score_100 <= self.ACTION_THRESHOLDS["legacy_sell_directional"]:
+                return "SELL"
             return "WAIT"
 
-        # 3. Insufficient confidence
-        if confidence < 55:
-            return "WAIT"
-
-        # 4. Weak directional evidence
-        if -0.20 < directional_score < 0.20:
-            return "WAIT"
-
-        # 5. Strong bullish setup
-        if directional_score >= 0.20:
+        if score_100 >= self.ACTION_THRESHOLDS["buy_score"]:
             return "BUY"
-
-        # 6. Strong bearish setup
-        if directional_score <= -0.20:
+        if score_100 <= self.ACTION_THRESHOLDS["sell_score"]:
             return "SELL"
-
         return "WAIT"
 
-
-    def risk_level(
-            self,
-            conflict_score,
-            event_risk_score,
-            volatility_score,
-        ):
-            risk = (
-                conflict_score * 0.40
-                + event_risk_score * 0.35
-                + volatility_score * 0.25
-            )
-    
-            if risk >= 0.70:
-                return "EXTREME"
-    
-            if risk >= 0.50:
-                return "HIGH"
-    
-            if risk >= 0.30:
-                return "MEDIUM"
-    
-            return "LOW"
-    
-    def analyze(
-        self,
-        data,
-        ):
-    
-            directional_score = (
-                self.calculate_directional_score(
-                    data
-                )
-            )
-        
-            confidence = (
-                self.calculate_confidence(
-                    directional_score,
-                    data.conflict_score,
-                    data.event_risk_score,
-                    data.volatility_score,
-                )
-            )
-        
-            action = self.determine_action(
-                directional_score,
-                confidence,
-                data.conflict_score,
-                data.event_risk_score,
-            )
-        
-            risk = self.risk_level(
-                data.conflict_score,
-                data.event_risk_score,
-                data.volatility_score,
-            )
-        
-            if directional_score > 0:
-                bias = "BULLISH"
-        
-            elif directional_score < 0:
-                bias = "BEARISH"
-        
-            else:
-                bias = "NEUTRAL"
-        
-            return {
-                "decision": action,
-                "bias": bias,
-                "directional_score": round(
-                    directional_score,
-                    4,
-                ),
-                "confidence": confidence,
-                "risk_level": risk,
-                "regime": data.regime,
-                "conflict_score": data.conflict_score,
-                "event_risk_score":
-                    data.event_risk_score,
-                "volatility_score":
-                    data.volatility_score,
-            }
-        
-        
-if __name__ == "__main__":
-
-    engine = UnifiedDecisionEngine()
-
-    # Synthetic scenario.
-    # This is ONLY a software test.
-
-    market = DecisionInput(
-        technical_score=0.75,
-        macro_score=0.30,
-        news_score=0.45,
-        geopolitical_score=-0.20,
-        cross_asset_score=0.40,
-        reaction_score=0.60,
-
-        regime="BULL_TREND",
-
-        conflict_score=0.18,
-
-        volatility_score=0.25,
-        event_risk_score=0.15,
-    )
-
-    result = engine.analyze(
-        market
-    )
-
-    print()
-    print(
-        "UNIFIED DECISION ENGINE TEST"
-    )
-    print("=" * 55)
-
-    for key, value in result.items():
-        print(
-            f"{key}: {value}"
+    def analyze(self, data: DecisionInput) -> dict[str, Any]:
+        directional_score = self.calculate_directional_score(data)
+        score_100 = round((directional_score + 1.0) * 50.0, 2)
+        confidence = self.calculate_confidence(
+            directional_score,
+            data.conflict_score,
+            data.event_risk_score,
+            data.volatility_score,
         )
+        risk_level = self.risk_level(
+            data.conflict_score,
+            data.event_risk_score,
+            data.volatility_score,
+        )
+        action = self.determine_action(
+            score_100,
+            confidence,
+            data.conflict_score,
+            data.event_risk_score,
+            risk_level,
+        )
+
+        bias = "BULLISH" if directional_score > 0.05 else "BEARISH" if directional_score < -0.05 else "NEUTRAL"
+
+        return {
+            "decision": action,
+            "bias": bias,
+            "directional_score": round(directional_score, 4),
+            "score": score_100,
+            "confidence": confidence,
+            "risk_level": risk_level,
+            "regime": str(data.regime).upper(),
+            "conflict_score": round(self.unit(data.conflict_score), 4),
+            "event_risk_score": round(self.unit(data.event_risk_score), 4),
+            "volatility_score": round(self.unit(data.volatility_score), 4),
+        }

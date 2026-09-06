@@ -7,15 +7,7 @@ from openai import OpenAI
 
 load_dotenv()
 
-API_KEY = os.getenv("OPENAI_API_KEY")
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6")
-
-if not API_KEY or API_KEY == "YOUR_API_KEY_HERE":
-    raise RuntimeError(
-        "OPENAI_API_KEY is not configured."
-    )
-
-client = OpenAI(api_key=API_KEY)
 
 
 SYSTEM_PROMPT = """
@@ -54,6 +46,18 @@ Return valid JSON only with:
 """
 
 
+def _openai_client() -> OpenAI | None:
+    """Create the OpenAI client lazily.
+
+    The API must still start when OPENAI_API_KEY is absent so health,
+    dashboard, MT5 read-only state, and deterministic analysis remain usable.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key or api_key == "YOUR_API_KEY_HERE":
+        return None
+    return OpenAI(api_key=api_key)
+
+
 def analyze_market(
     symbol: str,
     interval: str,
@@ -62,6 +66,20 @@ def analyze_market(
     signal: dict,
     trade: dict,
 ) -> dict:
+    client = _openai_client()
+    if client is None:
+        return {
+            "status": "UNAVAILABLE",
+            "market_bias": "NEUTRAL",
+            "decision": "WAIT",
+            "confidence": 0,
+            "bull_case": "",
+            "bear_case": "",
+            "key_evidence": [],
+            "key_risks": ["OPENAI_API_KEY is not configured."],
+            "reasoning": "AI reasoning is disabled; deterministic analysis remains available.",
+            "recommendation": "WAIT",
+        }
 
     market_context = {
         "symbol": symbol,
@@ -92,5 +110,18 @@ def analyze_market(
     )
 
     content = response.choices[0].message.content
+    if not content:
+        return {
+            "status": "UNAVAILABLE",
+            "market_bias": "NEUTRAL",
+            "decision": "WAIT",
+            "confidence": 0,
+            "bull_case": "",
+            "bear_case": "",
+            "key_evidence": [],
+            "key_risks": ["OpenAI returned an empty response."],
+            "reasoning": "No AI analysis was produced.",
+            "recommendation": "WAIT",
+        }
 
     return json.loads(content)
