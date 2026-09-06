@@ -19,6 +19,6 @@ def website():
 @router.get("/assets/{name}", include_in_schema=False)
 def website_asset(name: str):
     # Explicit public allowlist; never expose a source directory or .env.
-    if name not in {"site.css", "site.js", "demo-model.js", "favicon.svg"}:
+    if name not in {"site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js"}:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(WEB_ROOT / "assets" / name)

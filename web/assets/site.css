@@ -14,3 +14,5 @@ html[dir="rtl"] select{padding-left:32px;padding-right:12px}
 #quote,#chart,.chart-axis{direction:ltr;unicode-bidi:isolate}
 .language-switch{white-space:nowrap;min-width:58px}
 @media(max-width:700px){.header{gap:12px}.header nav{gap:12px}html[dir="rtl"] .decision-panel{border-right:0}html[dir="rtl"] .terminal-mode{margin-right:0}html[lang="ar"] .header .brand-sub{max-width:95px}.header .brand-mark{display:none}}
+
+.account-section{border-top:1px solid var(--line);padding-top:55px;padding-bottom:55px;display:grid;grid-template-columns:1fr 1fr;gap:40px}.account-card{background:var(--panel);border:1px solid var(--line);padding:28px;border-radius:9px}.google-button{font:500 16px Arial,sans-serif;background:#fff;color:#1f1f1f;border:1px solid #747775;border-radius:4px;padding:13px 22px;min-height:44px;width:100%}.google-button:disabled{opacity:.65;cursor:wait}#account-status{overflow-wrap:anywhere;font-size:14px}.account-privacy{margin-top:20px}.account-privacy p{font-size:14px;color:var(--muted)}[hidden]{display:none!important}@media(max-width:700px){.account-section{grid-template-columns:1fr;gap:20px}.account-card{padding:20px}}

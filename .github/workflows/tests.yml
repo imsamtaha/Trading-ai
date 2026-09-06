@@ -36,4 +36,6 @@ jobs:
         run: |
           node --check web/assets/site.js
           node --test tests/test_demo_model.cjs
+          node --test tests/test_google_auth.mjs
+          node --check web/assets/google-auth.js
           python scripts/build_website.py

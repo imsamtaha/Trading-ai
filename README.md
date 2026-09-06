@@ -3,6 +3,8 @@
 The public website for ATLAS Trading AI provides a responsive introduction and
 an interactive, explicitly synthetic demo. It works without accounts, API keys,
 payment details, or an MT5 terminal. No browser requests reach private telemetry.
+Optional Google signup is implemented through Supabase Auth, but Google provider
+activation is pending. See [Google sign-in setup](docs/GOOGLE_SIGN_IN.md).
 
 ## Public website
 

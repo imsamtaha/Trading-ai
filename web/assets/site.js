@@ -1,5 +1,16 @@
 'use strict';
 const arabic={
+  "Sign up": "إنشاء حساب",
+  "YOUR ATLAS ACCOUNT": "حسابك على أطلس",
+  "Sign up with Google.": "أنشئ حسابًا باستخدام Google.",
+  "Already registered? Use the same button to sign in.": "لديك حساب؟ استخدم الزر نفسه لتسجيل الدخول.",
+  "Continue with Google": "المتابعة باستخدام Google",
+  "Sign out": "تسجيل الخروج",
+  "Create an account or sign in with your Google account.": "أنشئ حسابًا أو سجّل الدخول باستخدام حسابك على Google.",
+  "Sign-in does not activate a paid subscription or grant access to a trading account.": "لا يؤدي تسجيل الدخول إلى تفعيل اشتراك مدفوع أو منح صلاحية الوصول إلى حساب تداول.",
+  "How your account data is used": "كيف تُستخدم بيانات حسابك",
+  "When you continue with Google, Google shares your name and email with ATLAS through Supabase Auth to create and manage your account. Session credentials are stored in this browser to keep you signed in. Signing out clears this browser's session; it does not delete your account. The demo remains free to explore without signing in.": "عند المتابعة باستخدام Google، يشارك Google اسمك وبريدك الإلكتروني مع أطلس عبر Supabase Auth لإنشاء حسابك وإدارته. تُحفظ بيانات الجلسة في هذا المتصفح لإبقائك مسجّل الدخول. يمسح تسجيل الخروج جلسة هذا المتصفح ولا يحذف حسابك. تبقى التجربة متاحة مجانًا دون تسجيل الدخول.",
+  "No. Explore all three markets and scenarios freely. Creating an account with Google is optional and does not start a paid subscription.": "لا. استكشف الأسواق الثلاثة وجميع السيناريوهات مجانًا. إنشاء حساب باستخدام Google اختياري ولا يبدأ اشتراكًا مدفوعًا.",
   "Skip to content": "انتقل إلى المحتوى",
   "ATLAS Market home": "الصفحة الرئيسية لأطلس ماركت",
   "MARKET INTELLIGENCE": "رؤى السوق",
@@ -144,6 +155,7 @@ function setLanguage(value) {
  try{localStorage.setItem('atlas-language',language);}catch{}
  try{const url=new URL(location.href);url.searchParams.set('lang',language);history.replaceState(null,'',url);}catch{}
  renderDemo();
+ document.dispatchEvent(new Event('atlas-language-change'));
 }
 const byId=id=>document.getElementById(id);
 function renderDemo() {
