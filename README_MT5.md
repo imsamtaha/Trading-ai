@@ -1,12 +1,16 @@
-# ATLAS MT5 Worker
+# ATLAS MT5 Forward-Demo Worker
 
 ## Architecture
 
-ATLAS runs its decision logic in Python. A persistent Windows worker owns the MetaTrader 5 terminal connection. Supabase is used as the control/audit plane.
+ATLAS runs its decision logic in Python. A persistent Windows worker owns the
+MetaTrader 5 terminal connection. During forward-demo validation, it never
+sends an MT5 order. Instead, it opens qualified candidates in a local paper
+ledger, evaluates them using subsequent MT5 quotes, and stores every material
+open/close/error event in Supabase when credentials are available.
 
-`ATLAS -> Execution Gate -> MT5 Worker -> MetaTrader 5`
+`ATLAS -> Scoring/Risk Gate -> Paper Ledger -> MT5 Quotes`
 
-`MT5 Worker -> Supabase heartbeat/events`
+`MT5 Worker -> local JSONL + Supabase audit events`
 
 ## Windows setup
 
@@ -14,19 +18,35 @@ ATLAS runs its decision logic in Python. A persistent Windows worker owns the Me
 2. Clone this repository on the same Windows machine where MT5 is installed.
 3. Create `.env` from `.env.mt5.example`.
 4. Set `MT5_TERMINAL_PATH`, `MT5_LOGIN`, `MT5_PASSWORD`, and `MT5_SERVER`.
-5. Set `SUPABASE_URL` to the project URL and `SUPABASE_SERVICE_ROLE_KEY` to a server-side secret. Never commit `.env` or this key.
-6. Install dependencies: `pip install -r requirements.txt`.
+5. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the project values. Never commit `.env` or that key.
+6. Install dependencies: `python -m pip install -r requirements.txt`.
 7. Verify the terminal connection: `python scripts/verify_mt5.py`.
-8. Start the worker: `python -m app.execution.worker`.
+8. Run one safe connected cycle: `python run_atlas_mt5.py --once`.
+9. Start continuous forward-demo registration: `python run_atlas_mt5.py`.
 
-## Expected result
+The PowerShell shortcut is:
 
-The worker should report `MT5 ONLINE` and periodically update `public.atlas_mt5_connections` in Supabase.
+```powershell
+.\scripts\start_atlas_demo.ps1
+```
+
+## Recorded trade lifecycle
+
+- `PAPER_TRADE_OPENED`: strategy, unified decision, and risk gates all approved an entry.
+- `PAPER_TRADE_CLOSED`: an MT5 quote touched the paper position's stop loss or take profit.
+- `NO_TRADE` and `SKIPPED`: kept in the local signal journal; optional Supabase persistence is enabled with `ATLAS_PERSIST_ALL_SIGNALS=true`.
+- `MT5_ERROR` / `ERROR`: persisted for diagnosis.
+
+The durable local records are `data/atlas_demo_ledger.json` and
+`data/atlas_signals.jsonl`. Supabase material events are written to
+`public.atlas_execution_events`.
 
 ## Safety
 
-`ATLAS_LIVE_TRADING=false` is required during integration. The worker only maintains the connection and heartbeat; trade decisions remain controlled by the ATLAS execution layer.
+`ATLAS_LIVE_TRADING=false` is mandatory for this runner. If it is changed to
+`true`, the runner exits before connecting. The worker uses MT5 only for
+account metadata, symbols, and quotes; it does not invoke the MT5 order API.
 
-## Broker symbols
-
-Use the exact symbols exposed by the broker. Common examples include `XAUUSD`, `EURUSD`, `XAGUSD`, and broker-specific variants with suffixes.
+A paper ledger is not a broker fill record and its P&L is explicitly
+risk-normalized. It is appropriate for validating signal quality and process,
+not for claiming live trading performance.
