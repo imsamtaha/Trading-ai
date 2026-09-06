@@ -10,6 +10,10 @@ import argparse
 import json
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv(override=False)
+
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
 
 
