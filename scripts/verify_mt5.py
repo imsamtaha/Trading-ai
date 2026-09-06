@@ -1,8 +1,12 @@
 from pathlib import Path
 import sys
 
-# Allow `python scripts/verify_mt5.py` from the repository root.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[1]
+# Allow python scripts/verify_mt5.py from the repository root.
+sys.path.insert(0, str(ROOT))
+load_dotenv(ROOT / ".env", override=False)
 
 from app.execution.heartbeat import AtlasHeartbeat
 
@@ -15,5 +19,7 @@ if __name__ == "__main__":
     if result["status"] == "connected":
         for key, value in result["account"].items():
             print(f"{key}: {value}")
-    else:
-        print(f"Error: {result.get('error')}")
+        raise SystemExit(0)
+
+    print(f"Error: {result.get('error')}")
+    raise SystemExit(1)
