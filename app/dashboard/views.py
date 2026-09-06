@@ -8,7 +8,8 @@ router = APIRouter(tags=["dashboard"])
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard_view() -> HTMLResponse:
-    return HTMLResponse(DASHBOARD_HTML)
+    return HTMLResponse(DASHBOARD_HTML.replace(
+        "</body>", '<script src="/ui/preferences.js"></script></body>'))
 
 
 DASHBOARD_HTML = r'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

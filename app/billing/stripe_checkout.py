@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import string
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
@@ -135,7 +136,7 @@ class StripeBilling:
             "metadata": metadata,
             "success_url": f"{self.app_url}/subscribe?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
             "cancel_url": f"{self.app_url}/subscribe?checkout=cancelled",
-            "integration_identifier": f"atlas_checkout_{secrets.token_hex(4)}",
+            "integration_identifier": "atlas_checkout_" + "".join(secrets.choice(string.ascii_lowercase) for _ in range(8)),
         }
         if customer_email:
             params["customer_email"] = customer_email
@@ -159,7 +160,8 @@ class StripeBilling:
             raise BillingProviderError("Missing Stripe signature.")
 
         try:
-            return self._client().construct_event(payload, signature, self.webhook_secret)
+            from stripe import Webhook
+            return Webhook.construct_event(payload, signature, self.webhook_secret)
         except Exception as exc:  # The SDK verifies the timestamp and signature.
             raise BillingProviderError("Stripe webhook signature verification failed.") from exc
 
@@ -214,16 +216,22 @@ class StripeBilling:
         if not response.ok:
             raise BillingProviderError(f"Billing audit persistence failed ({response.status_code}).")
 
-        if user_id and plan_id and provider_subscription_id:
+        # Checkout completion is not a subscription status. Retrieve the current
+        # subscription so delayed/replayed events cannot restore canceled access.
+        if (user_id and plan_id in PLANS and provider_subscription_id
+                and event_type in {"customer.subscription.created",
+                                   "customer.subscription.updated",
+                                   "customer.subscription.deleted"}):
+            current = self._client().v1.subscriptions.retrieve(str(provider_subscription_id))
             self._sync_subscription(
                 user_id=user_id,
                 plan_id=plan_id,
                 customer_id=provider_customer_id,
                 subscription_id=provider_subscription_id,
-                status=str(status or "active"),
-                trial_end=_field(obj, "trial_end"),
-                period_end=_field(obj, "current_period_end"),
-                cancel_at_period_end=bool(_field(obj, "cancel_at_period_end", False)),
+                status=str(_field(current, "status") or "expired"),
+                trial_end=_field(current, "trial_end"),
+                period_end=_field(current, "current_period_end"),
+                cancel_at_period_end=bool(_field(current, "cancel_at_period_end", False)),
             )
 
     def _sync_subscription(
@@ -244,7 +252,7 @@ class StripeBilling:
             "provider": "stripe",
             "provider_customer_id": customer_id,
             "provider_subscription_id": subscription_id,
-            "status": status if status in {"active", "trialing", "past_due", "canceled", "expired"} else "active",
+            "status": status if status in {"active", "trialing", "past_due", "canceled", "expired"} else "expired",
             "trial_ends_at": _epoch_to_iso(trial_end),
             "current_period_end": _epoch_to_iso(period_end),
             "cancel_at_period_end": cancel_at_period_end,
@@ -295,5 +303,5 @@ def _subscription_status_for_event(event_type: str) -> str:
     if event_type.endswith(".deleted"):
         return "canceled"
     if event_type == "checkout.session.completed":
-        return "active"
-    return "active"
+        return "pending"
+    return "pending"

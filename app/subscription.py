@@ -8,7 +8,14 @@ router = APIRouter(tags=["subscription"])
 
 @router.get("/subscribe", response_class=HTMLResponse)
 def subscribe() -> HTMLResponse:
-    return HTMLResponse(SUBSCRIPTION_HTML)
+    html = SUBSCRIPTION_HTML
+    for plan_id in ("reader", "pro"):
+        button = f'<button onclick="checkout(\'{plan_id}\',this)">Start free trial</button>'
+        html = html.replace(button, button +
+            f'<p><a href="/billing/whish/{plan_id}">Pay with Whish Money</a></p>')
+    html = html.replace("</main>", '<p>Whish requests are reviewed manually. Automatic renewal is not available.</p></main>')
+    return HTMLResponse(html.replace("</body>",
+        '<script src="/ui/preferences.js"></script></body>'))
 
 
 SUBSCRIPTION_HTML = r'''<!doctype html><html lang="en"><head><meta charset="utf-8">

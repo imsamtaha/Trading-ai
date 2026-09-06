@@ -15,10 +15,20 @@ from app.billing.stripe_checkout import (
 
 LOG = logging.getLogger("atlas.billing")
 router = APIRouter(prefix="/billing", tags=["billing"])
+from app.billing.whish import settings as whish_settings
 
 
 def _app_url(request: Request) -> str:
-    return os.getenv("ATLAS_APP_URL", "").strip().rstrip("/") or str(request.base_url).rstrip("/")
+    return os.getenv("ATLAS_APP_URL", "").strip().rstrip("/")
+
+
+@router.get("/methods")
+def payment_methods() -> dict:
+    billing = StripeBilling()
+    return {
+        "stripe": {plan.id: billing.checkout_configured(plan.id) for plan in public_plans()},
+        "whish": {"available": whish_settings()["available"], "mode": "manual_review"},
+    }
 
 
 @router.get("/plans")
