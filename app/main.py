@@ -1,3 +1,10 @@
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load Windows server configuration before constructing routers/services.
+# Existing process environment variables retain precedence.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -15,6 +22,7 @@ from app.performance.metrics import calculate_metrics
 from app.dashboard import router as dashboard_router
 from app.subscription import router as subscription_router
 from app.billing import router as billing_router
+from app.dashboard.preferences import router as preferences_router
 
 
 app = FastAPI(
@@ -26,6 +34,7 @@ app = FastAPI(
 app.include_router(dashboard_router)
 app.include_router(subscription_router)
 app.include_router(billing_router)
+app.include_router(preferences_router)
 
 
 @app.middleware("http")
@@ -44,6 +53,7 @@ async def dashboard_only_guard(request: Request, call_next):
         allowed = path.startswith("/billing/") or path in {
             "/",
             "/health",
+            "/ui/preferences.js",
             "/subscribe",
             "/dashboard",
             "/dashboard/",
