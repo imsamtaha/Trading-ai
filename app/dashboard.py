@@ -8,6 +8,45 @@ from app.dashboard.api import atlas_dashboard_state
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
+def _demo_regime_from_technical(technical: dict | None) -> str:
+    """Classify deterministic demo data without depending on MT5 or OpenAI."""
+    context = technical or {}
+    bullish = {"BULLISH", "UP", "UPTREND", "BUY", "LONG"}
+    bearish = {"BEARISH", "DOWN", "DOWNTREND", "SELL", "SHORT"}
+    values = {
+        str(context.get(key, "")).strip().upper()
+        for key in ("trend", "momentum", "macd_signal", "structure")
+    }
+    bull_votes = len(values & bullish)
+    bear_votes = len(values & bearish)
+    if max(bull_votes, bear_votes) >= 2 and bull_votes != bear_votes:
+        return "TREND"
+    return "RANGE"
+
+
+def _analyze_demo_symbol(symbol: str) -> dict:
+    """Return a safe dashboard row when external market services are unavailable."""
+    return {
+        "symbol": str(symbol),
+        "canonical_symbol": str(symbol),
+        "asset_class": "DEMO",
+        "opportunity_score": 0.0,
+        "price": 0.0,
+        "spread_points": 0.0,
+        "decision": {
+            "decision": "WAIT",
+            "bias": "NEUTRAL",
+            "score": 0.0,
+            "regime": "RANGE",
+        },
+        "quality": {
+            "execution_confidence": 0.0,
+            "signal_quality": "DEMO",
+        },
+        "timeframes": {},
+    }
+
+
 @router.get("/state")
 def state():
     return atlas_dashboard_state()
