@@ -43,43 +43,26 @@ app.include_router(website_router)
 
 @app.middleware("http")
 async def dashboard_only_guard(request: Request, call_next):
-    """Public-view safety mode.
-
-    With ATLAS_DASHBOARD_ONLY=true, only the subscriber landing page, live
-    read-only dashboard telemetry, health, documentation, and read-only agent
-    planning/decision routes are public. Execution/mutation endpoints remain blocked.
-    """
+    """Allow public reads and analysis-only POSTs; block execution and billing writes."""
     import os
 
-    dashboard_only = os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true"
-    if dashboard_only:
+    if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":
         path = request.url.path
-        allowed = path.startswith("/billing/") or path in {
-            "/",
-            "/health",
-            "/ui/preferences.js",
-            "/ui/agent-panel.js",
-            "/ui/demo-panel.js",
-            "/api",
-            "/subscribe",
-            "/dashboard",
-            "/dashboard/",
-            "/dashboard/atlas",
-            "/dashboard/state",
-            "/dashboard/demo-status",
-            "/dashboard/mt5-state",
-            "/dashboard/market-briefing",
-            "/dashboard/markets",
-            "/mt5/cockpit-state",
-            "/agent/capabilities",
-            "/agent/decision",
-            "/agent/right-hand/capabilities",
-            "/agent/right-hand/plan",
-            "/agent/right-hand/chat",
-            "/agent/right-hand/tools",
-            "/docs",
-            "/openapi.json",
-        } or path.startswith("/assets/")
+        read_paths = {
+            "/", "/health", "/api", "/subscribe",
+            "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js",
+            "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
+            "/dashboard/demo-status", "/dashboard/mt5-state",
+            "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
+            "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
+            "/billing/methods", "/billing/plans", "/billing/whish/reader", "/billing/whish/pro",
+            "/docs", "/openapi.json",
+        }
+        analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        allowed = (
+            request.method in {"GET", "HEAD"}
+            and (path in read_paths or path.startswith("/assets/"))
+        ) or (request.method == "POST" and path in analysis_paths)
         if not allowed:
             return JSONResponse(
                 status_code=403,
