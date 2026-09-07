@@ -23,6 +23,7 @@ open/close/error event in Supabase when credentials are available.
 7. Verify the terminal connection: `python scripts/verify_mt5.py`.
 8. Run one safe connected cycle: `python run_atlas_mt5.py --once`.
 9. Start continuous forward-demo registration: `python run_atlas_mt5.py`.
+10. Inspect progress at any time: `python scripts/atlas_demo_status.py`.
 
 The PowerShell shortcut is:
 
@@ -50,3 +51,12 @@ account metadata, symbols, and quotes; it does not invoke the MT5 order API.
 A paper ledger is not a broker fill record and its P&L is explicitly
 risk-normalized. It is appropriate for validating signal quality and process,
 not for claiming live trading performance.
+
+## Live-review gate
+
+The status report requires at least 25 **closed** paper trades, positive
+expectancy, profit factor of at least 1.10, and drawdown within the configured
+limit. Passing these checks produces `REVIEW_REQUIRED`; it never enables live
+trading automatically. Live execution also requires out-of-sample validation,
+MT5 lot-size conversion tests, order reconciliation, daily-loss limits, and a
+manual owner approval.
