@@ -24,7 +24,6 @@ const translations={
  'Expanded multi-asset opportunity matrix':'متابعة موسّعة لفرص الأسواق المتعددة',
  'Priority subscriber briefings':'إحاطات المشتركين ذات الأولوية',
  'Start free trial':'ابدأ التجربة المجانية','Pay with Whish Money':'الدفع عبر Whish Money',
- 'Card payment via Stripe':'الدفع بالبطاقة عبر Stripe',
  'Whish requests are reviewed manually. Automatic renewal is not available.':'تُراجع طلبات Whish يدوياً. التجديد التلقائي غير متاح.',
  'Subscriber Observatory · Read-only live telemetry':'لوحة المشتركين · بيانات مباشرة للقراءة فقط',
  'Reader plans':'خطط القرّاء','CONNECTING':'جارٍ الاتصال','OFFLINE':'غير متصل','ONLINE':'متصل',
@@ -53,7 +52,6 @@ const translations={
  'Whish Money is not configured yet.':'الدفع عبر Whish Money غير مُعدّ بعد.',
  'Payment request unavailable.':'طلب الدفع غير متاح.',
  'Payment request storage unavailable.':'تعذّر حفظ طلب الدفع.',
- 'Payments use Stripe-hosted Checkout. The dashboard is read-only and cannot place or change an MT5 trade.':'تستخدم المدفوعات صفحة Stripe الآمنة. اللوحة للقراءة فقط ولا تستطيع فتح صفقات MT5 أو تعديلها.'
 };
 const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch{return f}};
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
