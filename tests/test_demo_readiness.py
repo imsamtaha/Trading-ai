@@ -20,7 +20,7 @@ def test_25_losing_trades_is_not_ready():
 
 
 def test_profitable_sample_can_only_request_manual_review():
-    trades = [_trade(20)] * 17 + [_trade(-10)] * 8
+    trades = [_trade(20)] * 23 + [_trade(-10)] * 2
     result = evaluate_demo_readiness(trades)
     assert result["closed_trades"] == 25
     assert result["ready_for_live_review"] is True
