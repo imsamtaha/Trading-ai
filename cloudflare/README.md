@@ -11,7 +11,7 @@ Trader
 /subscribe (public)
   |
   v
-Hosted checkout / access approval
+Whish Money request + manual access approval
   |
   v
 Cloudflare Access (email OTP)
@@ -32,8 +32,8 @@ ATLAS + REAL MT5 telemetry
 ## 1. Start ATLAS locally
 
 ```powershell
-cd "$HOME\Trading-ai"
-.\.venv\Scripts\Activate.ps1
+cd "$HOME\\Trading-ai"
+.\\.venv\\Scripts\\Activate.ps1
 $env:ATLAS_DASHBOARD_ONLY="true"
 $env:ATLAS_LIVE_TRADING="false"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
@@ -96,19 +96,24 @@ Create a **Self-hosted** Cloudflare Access application for:
 atlas.yourdomain.com/dashboard*
 ```
 
-Enable email one-time PIN. Add paying subscriber email addresses to the Allow policy. Do not give subscribers MT5 credentials.
+Enable email one-time PIN. Add only manually approved subscriber email addresses
+to the Allow policy. Do not give subscribers MT5 credentials.
 
-## 5. Payments
+## 5. Whish Money requests
 
-Configure a hosted payment page (recommended: Stripe Payment Link) and set:
+Set these on the private server:
 
 ```text
-ATLAS_CHECKOUT_URL=https://your-hosted-checkout-link
-ATLAS_SUBSCRIPTION_PRICE=$19/month
-ATLAS_SUBSCRIPTION_TRIAL=7-day viewer trial
+ATLAS_WHISH_ENABLED=true
+ATLAS_WHISH_RECIPIENT=Samir Taha
+ATLAS_WHISH_SUPPORT=+96176420910
+ATLAS_WHISH_DB=data/whish_requests.sqlite3
 ```
 
-After payment, add the customer's email to Cloudflare Access. This can be automated later with a payment webhook + Cloudflare API; until then, manual approval is the safest launch workflow.
+A customer submits a request from `/subscribe`, then receives instructions to
+pay with Whish Money. Reconcile the payment outside ATLAS and add the verified
+email to Cloudflare Access. No automatic renewal, transfer confirmation, or
+access activation is enabled.
 
 ## 6. Real MT5 account
 
@@ -137,4 +142,5 @@ Confirm the dashboard reports `REAL` before enabling live execution. Public subs
 - [ ] `/mt5/test-order` returns 403 from the public origin.
 - [ ] Broker credentials are not committed.
 - [ ] `ATLAS_DASHBOARD_ONLY=true` is enabled for the public API process.
+- [ ] Whish requests are reconciled before dashboard access is approved.
 - [ ] Payment claims do not promise profit or guaranteed performance.
