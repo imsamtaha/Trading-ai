@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
-from app.billing.stripe_checkout import PLANS
+from app.billing.plans import PLANS
 
 router = APIRouter(prefix="/billing/whish", tags=["billing"])
 
@@ -46,7 +46,6 @@ def request_payment(plan_id: str, body: PaymentRequest):
                 reference TEXT PRIMARY KEY, email TEXT NOT NULL,
                 plan_id TEXT NOT NULL, amount_usd INTEGER NOT NULL,
                 status TEXT NOT NULL DEFAULT 'PENDING_REVIEW', created_at TEXT NOT NULL)""")
-            # Prevent repeated pending requests for the same email and plan.
             existing = db.execute(
                 "SELECT reference FROM whish_requests WHERE email=? AND plan_id=? AND status='PENDING_REVIEW'",
                 (email, plan_id)).fetchone()

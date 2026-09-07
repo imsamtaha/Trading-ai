@@ -35,8 +35,10 @@ https://www.whish.money/corporate-solutions
 Merchant credentials and the official integration contract are still required for
 automated verification. No undocumented API or automatic payment approval is used.
 
-Set ATLAS_WHISH_ENABLED=true only after configuring ATLAS_WHISH_RECIPIENT with
-verified receiving details and ATLAS_WHISH_SUPPORT with your customer contact.
+For this ATLAS setup, the display contact is **Samir Taha — +961 76 420 910**
+(also the WhatsApp support number). Set ATLAS_WHISH_ENABLED=true only after
+verifying this is the receiving wallet and configuring
+ATLAS_WHISH_RECIPIENT=Samir Taha and ATLAS_WHISH_SUPPORT=+96176420910.
 These two values are intentionally public to customers; do not place secrets there.
 ATLAS_WHISH_DB optionally specifies a private local SQLite path
 (default data/whish_requests.sqlite3). Back it up and never serve or commit it.
