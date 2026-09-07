@@ -56,6 +56,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/",
             "/health",
             "/ui/preferences.js",
+            "/ui/agent-panel.js",
             "/subscribe",
             "/dashboard",
             "/dashboard/",

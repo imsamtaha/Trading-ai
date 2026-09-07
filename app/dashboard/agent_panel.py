@@ -1,0 +1,30 @@
+from fastapi import APIRouter
+from fastapi.responses import Response
+
+router = APIRouter()
+
+
+@router.get("/ui/agent-panel.js", include_in_schema=False)
+def agent_panel_script():
+    return Response(SCRIPT, media_type="application/javascript")
+
+
+SCRIPT = r"""
+(()=>{
+if(location.pathname!=='/dashboard'&&location.pathname!=='/dashboard/')return;
+const root=document.querySelector('main');
+if(!root||document.getElementById('atlas-agent-panel'))return;
+const style=document.createElement('style');
+style.textContent=`
+.agent-panel{margin-top:12px}.agent-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.agent-controls{display:flex;gap:8px;flex-wrap:wrap}.agent-controls select,.agent-controls button{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#111824;color:var(--text);font:inherit}.agent-controls button{background:var(--orange);color:#090b0f;font-weight:900;cursor:pointer}.agent-controls button:disabled{opacity:.45;cursor:wait}.agent-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:13px}.agent-metric{border:1px solid var(--line);border-radius:12px;padding:11px;background:#0a1018}.agent-value{font-size:18px;font-weight:900;margin-top:5px}.agent-skills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.agent-reasons{margin:12px 0 0;padding-left:18px;color:var(--muted)}.agent-reasons li{margin:5px 0}.agent-foot{margin-top:12px;font-size:11px;color:var(--muted)}@media(max-width:720px){.agent-grid{grid-template-columns:1fr 1fr}}
+`;document.head.append(style);
+const panel=document.createElement('section');panel.id='atlas-agent-panel';panel.className='card agent-panel';
+panel.innerHTML=`<div class="agent-head"><div><div class="label">ATLAS Agent · Paper Decision</div><div class="mini">Deterministic signal + risk orchestration. No live execution.</div></div><div class="agent-controls"><select id="agentSymbol"><option>XAUUSD</option><option>GAS</option><option>XAGUSD</option><option>EURUSD</option><option>XRPUSDT</option><option>SOLUSDT</option></select><select id="agentInterval"><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option></select><button id="agentRun">Analyze</button></div></div><div class="agent-grid"><div class="agent-metric"><div class="label">Decision</div><div class="agent-value" id="agentDecision">—</div></div><div class="agent-metric"><div class="label">Confidence</div><div class="agent-value" id="agentConfidence">—</div></div><div class="agent-metric"><div class="label">Trend</div><div class="agent-value" id="agentTrend">—</div></div><div class="agent-metric"><div class="label">Risk</div><div class="agent-value" id="agentRisk">—</div></div></div><div class="agent-skills" id="agentSkills"></div><ul class="agent-reasons" id="agentReasons"><li>Select a market and run ATLAS Agent.</li></ul><div class="agent-foot" id="agentFoot">Paper-only decision support. No order is sent to MT5.</div>`;
+const disclaimer=document.getElementById('disclaimer');if(disclaimer)root.insertBefore(panel,disclaimer);else root.append(panel);
+const esc=v=>String(v==null?'':v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const decision=document.getElementById('agentDecision'),confidence=document.getElementById('agentConfidence'),trend=document.getElementById('agentTrend'),risk=document.getElementById('agentRisk'),skills=document.getElementById('agentSkills'),reasons=document.getElementById('agentReasons'),foot=document.getElementById('agentFoot'),run=document.getElementById('agentRun');
+function toneDecision(v){decision.className='agent-value '+(v==='PAPER_CANDIDATE'?'green':v==='WAIT'?'yellow':'red')}
+async function analyze(){run.disabled=true;run.textContent='Analyzing…';decision.textContent='…';try{const payload={symbol:document.getElementById('agentSymbol').value,interval:document.getElementById('agentInterval').value,limit:120,account_balance:10000,risk_percent:1};const response=await fetch('/agent/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.detail||'Agent unavailable');decision.textContent=data.decision||data.status||'WAIT';toneDecision(decision.textContent);confidence.textContent=Number(data.confidence||0).toFixed(1)+'%';trend.textContent=String((data.technical||{}).trend||'unknown').toUpperCase();const r=data.risk||{};risk.textContent=r.approved===true?'PASSED':r.approved===false?'REJECTED':'N/A';risk.className='agent-value '+(r.approved===true?'green':r.approved===false?'red':'yellow');skills.innerHTML=(data.selected_skills||[]).map(x=>'<span class="tag">'+esc(x)+'</span>').join('');reasons.innerHTML=(data.rationale||[]).map(x=>'<li>'+esc(x)+'</li>').join('')||'<li>No additional rationale.</li>';foot.textContent='Mode: '+(data.paper_only?'PAPER ONLY':'UNKNOWN')+' · '+esc(data.symbol)+' · '+esc(data.interval)+' · No MT5 order sent.'}catch(error){decision.textContent='UNAVAILABLE';decision.className='agent-value red';confidence.textContent='—';trend.textContent='—';risk.textContent='—';skills.innerHTML='';reasons.innerHTML='<li>'+esc(error.message||'Agent unavailable')+'</li>';foot.textContent='ATLAS Agent analysis could not be loaded.'}finally{run.disabled=false;run.textContent='Analyze'}}
+run.addEventListener('click',analyze);analyze();
+})();
+"""
