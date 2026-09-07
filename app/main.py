@@ -58,6 +58,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/dashboard",
             "/dashboard/",
             "/dashboard/atlas",
+            "/dashboard/mt5-state",
             "/dashboard/market-briefing",
             "/dashboard/markets",
             "/mt5/cockpit-state",
