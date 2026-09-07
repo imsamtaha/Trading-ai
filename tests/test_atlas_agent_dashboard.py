@@ -22,3 +22,7 @@ def test_agent_panel_script_is_read_only_ui(monkeypatch):
     assert "/agent/paper/execute" not in response.text
     assert "/mt5/test-order" not in response.text
     assert "No live execution" in response.text
+    assert 'value="multi" selected' in response.text
+    assert "multi_timeframe:" in response.text
+    assert "data.timeframe_decisions" in response.text
+    assert "esc(f.decision)" in response.text

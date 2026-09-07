@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.agent.core import AtlasAgent
-from app.agent.models import AgentRequest
+from app.agent.models import AgentRequest, MULTI_TIMEFRAMES
 from app.agent.tools import TOOLS, paper_execute
 
 
@@ -15,6 +15,7 @@ class DecisionPayload(BaseModel):
     limit: int = Field(default=100, ge=50, le=500)
     account_balance: float = Field(default=10000.0, gt=0)
     risk_percent: float = Field(default=1.0, gt=0, le=2.0)
+    multi_timeframe: bool = False
 
 
 class PaperExecutionPayload(BaseModel):
@@ -29,6 +30,8 @@ def capabilities():
     return {
         "mode": "paper_only",
         "live_execution": False,
+        "multi_timeframes": list(MULTI_TIMEFRAMES),
+        "multi_timeframe_policy": "unanimous_signals_and_all_risk_approved",
         "tools": [
             {
                 "name": tool.name,
@@ -43,7 +46,9 @@ def capabilities():
 @router.post("/decision")
 def decision(payload: DecisionPayload):
     try:
-        result = AtlasAgent().assess(
+        agent = AtlasAgent()
+        assess = agent.assess_multi_timeframe if payload.multi_timeframe else agent.assess
+        result = assess(
             AgentRequest(
                 symbol=payload.symbol.upper(),
                 interval=payload.interval,
