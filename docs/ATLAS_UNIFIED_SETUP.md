@@ -1,23 +1,28 @@
 # ATLAS Unified Setup
 
 Included in the application:
+
 - MT5 read-only telemetry and the protected execution gate
 - Multi-timeframe analysis for 5m, 15m, 30m, and 1h
 - Subscriber dashboard, Wall Street board, and financial-news context
-- Stripe Checkout plans: ATLAS Reader at 49 USD/month and ATLAS Pro Reader at 99 USD/month, each with a 3-day trial
-- Signed Stripe webhook events recorded in existing private Supabase billing tables
+- Whish Money request plans: ATLAS Reader at 49 USD/month and ATLAS Pro Reader
+  at 99 USD/month, each with a 3-day trial arranged after manual approval
+- Private local audit records for Whish payment requests
 - GitHub Actions tests
 
-Before enabling billing:
-1. Apply the existing Supabase migrations in sequence.
-2. Create two separate Stripe monthly recurring Prices.
-3. Put their Price IDs in ATLAS_STRIPE_PRICE_READER and ATLAS_STRIPE_PRICE_PRO.
-4. Set a restricted Stripe key in STRIPE_RESTRICTED_KEY.
-5. Create a Stripe webhook for POST /billing/webhook and set STRIPE_WEBHOOK_SECRET.
-6. Deploy to a stable HTTPS URL and set ATLAS_APP_URL.
+Before enabling payment requests:
+
+1. Verify the receiving Whish wallet and customer-support number.
+2. Set `ATLAS_WHISH_ENABLED=true`, `ATLAS_WHISH_RECIPIENT`, and
+   `ATLAS_WHISH_SUPPORT` in the private environment.
+3. Set a private, backed-up `ATLAS_WHISH_DB` location.
+4. Deploy to a stable HTTPS URL and set `ATLAS_APP_URL`.
+5. Protect `/dashboard*` with Cloudflare Access and manually add only
+   reconciled subscriber emails.
 
 Safety:
+
+- Whish requests are not payment confirmation and never activate access automatically.
 - Market board and news are human context only. They do not enter the execution engine.
 - Subscriber plans are observational and cannot control MT5.
-- Stripe webhook signatures are checked against the raw request body.
-- Keep ATLAS_LIVE_TRADING=false through a pre-defined demo forward-test plan.
+- Keep `ATLAS_LIVE_TRADING=false` through a pre-defined demo forward-test plan.
