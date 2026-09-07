@@ -13,6 +13,7 @@ __all__ = ["router", "mt5_state"]
 ATLAS_DEMO_SYMBOLS = ["XAUUSD", "GAS", "XAGUSD", "EURUSD", "XRPUSDT", "SOLUSDT"]
 
 
+@router.get("/dashboard/mt5-state")
 def mt5_state():
     """Expose MT5 dashboard telemetry through a hard read-only boundary."""
     from app.dashboard import api as dashboard_api
