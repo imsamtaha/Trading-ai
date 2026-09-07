@@ -1,11 +1,24 @@
 from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
 
 from app.dashboard.api import router as api_router
-from app.dashboard.views import router as views_router
+from app.dashboard.agent_panel import router as agent_panel_router
+from app.dashboard.views import DASHBOARD_HTML
 
 router = APIRouter()
-router.include_router(views_router)
+
+
+@router.get("/dashboard", response_class=HTMLResponse, tags=["dashboard"])
+def dashboard_view() -> HTMLResponse:
+    scripts = (
+        '<script src="/ui/preferences.js"></script>'
+        '<script src="/ui/agent-panel.js"></script>'
+    )
+    return HTMLResponse(DASHBOARD_HTML.replace("</body>", scripts + "</body>"))
+
+
 router.include_router(api_router)
+router.include_router(agent_panel_router)
 
 __all__ = ["router"]
 
