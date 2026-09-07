@@ -7,10 +7,9 @@ from typing import Any
 
 from app.analysis.structure import analyze_structure
 from app.analysis.technical import analyze_candles
-from app.data.market import get_candles
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
-from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
+from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.intelligence.journal import SignalJournal
 from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
@@ -156,8 +155,17 @@ class AtlasMT5Monitor:
         return self.decision_engine.analyze(data)
 
     def analyze_symbol(self, symbol: str) -> dict[str, Any]:
-        market_data = get_candles(symbol, self.interval, self.candle_limit)
-        candles = market_data["candles"]
+        if mt5 is None:
+            raise MT5ExecutionError("MT5 candles require the Windows worker.")
+        candles = self.broker.candles(
+            symbol, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit
+        )
+        if len(candles) < 50:
+            raise MT5ExecutionError(f"{symbol}: at least 50 candles are required.")
+        market_data = {
+            "symbol": symbol, "interval": self.interval, "source": "MT5",
+            "count": len(candles), "candles": candles,
+        }
         technical = analyze_candles(candles)
         structure = analyze_structure(candles)
         candidate_obj = generate_strategy_candidate(
@@ -370,37 +378,41 @@ class AtlasMT5Monitor:
 
     def run_once(self) -> list[dict[str, Any]]:
         """Run one connected demo cycle and return its audit events."""
-        account = self.broker.connect()
-        self.account_equity = float(account["equity"])
-        self.heartbeat.publish_connection(account, "connected")
-        self.discover_symbols()
         try:
+            account = self.broker.connect()
+            self.account_equity = float(account["equity"])
+            self.heartbeat.publish_connection(account, "connected")
+            self.discover_symbols()
             return self.cycle()
         finally:
             self.broker.disconnect()
 
     def run_forever(self) -> None:
+        """Reconnect each cycle; transient MT5 failures never discard the ledger."""
         self.running = True
-        account = self.broker.connect()
-        self.account_equity = float(account["equity"])
-        self.heartbeat.publish_connection(account, "connected")
-        self.discover_symbols()
-        print("ATLAS MT5 forward-demo monitor started")
-        print("MODE: PAPER DEMO ONLY (no MT5 orders)")
-        print(f"STRATEGY MODE: {self.strategy_mode}")
-        print(f"ACCOUNT: {account['login']} / {account['server']}")
-        print(f"SYMBOLS ({len(self.symbols)}): {self.symbols}")
-        print(f"TIMEFRAME: {self.interval}")
-        print(f"LEDGER: {self.ledger.path}")
+        print("ATLAS forward-demo: PAPER ONLY; no MT5 orders", flush=True)
         try:
             while self.running:
-                for event in self.cycle():
-                    print(event)
-                time.sleep(self.cycle_seconds)
+                try:
+                    for event in self.run_once():
+                        print(event, flush=True)
+                except MT5ExecutionError as exc:
+                    self.heartbeat.publish_connection({}, "error")
+                    event = self._record_event({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": "ATLAS", "timeframe": self.interval,
+                        "status": "MT5_ERROR", "reason": str(exc),
+                        "decision": {"decision": "WAIT"},
+                    })
+                    print(event, flush=True)
+                if self.running:
+                    time.sleep(self.cycle_seconds)
         except KeyboardInterrupt:
-            self.running = False
+            pass
         finally:
+            self.running = False
             self.broker.disconnect()
 
     def stop(self) -> None:
         self.running = False
+
