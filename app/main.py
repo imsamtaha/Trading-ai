@@ -29,7 +29,7 @@ from app.agent.api import router as agent_router
 app = FastAPI(
     title="ATLAS Trading AI",
     description="Multi-asset AI trading analysis, decision support, and MT5 execution gateway",
-    version="1.3.0",
+    version="1.4.0",
 )
 
 app.include_router(dashboard_router)
@@ -44,8 +44,8 @@ async def dashboard_only_guard(request: Request, call_next):
     """Public-view safety mode.
 
     With ATLAS_DASHBOARD_ONLY=true, only the subscriber landing page, live
-    read-only dashboard telemetry, health, documentation, and paper-only agent
-    decision routes are public. Execution/mutation endpoints remain blocked.
+    read-only dashboard telemetry, health, documentation, and read-only agent
+    planning/decision routes are public. Execution/mutation endpoints remain blocked.
     """
     import os
 
@@ -69,6 +69,8 @@ async def dashboard_only_guard(request: Request, call_next):
             "/mt5/cockpit-state",
             "/agent/capabilities",
             "/agent/decision",
+            "/agent/right-hand/capabilities",
+            "/agent/right-hand/plan",
             "/docs",
             "/openapi.json",
         } or path.startswith("/billing/")
@@ -106,12 +108,13 @@ def root():
         "system": "ATLAS",
         "status": "online",
         "mode": "live_gateway_disabled_by_default",
-        "version": "1.3.0",
+        "version": "1.4.0",
         "subscribe": "/subscribe",
         "dashboard": "/dashboard",
         "mt5_cockpit": "/mt5/cockpit-state",
         "market_briefing": "/dashboard/market-briefing",
         "agent": "/agent/capabilities",
+        "right_hand": "/agent/right-hand/capabilities",
     }
 
 
