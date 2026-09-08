@@ -1,0 +1,5 @@
+# Public website only. Do not upload the private Python service or credentials.
+**
+!web
+!web/**
+!vercel.json
