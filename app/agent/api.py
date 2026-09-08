@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.agent.conversation import converse
 from app.agent.core import AtlasAgent
 from app.agent.models import AgentRequest, MULTI_TIMEFRAMES
 from app.agent.right_hand import build_right_hand_plan, capabilities as right_hand_capabilities
@@ -23,6 +24,13 @@ class RightHandPayload(BaseModel):
     request: str = Field(min_length=1, max_length=4000)
 
 
+class RightHandChatPayload(RightHandPayload):
+    interval: str = Field(default="15m", min_length=1, max_length=10)
+    multi_timeframe: bool = True
+    account_balance: float = Field(default=10000.0, gt=0)
+    risk_percent: float = Field(default=1.0, gt=0, le=2.0)
+
+
 class PaperExecutionPayload(BaseModel):
     account_id: int = Field(gt=0)
     symbol: str = Field(min_length=1, max_length=40)
@@ -38,6 +46,7 @@ def capabilities():
         "multi_timeframes": list(MULTI_TIMEFRAMES),
         "multi_timeframe_policy": "unanimous_signals_and_all_risk_approved",
         "right_hand": "/agent/right-hand/capabilities",
+        "right_hand_chat": "/agent/right-hand/chat",
         "tools": [
             {
                 "name": tool.name,
@@ -60,6 +69,22 @@ def right_hand_plan(payload: RightHandPayload):
         return build_right_hand_plan(payload.request).to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/right-hand/chat")
+def right_hand_chat(payload: RightHandChatPayload):
+    try:
+        return converse(
+            payload.request,
+            interval=payload.interval,
+            multi_timeframe=payload.multi_timeframe,
+            account_balance=payload.account_balance,
+            risk_percent=payload.risk_percent,
+        ).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @router.post("/decision")
