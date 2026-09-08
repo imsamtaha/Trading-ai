@@ -7,10 +7,9 @@ from typing import Any
 
 from app.analysis.structure import analyze_structure
 from app.analysis.technical import analyze_candles
-from app.data.market import get_candles
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
-from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
+from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.intelligence.journal import SignalJournal
 from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
@@ -156,8 +155,12 @@ class AtlasMT5Monitor:
         return self.decision_engine.analyze(data)
 
     def analyze_symbol(self, symbol: str) -> dict[str, Any]:
-        market_data = get_candles(symbol, self.interval, self.candle_limit)
-        candles = market_data["candles"]
+        timeframe = getattr(mt5, TIMEFRAME_MAP[self.interval])
+        candles = self.broker.candles(symbol, timeframe, self.candle_limit)
+        if len(candles) < 50:
+            raise MT5ExecutionError("Insufficient MT5 candles for demo analysis.")
+        market_data = {"symbol": symbol, "interval": self.interval,
+                       "candles": candles, "count": len(candles), "source": "MT5"}
         technical = analyze_candles(candles)
         structure = analyze_structure(candles)
         candidate_obj = generate_strategy_candidate(
@@ -372,9 +375,9 @@ class AtlasMT5Monitor:
         """Run one connected demo cycle and return its audit events."""
         account = self.broker.connect()
         self.account_equity = float(account["equity"])
-        self.heartbeat.publish_connection(account, "connected")
-        self.discover_symbols()
         try:
+            self.heartbeat.publish_connection(account, "connected")
+            self.discover_symbols()
             return self.cycle()
         finally:
             self.broker.disconnect()
