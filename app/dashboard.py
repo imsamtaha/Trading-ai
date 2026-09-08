@@ -1,55 +1,195 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
-from app.dashboard.api import atlas_dashboard_state
+from app.analysis.structure import analyze_structure
+from app.analysis.technical import analyze_candles
+from app.data.market import get_candles, get_price
+from app.intelligence.scoring import create_atlas_trade_candidate, score_analysis
+from app.paper_trading.engine import PersistentPaperTradingEngine
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
-
-def _demo_regime_from_technical(technical: dict | None) -> str:
-    """Classify deterministic demo data without depending on MT5 or OpenAI."""
-    context = technical or {}
-    bullish = {"BULLISH", "UP", "UPTREND", "BUY", "LONG"}
-    bearish = {"BEARISH", "DOWN", "DOWNTREND", "SELL", "SHORT"}
-    values = {
-        str(context.get(key, "")).strip().upper()
-        for key in ("trend", "momentum", "macd_signal", "structure")
-    }
-    bull_votes = len(values & bullish)
-    bear_votes = len(values & bearish)
-    if max(bull_votes, bear_votes) >= 2 and bull_votes != bear_votes:
-        return "TREND"
-    return "RANGE"
+ACCOUNT_ID = 3
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+ATLAS_DEMO_SYMBOLS = ["XAUUSD", "SILVER", "GAS", "EURUSD", "SOLUSDT", "XRPUSDT"]
 
 
-def _analyze_demo_symbol(symbol: str) -> dict:
-    """Return a safe dashboard row when external market services are unavailable."""
+def _direction_score(label: str | None) -> float:
+    normalized = (label or "").strip().lower()
+    if normalized == "bullish":
+        return 0.7
+    if normalized == "bearish":
+        return -0.7
+    return 0.0
+
+
+def _momentum_score(label: str | None) -> float:
+    normalized = (label or "").strip().lower()
+    if normalized == "bullish":
+        return 0.5
+    if normalized == "bearish":
+        return -0.5
+    return 0.0
+
+
+def _volatility_score(technical: dict) -> float:
+    price = technical.get("price")
+    atr = (technical.get("indicators") or {}).get("atr_14")
+    if not price or not atr:
+        return 0.0
+    return min(1.0, abs(float(atr) / float(price)) * 50.0)
+
+
+def _demo_regime_from_technical(technical: dict) -> dict:
+    trend = technical.get("trend")
+    trend_score = _direction_score(trend)
+    volatility = _volatility_score(technical)
+
+    if volatility >= 0.75:
+        primary = "HIGH_VOLATILITY"
+    elif trend == "bullish":
+        primary = "BULL_TREND"
+    elif trend == "bearish":
+        primary = "BEAR_TREND"
+    else:
+        primary = "RANGE"
+
     return {
-        "symbol": str(symbol),
-        "canonical_symbol": str(symbol),
-        "asset_class": "DEMO",
-        "opportunity_score": 0.0,
-        "price": 0.0,
-        "spread_points": 0.0,
-        "decision": {
-            "decision": "WAIT",
-            "bias": "NEUTRAL",
-            "score": 0.0,
-            "regime": "RANGE",
+        "primary_regime": primary,
+        "regime_score": trend_score,
+        "trend": primary if primary in {"BULL_TREND", "BEAR_TREND"} else "RANGE",
+        "volatility": "HIGH_VOLATILITY" if volatility >= 0.75 else "NORMAL_VOLATILITY",
+        "risk": "NEUTRAL_RISK",
+        "event_risk": "NORMAL_EVENT_RISK",
+        "raw_state": {
+            "trend_score": trend_score,
+            "volatility_score": volatility,
+            "momentum_score": _momentum_score(technical.get("momentum")),
+            "volume_score": 0.5 if technical.get("volume_state") == "high" else 0.0,
+            "event_risk_score": 0.0,
+            "risk_sentiment_score": 0.0,
         },
-        "quality": {
-            "execution_confidence": 0.0,
-            "signal_quality": "DEMO",
-        },
-        "timeframes": {},
+    }
+
+
+def _analyze_demo_symbol(symbol: str, interval: str, account_balance: float) -> dict:
+    market_data = get_candles(symbol, interval, 120)
+    candles = market_data["candles"]
+    technical = analyze_candles(candles)
+    structure = analyze_structure(candles)
+    regime = _demo_regime_from_technical(technical)
+
+    decision = score_analysis(
+        asset=symbol,
+        timeframe=interval,
+        technical_analysis=technical,
+        structure_analysis=structure,
+        regime_analysis=regime,
+        risk_reward=2.0,
+        account_risk_fraction=0.01,
+    )
+    candidate = create_atlas_trade_candidate(
+        decision=decision,
+        technical=technical,
+        account_balance=account_balance,
+        risk_percent=1.0,
+    )
+
+    return {
+        "symbol": symbol,
+        "interval": interval,
+        "status": candidate.get("status", "NO_TRADE"),
+        "price": technical.get("price"),
+        "trend": technical.get("trend"),
+        "momentum": technical.get("momentum"),
+        "structure": structure.get("structure"),
+        "regime": regime.get("primary_regime"),
+        "atlas_decision": decision.to_dict(),
+        "trade_candidate": candidate,
     }
 
 
 @router.get("/state")
-def state():
-    return atlas_dashboard_state()
+def dashboard_state(account_id: int = ACCOUNT_ID):
+    try:
+        engine = PersistentPaperTradingEngine(account_id)
+        account = engine.account()
+        prices: dict[str, float] = {}
+        price_errors: dict[str, str] = {}
+
+        for symbol in SYMBOLS:
+            try:
+                data = get_price(symbol)
+                prices[symbol] = float(data["price"])
+            except Exception as exc:
+                price_errors[symbol] = str(exc)
+
+        equity = engine.calculate_equity(prices)
+        return {
+            "status": "LIVE",
+            "mode": "paper_trading",
+            "account": account,
+            "prices": prices,
+            "price_errors": price_errors,
+            "equity": equity,
+            "positions": engine.positions(),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@router.get("/demo-state")
+def atlas_demo_state(interval: str = "1h", account_balance: float = 10_000.0):
+    results = []
+    for symbol in ATLAS_DEMO_SYMBOLS:
+        try:
+            results.append(_analyze_demo_symbol(symbol, interval, account_balance))
+        except Exception as exc:
+            results.append({
+                "symbol": symbol,
+                "interval": interval,
+                "status": "ERROR",
+                "error": str(exc),
+            })
+
+    return {
+        "status": "DEMO_READY",
+        "mode": "live_market_data_paper_trading_demo",
+        "execution": "disabled",
+        "interval": interval,
+        "symbols": ATLAS_DEMO_SYMBOLS,
+        "summary": {
+            "analyzed": len(results),
+            "trade_candidates": sum(item.get("status") == "TRADE_CANDIDATE" for item in results),
+            "no_trades": sum(item.get("status") == "NO_TRADE" for item in results),
+            "errors": sum(item.get("status") == "ERROR" for item in results),
+        },
+        "results": results,
+    }
+
+
+@router.get("/mt5-state")
+def mt5_state():
+    """Expose FxPro/MT5 telemetry through a hard read-only dashboard boundary."""
+    try:
+        from app.dashboard.api import atlas_dashboard_state
+
+        state = atlas_dashboard_state()
+        state["mode"] = "READ_ONLY"
+        state["execution"] = "disabled"
+        services = dict(state.get("services") or {})
+        services["execution_gate"] = "DISABLED"
+        services["subscriber_access"] = "READ_ONLY"
+        state["services"] = services
+        return state
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"MT5 read-only dashboard unavailable: {exc}")
 
 
 @router.get("", response_class=HTMLResponse)
@@ -62,40 +202,37 @@ DASHBOARD_HTML = r'''<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ATLAS — Live Trading Intelligence</title>
+<title>ATLAS Ultimate Trading AI Hub</title>
 <style>
-:root{color-scheme:dark;--bg:#06080d;--card:#0d131d;--line:#233044;--text:#f2f5f9;--muted:#8d9aad;--orange:#ff8a24;--green:#39d98a;--red:#ff6174;--yellow:#f6c85f;--blue:#72a7ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#172336 0,#06080d 42%);color:var(--text);font:14px Inter,system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:1550px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}.brand{display:flex;gap:12px;align-items:center}.logo{width:46px;height:46px;border:1px solid var(--orange);border-radius:15px;display:grid;place-items:center;font-weight:900;color:var(--orange);box-shadow:0 0 28px #ff8a2425}.title{font-size:24px;font-weight:900;letter-spacing:.06em}.sub{font-size:12px;color:var(--muted)}.badge{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--line);padding:8px 11px;border-radius:999px;font-weight:800}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px #39d98a88}.grid{display:grid;gap:12px}.stats{grid-template-columns:repeat(6,1fr)}.split{grid-template-columns:1.65fr 1fr}.card{background:linear-gradient(180deg,#111824,#0b111a);border:1px solid var(--line);border-radius:17px;padding:16px;box-shadow:0 16px 45px #0006}.label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.11em}.big{font-size:25px;font-weight:900;margin-top:6px}.orange{color:var(--orange)}.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}.row{display:grid;grid-template-columns:1.25fr .8fr .7fr .7fr .65fr .65fr;gap:9px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}.row:last-child{border-bottom:0}.tablehead{font-size:10px;color:var(--muted);text-transform:uppercase}.symbol{font-weight:900}.mini{font-size:11px;color:var(--muted)}.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:10px}.scorebar{height:6px;background:#1a2330;border-radius:99px;overflow:hidden}.scorefill{height:100%;background:var(--orange)}.pos{display:grid;grid-template-columns:1fr .7fr .55fr .75fr .65fr;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.alert{padding:10px 12px;border:1px solid var(--line);border-radius:11px;margin-top:8px;background:#091019}.empty{color:var(--muted);padding:14px 0}.foot{margin-top:12px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.notice{border-left:3px solid var(--orange);padding:10px 12px;background:#ff8a240b;border-radius:8px;color:#b9c3cf;margin-top:12px}@media(max-width:1200px){.stats{grid-template-columns:repeat(3,1fr)}.split{grid-template-columns:1fr}}@media(max-width:760px){main{padding:12px}.stats{grid-template-columns:1fr 1fr}.top{align-items:flex-start;flex-direction:column}.row{grid-template-columns:1fr 1fr}.row>*:nth-child(n+3){text-align:right}.pos{grid-template-columns:1fr 1fr}.title{font-size:19px}}
+:root{color-scheme:dark;--bg:#080a0f;--card:#10151e;--line:#273345;--text:#f4f6fa;--muted:#91a0b5;--orange:#ff8a24;--green:#39d98a;--red:#ff6174;--blue:#72a7ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0,#1a2638,#080a0f 44%);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:1500px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:16px}.title{font-size:26px;font-weight:900}.sub{color:var(--muted);font-size:12px}.badge{padding:8px 11px;border:1px solid var(--line);border-radius:999px}.grid{display:grid;gap:12px}.stats{grid-template-columns:repeat(6,1fr)}.split{grid-template-columns:1.2fr .8fr}.card{background:linear-gradient(180deg,#111925,#0c121b);border:1px solid var(--line);border-radius:16px;padding:16px}.label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.big{font-size:23px;font-weight:900;margin-top:6px}.orange{color:var(--orange)}.green{color:var(--green)}.red{color:var(--red)}.blue{color:var(--blue)}.row{display:grid;grid-template-columns:1.2fr .9fr .9fr .9fr .9fr;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.muted{color:var(--muted);font-size:12px}.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:10px}.err{color:var(--red)}@media(max-width:950px){.stats,.split{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr 1fr}}@media(max-width:600px){.stats,.split{grid-template-columns:1fr}}
 </style>
 </head>
 <body><main>
-<div class="top"><div class="brand"><div class="logo">A</div><div><div class="title">ATLAS THE ULTIMATE</div><div class="sub">Live Trading Intelligence · Subscriber Observatory</div></div></div><div class="badge"><span class="dot"></span><span id="status">CONNECTING</span></div></div>
+<div class="top"><div><div class="title">ATLAS ULTIMATE TRADING AI HUB</div><div class="sub">FxPro MT5 read-only cockpit · ATLAS scoring · paper/demo validation</div></div><div class="badge"><span id="systemStatus">CONNECTING</span></div></div>
 <div class="grid stats">
-<div class="card"><div class="label">Account Type</div><div class="big" id="accountType">—</div></div>
-<div class="card"><div class="label">Equity</div><div class="big" id="equity">—</div></div>
+<div class="card"><div class="label">MT5</div><div class="big" id="mt5">—</div></div>
+<div class="card"><div class="label">Account</div><div class="big" id="account">—</div></div>
 <div class="card"><div class="label">Balance</div><div class="big" id="balance">—</div></div>
-<div class="card"><div class="label">Floating P/L</div><div class="big" id="floating">—</div></div>
-<div class="card"><div class="label">Open Positions</div><div class="big" id="openPositions">—</div></div>
-<div class="card"><div class="label">Execution Gate</div><div class="big yellow" id="execution">—</div></div>
+<div class="card"><div class="label">Equity</div><div class="big" id="equity">—</div></div>
+<div class="card"><div class="label">Open Positions</div><div class="big" id="positionsCount">—</div></div>
+<div class="card"><div class="label">Execution</div><div class="big red">DISABLED</div></div>
 </div>
 <div class="grid split" style="margin-top:12px">
-<section class="card"><div class="label">ATLAS Opportunity Matrix</div><div id="signals"></div></section>
-<section class="card"><div class="label">Verified Account</div><div id="account"></div><div class="label" style="margin-top:18px">Open Positions</div><div id="positions"></div></section>
+<section class="card"><div class="label">MT5 / FxPro Symbols</div><div id="symbols"><div class="muted">Loading broker telemetry…</div></div></section>
+<section class="card"><div class="label">Broker Account</div><div id="broker"><div class="muted">Loading account…</div></div></section>
 </div>
 <div class="grid split" style="margin-top:12px">
-<section class="card"><div class="label">Selected Market Detail</div><div id="detail" class="empty">Select a market row.</div></section>
-<section class="card"><div class="label">Priority Alerts</div><div id="alerts"></div></section>
+<section class="card"><div class="label">ATLAS Demo Decisions</div><div id="demo"><div class="muted">Loading demo analysis…</div></div></section>
+<section class="card"><div class="label">MT5 Positions</div><div id="mt5positions"><div class="muted">Loading positions…</div></div></section>
 </div>
-<div class="notice" id="disclaimer">Read-only telemetry.</div>
-<div class="foot"><span>Subscriber access: READ ONLY</span><span>Auto-refresh: 5 seconds</span><span>Last server update: <span id="updated">—</span></span></div>
+<div class="muted" style="margin-top:10px">Read-only broker telemetry. Real order execution is disabled.</div>
 </main>
 <script>
-let latest=null;
-const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','"':'&quot;'}[c]));
-const money=(v,c='')=>v===null||v===undefined?'PRIVATE':`${Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}${c?` ${c}`:''}`;
-const tone=v=>Number(v)>=0?'green':'red';
-async function refresh(){try{const r=await fetch('/dashboard/state',{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);const d=await r.json();latest=d;const a=d.account||{};document.getElementById('status').textContent=d.verified_live_account?'VERIFIED LIVE':'ONLINE';document.getElementById('accountType').textContent=a.account_type||'—';document.getElementById('accountType').className='big '+(a.account_type==='REAL'?'green':'yellow');document.getElementById('equity').textContent=money(a.equity,a.currency);document.getElementById('balance').textContent=money(a.balance,a.currency);document.getElementById('floating').textContent=money(d.floating_position_pnl,a.currency);document.getElementById('floating').className='big '+tone(d.floating_position_pnl);document.getElementById('openPositions').textContent=d.open_positions??0;document.getElementById('execution').textContent=d.services.execution_gate;document.getElementById('execution').className='big '+(d.services.execution_gate==='ENABLED'?'green':'yellow');document.getElementById('account').innerHTML=`<div class="alert"><b>${esc(a.label)}</b><div class="mini">${esc(a.broker_company||'Broker')} · ${esc(a.server)}</div></div><div class="pos"><span>Account</span><b>${esc(a.login)}</b><span>Leverage</span><b>1:${esc(a.leverage||'—')}</b><span></span></div><div class="pos"><span>Margin free</span><b>${money(a.margin_free,a.currency)}</b><span>Margin level</span><b>${a.margin_level?Number(a.margin_level).toFixed(1)+'%':'—'}</b><span></span></div>`;
-const rows=(d.symbols||[]).map(x=>{const s=x.decision,q=x.quality;return `<div class="row" onclick="show('${encodeURIComponent(x.symbol)}')"><div><div class="symbol">${esc(x.canonical_symbol||x.symbol)}</div><div class="mini">${esc(x.asset_class)} · broker ${esc(x.symbol)}</div></div><div><span class="tag ${s.bias==='BULLISH'?'green':s.bias==='BEARISH'?'red':''}">${esc(s.bias)}</span><div class="mini">${esc(s.decision)}</div></div><div>${Number(s.score||0).toFixed(1)}<div class="scorebar"><div class="scorefill" style="width:${Math.max(0,Math.min(100,Number(s.score||0)))}%"></div></div></div><div><b>${Number(q.execution_confidence||0).toFixed(1)}%</b><div class="mini">${esc(q.signal_quality)}</div></div><div>${Number(x.opportunity_score||0).toFixed(0)}</div><div>${Number(x.spread_points||0).toFixed(1)}</div></div>`}).join('');document.getElementById('signals').innerHTML='<div class="row tablehead"><div>Market</div><div>Bias / Action</div><div>Score</div><div>Confidence</div><div>Opportunity</div><div>Spread</div></div>'+rows;
-const p=(d.positions||[]).map(x=>`<div class="pos"><div><b>${esc(x.symbol)}</b><div class="mini">${esc(x.direction)}</div></div><div>${x.volume}</div><div>${x.price_open}</div><div class="${tone(x.profit)}"><b>${Number(x.profit||0).toFixed(2)}</b></div><div class="mini">SL ${x.sl||'—'}<br>TP ${x.tp||'—'}</div></div>`).join('');document.getElementById('positions').innerHTML=p||'<div class="empty">No open positions.</div>';document.getElementById('alerts').innerHTML=(d.alerts||[]).length?d.alerts.map(x=>`<div class="alert"><b>${esc(x.symbol)}</b><div class="mini">${esc(x.message)}</div></div>`).join(''):'<div class="empty">No priority alerts.</div>';document.getElementById('disclaimer').textContent=d.disclaimer;document.getElementById('updated').textContent=d.timestamp?new Date(d.timestamp).toLocaleTimeString():'—';if(d.symbols?.length)show(encodeURIComponent(d.symbols[0].symbol));}catch(e){document.getElementById('status').textContent='OFFLINE';document.getElementById('alerts').innerHTML=`<div class="alert red">${esc(e.message)}</div>`}}
-function show(encoded){if(!latest)return;const x=latest.symbols.find(v=>encodeURIComponent(v.symbol)===encoded);if(!x)return;const cells=Object.entries(x.timeframes||{}).map(([tf,v])=>`<div class="alert"><b>${tf}</b><div class="mini">Trend ${esc(v.trend)} · Momentum ${esc(v.momentum)} · MACD ${esc(v.macd)} · Structure ${esc(v.structure)} · Signal ${esc(v.signal)}</div></div>`).join('');document.getElementById('detail').innerHTML=`<div class="pos"><div><div class="label">Market</div><div class="big">${esc(x.canonical_symbol)}</div></div><div><div class="label">Price</div><b>${x.price}</b></div><div><div class="label">Score</div><b>${Number(x.decision.score||0).toFixed(1)}</b></div><div><div class="label">Confidence</div><b class="orange">${Number(x.quality.execution_confidence||0).toFixed(1)}%</b></div><div></div></div>${cells}`}
-refresh();setInterval(refresh,5000);
-</script></body></html>'''
+const money=n=>n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const safe=v=>v==null?'—':String(v);
+async function getJson(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok){let detail='HTTP '+r.status;try{const j=await r.json();detail=j.detail||detail}catch{}throw new Error(detail)}return r.json()}
+async function refreshMT5(){try{const d=await getJson('/dashboard/mt5-state');document.getElementById('systemStatus').textContent='ONLINE · READ ONLY';document.getElementById('mt5').textContent=d.services?.mt5||'ONLINE';document.getElementById('mt5').className='big green';document.getElementById('account').textContent=d.account?.account_type||'—';document.getElementById('balance').textContent=money(d.account?.balance);document.getElementById('equity').textContent=money(d.account?.equity);document.getElementById('positionsCount').textContent=d.open_positions??0;document.getElementById('broker').innerHTML=`<div class="row"><span>Server</span><b>${safe(d.account?.server)}</b></div><div class="row"><span>Login</span><b>${safe(d.account?.login)}</b></div><div class="row"><span>Currency</span><b>${safe(d.account?.currency)}</b></div><div class="row"><span>Trade allowed</span><b>${safe(d.account?.trade_allowed)}</b></div><div class="row"><span>Execution gate</span><b class="red">DISABLED</b></div>`;document.getElementById('symbols').innerHTML=(d.symbols||[]).slice(0,12).map(x=>`<div class="row"><b>${safe(x.canonical_symbol||x.symbol)}</b><span>${safe(x.price)}</span><span>${safe(x.decision?.decision)}</span><span>score ${safe(x.decision?.score)}</span><span>${safe(x.quality?.signal_quality)}</span></div>`).join('')||'<div class="muted">No broker symbols returned.</div>';document.getElementById('mt5positions').innerHTML=(d.positions||[]).map(p=>`<div class="row"><b>${safe(p.symbol)}</b><span>${safe(p.direction)}</span><span>${safe(p.volume)}</span><span>${safe(p.price_open)}</span><span>${money(p.profit)}</span></div>`).join('')||'<div class="muted">No MT5 positions.</div>'}catch(e){document.getElementById('systemStatus').textContent='MT5 OFFLINE';document.getElementById('mt5').textContent='OFFLINE';document.getElementById('mt5').className='big red';document.getElementById('broker').innerHTML='<div class="err">'+e.message+'</div>'}}
+async function refreshDemo(){try{const d=await getJson('/dashboard/demo-state');document.getElementById('demo').innerHTML=(d.results||[]).map(x=>`<div class="row"><b>${safe(x.symbol)}</b><span>${safe(x.status)}</span><span>${safe(x.trend)}</span><span>${safe(x.regime)}</span><span>${safe(x.atlas_decision?.bias||x.atlas_decision?.status)}</span></div>`).join('')}catch(e){document.getElementById('demo').innerHTML='<div class="err">'+e.message+'</div>'}}
+refreshMT5();refreshDemo();setInterval(refreshMT5,5000);setInterval(refreshDemo,15000);
+</script>
+</body></html>'''
