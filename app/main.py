@@ -29,7 +29,7 @@ from app.agent.api import router as agent_router
 app = FastAPI(
     title="ATLAS Trading AI",
     description="Multi-asset AI trading analysis, decision support, and MT5 execution gateway",
-    version="1.4.0",
+    version="1.5.0",
 )
 
 app.include_router(dashboard_router)
@@ -71,6 +71,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/agent/decision",
             "/agent/right-hand/capabilities",
             "/agent/right-hand/plan",
+            "/agent/right-hand/chat",
             "/docs",
             "/openapi.json",
         } or path.startswith("/billing/")
@@ -108,13 +109,14 @@ def root():
         "system": "ATLAS",
         "status": "online",
         "mode": "live_gateway_disabled_by_default",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "subscribe": "/subscribe",
         "dashboard": "/dashboard",
         "mt5_cockpit": "/mt5/cockpit-state",
         "market_briefing": "/dashboard/market-briefing",
         "agent": "/agent/capabilities",
         "right_hand": "/agent/right-hand/capabilities",
+        "right_hand_chat": "/agent/right-hand/chat",
     }
 
 
