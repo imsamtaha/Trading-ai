@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 from app.agent.core import AtlasAgent
 from app.agent.models import AgentRequest, MULTI_TIMEFRAMES
+from app.agent.right_hand import build_right_hand_plan, capabilities as right_hand_capabilities
 from app.agent.tools import TOOLS, paper_execute
 
 
@@ -16,6 +17,10 @@ class DecisionPayload(BaseModel):
     account_balance: float = Field(default=10000.0, gt=0)
     risk_percent: float = Field(default=1.0, gt=0, le=2.0)
     multi_timeframe: bool = False
+
+
+class RightHandPayload(BaseModel):
+    request: str = Field(min_length=1, max_length=4000)
 
 
 class PaperExecutionPayload(BaseModel):
@@ -32,6 +37,7 @@ def capabilities():
         "live_execution": False,
         "multi_timeframes": list(MULTI_TIMEFRAMES),
         "multi_timeframe_policy": "unanimous_signals_and_all_risk_approved",
+        "right_hand": "/agent/right-hand/capabilities",
         "tools": [
             {
                 "name": tool.name,
@@ -41,6 +47,19 @@ def capabilities():
             for tool in TOOLS.values()
         ],
     }
+
+
+@router.get("/right-hand/capabilities")
+def right_hand_info():
+    return right_hand_capabilities()
+
+
+@router.post("/right-hand/plan")
+def right_hand_plan(payload: RightHandPayload):
+    try:
+        return build_right_hand_plan(payload.request).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/decision")
