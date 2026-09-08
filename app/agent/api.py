@@ -5,6 +5,7 @@ from app.agent.conversation import converse
 from app.agent.core import AtlasAgent
 from app.agent.models import AgentRequest, MULTI_TIMEFRAMES
 from app.agent.right_hand import build_right_hand_plan, capabilities as right_hand_capabilities
+from app.agent.tool_bridge import ConnectorBridgeError, bridge_status, execute_tool
 from app.agent.tools import TOOLS, paper_execute
 
 
@@ -31,6 +32,12 @@ class RightHandChatPayload(RightHandPayload):
     risk_percent: float = Field(default=1.0, gt=0, le=2.0)
 
 
+class RightHandToolPayload(BaseModel):
+    tool: str = Field(min_length=1, max_length=80)
+    arguments: dict = Field(default_factory=dict)
+    approved: bool = False
+
+
 class PaperExecutionPayload(BaseModel):
     account_id: int = Field(gt=0)
     symbol: str = Field(min_length=1, max_length=40)
@@ -47,6 +54,7 @@ def capabilities():
         "multi_timeframe_policy": "unanimous_signals_and_all_risk_approved",
         "right_hand": "/agent/right-hand/capabilities",
         "right_hand_chat": "/agent/right-hand/chat",
+        "right_hand_tools": "/agent/right-hand/tools",
         "tools": [
             {
                 "name": tool.name,
@@ -60,7 +68,24 @@ def capabilities():
 
 @router.get("/right-hand/capabilities")
 def right_hand_info():
-    return right_hand_capabilities()
+    payload = right_hand_capabilities()
+    payload["connector_bridge"] = bridge_status()
+    return payload
+
+
+@router.get("/right-hand/tools")
+def right_hand_tools():
+    return bridge_status()
+
+
+@router.post("/right-hand/tools/execute")
+def right_hand_tool_execute(payload: RightHandToolPayload):
+    try:
+        return execute_tool(payload.tool, payload.arguments, approved=payload.approved)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except ConnectorBridgeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @router.post("/right-hand/plan")
