@@ -128,6 +128,7 @@ def market_briefing() -> dict[str, Any]:
 
 
 @router.get("/atlas")
+@router.get("/state")
 def atlas_dashboard_state() -> dict[str, Any]:
     broker = MT5Broker(MT5Config.from_env())
     try:

@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 
 from app.dashboard.api import router as api_router
 from app.dashboard.agent_panel import router as agent_panel_router
+from app.dashboard.demo_panel import router as demo_panel_router
 from app.dashboard.views import DASHBOARD_HTML
 
 router = APIRouter()
@@ -13,12 +14,14 @@ def dashboard_view() -> HTMLResponse:
     scripts = (
         '<script src="/ui/preferences.js"></script>'
         '<script src="/ui/agent-panel.js"></script>'
+        '<script src="/ui/demo-panel.js"></script>'
     )
     return HTMLResponse(DASHBOARD_HTML.replace("</body>", scripts + "</body>"))
 
 
 router.include_router(api_router)
 router.include_router(agent_panel_router)
+router.include_router(demo_panel_router)
 
 __all__ = ["router"]
 

@@ -67,6 +67,13 @@ class MT5Broker:
             mt5.shutdown()
             raise MT5ExecutionError(f"MT5 account unavailable: {code}")
 
+        if os.getenv("MT5_REQUIRE_DEMO", "false").lower() == "true":
+            if (getattr(account, "trade_mode", None) != mt5.ACCOUNT_TRADE_MODE_DEMO
+                    or (self.config.login and int(account.login) != self.config.login)
+                    or (self.config.server and account.server != self.config.server)):
+                mt5.shutdown()
+                raise MT5ExecutionError("Configured demo account is not the active MT5 session.")
+
         self.connected = True
         return {
             "login": int(account.login),

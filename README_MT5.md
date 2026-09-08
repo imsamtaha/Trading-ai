@@ -14,6 +14,11 @@ open/close/error event in Supabase when credentials are available.
 
 ## Windows setup
 
+For the reconnecting background worker and dashboard, see
+[Demo operations and live-review handoff](docs/DEMO_OPERATIONS.md) and run
+`scripts/start_demo_session.ps1` after setup. This session publishes worker
+freshness and paper-ledger progress to `/dashboard/demo-status`.
+
 1. Install MetaTrader 5 and log into a **demo** account.
 2. Clone this repository on the same Windows machine where MT5 is installed.
 3. Create `.env` from `.env.mt5.example`.
