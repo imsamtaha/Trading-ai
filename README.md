@@ -63,7 +63,7 @@ Direct visitors to the published homepage or its `#demo` section. The website
 includes a share-link button and search/social metadata. Sample copy is in
 [docs/ADVERTISING.md](docs/ADVERTISING.md). No advertising campaigns, spending,
 tracking pixels, return claims, or performance testimonials are configured.
-# ATLAS Trading AI Demo
+## ATLAS Trading AI Demo
 
 ATLAS is a deterministic multi-asset trading-analysis demo cockpit.
 
@@ -96,7 +96,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 $env:ATLAS_LIVE_TRADING="false"
-$env:ATLAS_DASHBOARD_ONLY="false"
+$env:ATLAS_DASHBOARD_ONLY="true"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload
 ```
 
@@ -126,7 +126,7 @@ Expected result:
 ```powershell
 .\.venv\Scripts\Activate.ps1
 $env:ATLAS_LIVE_TRADING="false"
-$env:ATLAS_DASHBOARD_ONLY="false"
+$env:ATLAS_DASHBOARD_ONLY="true"
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
 ```
 

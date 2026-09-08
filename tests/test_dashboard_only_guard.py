@@ -31,7 +31,7 @@ def test_public_reads_are_allowed(client, path):
     assert client.get(path).status_code == 200
 
 
-@pytest.mark.parametrize("path", ["/dashboard/state", "/dashboard/atlas"])
+@pytest.mark.parametrize("path", ["/dashboard/state", "/dashboard/atlas", "/dashboard/mt5-state"])
 def test_dashboard_state_reads_telemetry(client, monkeypatch, path):
     broker = Mock()
     broker.connect.return_value = {}
@@ -73,7 +73,7 @@ def test_non_public_routes_are_forbidden(client, method, path):
 
 
 @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
-@pytest.mark.parametrize("path", ["/dashboard", "/dashboard/state", "/health", "/billing/plans"])
+@pytest.mark.parametrize("path", ["/dashboard", "/dashboard/state", "/dashboard/mt5-state", "/health", "/billing/plans", "/assets/site.js"])
 def test_public_paths_do_not_allow_writes(client, method, path):
     assert client.request(method, path).status_code == 403
 

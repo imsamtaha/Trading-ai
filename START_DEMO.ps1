@@ -18,7 +18,7 @@ Write-Host "Installing/updating requirements..." -ForegroundColor Yellow
 python -m pip install -r requirements.txt
 
 $env:ATLAS_LIVE_TRADING = "false"
-$env:ATLAS_DASHBOARD_ONLY = "false"
+$env:ATLAS_DASHBOARD_ONLY = "true"
 
 $Port = if ($env:ATLAS_DEMO_PORT) { $env:ATLAS_DEMO_PORT } else { "8010" }
 $HostAddress = if ($env:ATLAS_DEMO_HOST) { $env:ATLAS_DEMO_HOST } else { "127.0.0.1" }
