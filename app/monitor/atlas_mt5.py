@@ -28,6 +28,16 @@ TIMEFRAME_MAP = {
     "1d": "TIMEFRAME_D1",
 }
 
+TIMEFRAME_SECONDS = {
+    "1m": 60,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "4h": 14400,
+    "1d": 86400,
+}
+
 
 class AtlasMT5Monitor:
     """Forward-demo monitor that never submits an MT5 order.
@@ -72,6 +82,10 @@ class AtlasMT5Monitor:
             if item.strip()
         }
         self.persist_all_signals = os.getenv("ATLAS_PERSIST_ALL_SIGNALS", "false").lower() == "true"
+        self.reentry_cooldown_seconds = max(
+            TIMEFRAME_SECONDS[interval],
+            int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
+        )
 
         self.broker = MT5Broker(config)
         # Retained as an explicit invariant for code paths that inspect
@@ -242,6 +256,25 @@ class AtlasMT5Monitor:
         candidate: dict[str, Any],
         decision: dict[str, Any],
     ) -> dict[str, Any]:
+        last_closed = self.ledger.last_closed_trade(symbol)
+        if last_closed:
+            closed_at = datetime.fromisoformat(str(last_closed["closed_at"]))
+            elapsed = (datetime.now(timezone.utc) - closed_at).total_seconds()
+            remaining = max(0, int(self.reentry_cooldown_seconds - elapsed))
+            if remaining > 0:
+                return {
+                    "timestamp": timestamp,
+                    "symbol": symbol,
+                    "timeframe": self.interval,
+                    "status": "SKIPPED",
+                    "reason": (
+                        "Re-entry cooldown is active after the last paper close "
+                        f"({remaining}s remaining)."
+                    ),
+                    "candidate": candidate,
+                    "decision": decision,
+                }
+
         expected_action = "BUY" if candidate["direction"] == "LONG" else "SELL"
         if decision.get("decision") != expected_action:
             return {

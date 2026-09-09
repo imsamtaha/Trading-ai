@@ -74,6 +74,18 @@ class MT5PaperLedger:
     def closed_trades(self) -> list[dict[str, Any]]:
         return [dict(trade) for trade in self._state["closed_trades"]]
 
+    def last_closed_trade(self, symbol: str) -> dict[str, Any] | None:
+        """Return the latest persisted close for a symbol, if one exists."""
+        normalized = symbol.upper()
+        matches = [
+            trade
+            for trade in self._state["closed_trades"]
+            if str(trade.get("symbol", "")).upper() == normalized
+        ]
+        if not matches:
+            return None
+        return dict(max(matches, key=lambda trade: str(trade.get("closed_at", ""))))
+
     def has_open_position(self, symbol: str) -> bool:
         normalized = symbol.upper()
         return any(str(position["symbol"]).upper() == normalized for position in self._state["open_positions"])
