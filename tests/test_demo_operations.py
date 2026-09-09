@@ -98,6 +98,7 @@ def test_monitor_blocks_same_candle_reentry_after_close(status_paths, monkeypatc
 
     assert event['status'] == 'SKIPPED'
     assert 'cooldown' in event['reason'].lower()
+    assert '(300s remaining)' in event['reason']
     assert monitor.ledger.summary()['open_positions'] == 0
 
 

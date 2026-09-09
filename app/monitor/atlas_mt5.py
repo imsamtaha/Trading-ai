@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -260,8 +261,9 @@ class AtlasMT5Monitor:
         if last_closed:
             closed_at = datetime.fromisoformat(str(last_closed["closed_at"]))
             elapsed = (datetime.now(timezone.utc) - closed_at).total_seconds()
-            remaining = max(0, int(self.reentry_cooldown_seconds - elapsed))
-            if remaining > 0:
+            cooldown_remaining = self.reentry_cooldown_seconds - elapsed
+            if cooldown_remaining > 0:
+                remaining = math.ceil(cooldown_remaining)
                 return {
                     "timestamp": timestamp,
                     "symbol": symbol,
