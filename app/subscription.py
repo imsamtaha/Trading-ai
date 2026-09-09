@@ -5,7 +5,13 @@ router = APIRouter(tags=["subscription"])
 
 @router.get("/subscribe", response_class=HTMLResponse)
 def subscribe() -> HTMLResponse:
-    return HTMLResponse(SUBSCRIPTION_HTML)
+    html = SUBSCRIPTION_HTML
+    for plan_id in ("reader", "pro"):
+        button = f'<button onclick="checkout(\'{plan_id}\',this)">Start free trial</button>'
+        html = html.replace(button, button +
+            f'<p><a href="/billing/whish/{plan_id}">Pay with Whish Money</a></p>')
+    html = html.replace("</main>", '<p>Whish requests are reviewed manually. Automatic renewal is not available.</p></main>')
+    return HTMLResponse(html)
 
 SUBSCRIPTION_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>ATLAS Reader Access</title>

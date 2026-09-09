@@ -1,0 +1,10 @@
+{
+  "name": "atlas-market-website",
+  "private": true,
+  "scripts": {
+    "build:auth": "node scripts/build_auth.mjs",
+    "test:auth": "node --test tests/test_google_auth.mjs"
+  },
+  "dependencies": {"@supabase/supabase-js": "2.115.0"},
+  "devDependencies": {"esbuild": "0.28.2"}
+}

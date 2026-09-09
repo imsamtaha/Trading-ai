@@ -11,3 +11,13 @@ node_modules/
 .DS_Store
 data/
 logs/
+out/
+dist/
+*.tar.gz
+.vercel/
+.netlify/
+.pytest_cache/
+
+.env.*
+!.env.example
+.pytest-tmp*/

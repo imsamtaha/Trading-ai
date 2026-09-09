@@ -40,6 +40,7 @@ def test_preferences_on_all_pages_and_whish_links():
     assert b"/ui/preferences.js" in dashboard_view().body
     page = subscribe().body
     assert b"/billing/whish/reader" in page and b"/billing/whish/pro" in page
+    assert page.count(b'/ui/preferences.js') == 1
     c = client()
     assert "/ui/preferences.js" in c.get("/billing/whish/reader").text
     script = c.get("/ui/preferences.js")
