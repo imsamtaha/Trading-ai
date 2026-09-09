@@ -11,8 +11,7 @@ def subscribe() -> HTMLResponse:
         html = html.replace(button, button +
             f'<p><a href="/billing/whish/{plan_id}">Pay with Whish Money</a></p>')
     html = html.replace("</main>", '<p>Whish requests are reviewed manually. Automatic renewal is not available.</p></main>')
-    return HTMLResponse(html.replace("</body>",
-        '<script src="/ui/preferences.js"></script></body>'))
+    return HTMLResponse(html)
 
 SUBSCRIPTION_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>ATLAS Reader Access</title>

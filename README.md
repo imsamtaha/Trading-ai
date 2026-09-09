@@ -168,6 +168,8 @@ cd Trading-ai
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+$env:ATLAS_LIVE_TRADING="false"
+$env:ATLAS_DASHBOARD_ONLY="true"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8010
 ```
 
@@ -176,6 +178,8 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8010
 Run the server with:
 
 ```powershell
+$env:ATLAS_LIVE_TRADING="false"
+$env:ATLAS_DASHBOARD_ONLY="true"
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
 ```
 
