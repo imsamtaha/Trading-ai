@@ -1,3 +1,5 @@
+import os
+
 from app.billing.plans import public_plans
 from app.billing.whish import settings as whish_settings
 from fastapi import APIRouter
@@ -5,13 +7,28 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 
+def _stripe_links() -> dict[str, str]:
+    links = {}
+    for plan in ("reader", "pro"):
+        value = os.getenv(f"ATLAS_STRIPE_LINK_{plan.upper()}", "").strip()
+        if value.startswith("https://buy.stripe.com/"):
+            links[plan] = value
+    return links
+
+
 @router.get("/methods")
 def payment_methods() -> dict:
+    links = _stripe_links()
     return {
+        "stripe": {
+            "available": len(links) == 2,
+            "mode": "live_checkout" if len(links) == 2 else "verification_pending",
+            "plans": sorted(links.keys()),
+        },
         "whish": {
             "available": whish_settings()["available"],
             "mode": "manual_review",
-        }
+        },
     }
 
 
