@@ -1,4 +1,4 @@
-"""ATLAS subscription plans shared by the Whish payment flow."""
+"""ATLAS subscription plans shared by the payment flows."""
 from dataclasses import dataclass
 
 
@@ -16,7 +16,7 @@ PLANS: dict[str, SubscriptionPlan] = {
         id="reader",
         name="ATLAS Reader",
         monthly_price=49,
-        trial_days=3,
+        trial_days=0,
         features=(
             "Read-only MT5 cockpit",
             "Wall Street board",
@@ -28,7 +28,7 @@ PLANS: dict[str, SubscriptionPlan] = {
         id="pro",
         name="ATLAS Pro Reader",
         monthly_price=99,
-        trial_days=3,
+        trial_days=0,
         features=(
             "Everything in Reader",
             "Expanded multi-asset opportunity matrix",
