@@ -1,21 +1,19 @@
-"""Public website compatibility routes.
-
-ATLAS ULTIMATE is the single human-facing entry point. Legacy public root
-traffic is redirected there while private API and MT5 services remain isolated.
-"""
+"""Public website routes for the canonical ATLAS ULTIMATE address."""
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse
+
+from app.dashboard import _atlas_ultimate_html
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
-CANONICAL_ATLAS_PATH = "/atlas-ultimate"
 router = APIRouter(tags=["website"])
 
 
-@router.get("/", include_in_schema=False)
-def website() -> RedirectResponse:
-    return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
+@router.get("/", response_class=HTMLResponse, include_in_schema=False)
+def website() -> HTMLResponse:
+    """Serve ATLAS ULTIMATE directly at the domain root."""
+    return HTMLResponse(_atlas_ultimate_html())
 
 
 @router.get("/assets/{name}", include_in_schema=False)
