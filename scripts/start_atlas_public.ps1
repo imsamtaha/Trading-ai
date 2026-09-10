@@ -25,8 +25,9 @@ $env:ATLAS_LIVE_TRADING = "false"
 $env:ATLAS_DASHBOARD_ONLY = "true"
 
 $BaseUrl = "http://127.0.0.1:$Port"
+$AtlasUrl = "$BaseUrl/atlas-ultimate"
 
-Write-Host "Starting ATLAS read-only subscriber server..." -ForegroundColor Cyan
+Write-Host "Starting ATLAS ULTIMATE read-only server..." -ForegroundColor Cyan
 $Server = Start-Process -FilePath $Python -ArgumentList @(
     "-m", "uvicorn", "app.main:app",
     "--host", "127.0.0.1",
@@ -49,24 +50,23 @@ try {
     }
 
     if (-not $Healthy) {
-        throw "ATLAS did not become healthy at $BaseUrl/health."
+        throw "ATLAS ULTIMATE did not become healthy at $BaseUrl/health."
     }
 
-    Write-Host "ATLAS is healthy." -ForegroundColor Green
-    Write-Host "Local subscribe: $BaseUrl/subscribe"
-    Write-Host "Local Whish Money requests: $BaseUrl/billing/methods"
-    Write-Host "Local dashboard: $BaseUrl/dashboard"
+    Write-Host "ATLAS ULTIMATE is healthy." -ForegroundColor Green
+    Write-Host "Local main address: $AtlasUrl" -ForegroundColor Green
     Write-Host ""
     Write-Host "Starting Cloudflare Quick Tunnel..." -ForegroundColor Cyan
-    Write-Host "Copy the https://...trycloudflare.com URL printed below." -ForegroundColor Yellow
-    Write-Host "Subscriber links will be <tunnel>/subscribe and <tunnel>/dashboard." -ForegroundColor Yellow
+    Write-Host "Copy the https://...trycloudflare.com URL printed below and add /atlas-ultimate." -ForegroundColor Yellow
+    Write-Host "This is the only public ATLAS address to share with users." -ForegroundColor Yellow
+    Write-Host "Legacy /, /dashboard and /subscribe routes redirect to ATLAS ULTIMATE." -ForegroundColor DarkGray
     Write-Host ""
 
     & cloudflared tunnel --url $BaseUrl
 }
 finally {
     if ($Server -and -not $Server.HasExited) {
-        Write-Host "Stopping ATLAS subscriber server..." -ForegroundColor Yellow
+        Write-Host "Stopping ATLAS ULTIMATE server..." -ForegroundColor Yellow
         Stop-Process -Id $Server.Id -Force -ErrorAction SilentlyContinue
     }
 }
