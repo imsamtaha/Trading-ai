@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.dashboard.api import router as api_router
 from app.dashboard.agent_panel import router as agent_panel_router
@@ -7,23 +7,53 @@ from app.dashboard.demo_panel import router as demo_panel_router
 from app.dashboard.views import DASHBOARD_HTML
 
 router = APIRouter()
+CANONICAL_ATLAS_PATH = "/atlas-ultimate"
 
 
-@router.get("/dashboard", response_class=HTMLResponse, tags=["dashboard"])
-def dashboard_view() -> HTMLResponse:
+def _atlas_ultimate_html() -> str:
+    plans = r'''
+<section id="plans" class="card" style="margin-top:12px">
+  <div class="label">ATLAS ULTIMATE ACCESS</div>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px">
+    <div class="card" style="box-shadow:none">
+      <div class="label">Reader</div><div class="big">$49<span class="mini"> / month</span></div>
+      <p class="mini">3-day free trial · Read-only market intelligence · Whish Money review</p>
+      <a class="btn" href="/billing/whish/reader">Choose Reader</a>
+    </div>
+    <div class="card" style="box-shadow:none">
+      <div class="label">Pro Reader</div><div class="big">$99<span class="mini"> / month</span></div>
+      <p class="mini">3-day free trial · Expanded read-only intelligence · Whish Money review</p>
+      <a class="btn" href="/billing/whish/pro">Choose Pro</a>
+    </div>
+  </div>
+  <div class="notice">One public ATLAS interface. Execution and private MT5/API services remain isolated behind the dashboard.</div>
+</section>
+'''
     scripts = (
         '<script src="/ui/preferences.js"></script>'
         '<script src="/ui/agent-panel.js"></script>'
         '<script src="/ui/demo-panel.js"></script>'
     )
-    return HTMLResponse(DASHBOARD_HTML.replace("</body>", scripts + "</body>"))
+    html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
+    html = html.replace("</main>", plans + "</main>")
+    return html.replace("</body>", scripts + "</body>")
+
+
+@router.get(CANONICAL_ATLAS_PATH, response_class=HTMLResponse, tags=["dashboard"], include_in_schema=False)
+def atlas_ultimate_view() -> HTMLResponse:
+    return HTMLResponse(_atlas_ultimate_html())
+
+
+@router.get("/dashboard", include_in_schema=False)
+def legacy_dashboard_redirect() -> RedirectResponse:
+    return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
 
 
 router.include_router(api_router)
 router.include_router(agent_panel_router)
 router.include_router(demo_panel_router)
 
-__all__ = ["router", "mt5_state"]
+__all__ = ["router", "mt5_state", "CANONICAL_ATLAS_PATH"]
 
 # Compatibility API for the read-only analysis demo. No orders or ledger writes.
 ATLAS_DEMO_SYMBOLS = ["XAUUSD", "GAS", "XAGUSD", "EURUSD", "XRPUSDT", "SOLUSDT"]
