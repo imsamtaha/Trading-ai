@@ -12,28 +12,43 @@ class SubscriptionPlan:
 
 
 PLANS: dict[str, SubscriptionPlan] = {
+    "watch": SubscriptionPlan(
+        id="watch",
+        name="ATLAS Market Watch",
+        monthly_price=29,
+        trial_days=0,
+        features=(
+            "Live financial news board",
+            "Market direction and bias",
+            "Market structure analysis",
+            "Key levels and strategy context",
+        ),
+    ),
     "reader": SubscriptionPlan(
         id="reader",
-        name="ATLAS Reader",
+        name="ATLAS Signals",
         monthly_price=49,
         trial_days=0,
         features=(
-            "Read-only MT5 cockpit",
-            "Wall Street board",
-            "Financial news",
-            "Demo performance reports",
+            "Everything in Market Watch",
+            "Manual-execution market signals",
+            "Entry/reference zones",
+            "Targets and stop/invalidation levels",
+            "Risk and confidence context",
         ),
     ),
     "pro": SubscriptionPlan(
         id="pro",
-        name="ATLAS Pro Reader",
+        name="ATLAS Pro",
         monthly_price=99,
         trial_days=0,
         features=(
-            "Everything in Reader",
-            "Expanded multi-asset opportunity matrix",
-            "Advanced risk reports",
-            "Priority subscriber briefings",
+            "Everything in Signals",
+            "Full ATLAS monitoring and analysis workflow",
+            "Multi-asset opportunity matrix",
+            "Risk and position monitoring",
+            "Exit and stop alerts",
+            "Priority intelligence briefings",
         ),
     ),
 }
