@@ -1,19 +1,21 @@
-"""Public website served by the existing private ATLAS application.
+"""Public website compatibility routes.
 
-Only web/ is included in static deployments. No private API is deployed there.
+ATLAS ULTIMATE is the single human-facing entry point. Legacy public root
+traffic is redirected there while private API and MT5 services remain isolated.
 """
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
+CANONICAL_ATLAS_PATH = "/atlas-ultimate"
 router = APIRouter(tags=["website"])
 
 
 @router.get("/", include_in_schema=False)
-def website():
-    return FileResponse(WEB_ROOT / "index.html")
+def website() -> RedirectResponse:
+    return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
 
 
 @router.get("/assets/{name}", include_in_schema=False)
