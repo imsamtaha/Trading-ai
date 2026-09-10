@@ -25,7 +25,6 @@ $env:ATLAS_LIVE_TRADING = "false"
 $env:ATLAS_DASHBOARD_ONLY = "true"
 
 $BaseUrl = "http://127.0.0.1:$Port"
-$AtlasUrl = "$BaseUrl/atlas-ultimate"
 
 Write-Host "Starting ATLAS ULTIMATE read-only server..." -ForegroundColor Cyan
 $Server = Start-Process -FilePath $Python -ArgumentList @(
@@ -54,12 +53,13 @@ try {
     }
 
     Write-Host "ATLAS ULTIMATE is healthy." -ForegroundColor Green
-    Write-Host "Local main address: $AtlasUrl" -ForegroundColor Green
+    Write-Host "Local canonical address: $BaseUrl/" -ForegroundColor Green
+    Write-Host "Production canonical address: https://justai-atlas.online/" -ForegroundColor Green
     Write-Host ""
     Write-Host "Starting Cloudflare Quick Tunnel..." -ForegroundColor Cyan
-    Write-Host "Copy the https://...trycloudflare.com URL printed below and add /atlas-ultimate." -ForegroundColor Yellow
-    Write-Host "This is the only public ATLAS address to share with users." -ForegroundColor Yellow
-    Write-Host "Legacy /, /dashboard and /subscribe routes redirect to ATLAS ULTIMATE." -ForegroundColor DarkGray
+    Write-Host "For temporary testing, share only the tunnel root URL." -ForegroundColor Yellow
+    Write-Host "For production, share only https://justai-atlas.online/" -ForegroundColor Yellow
+    Write-Host "Legacy paths remain compatibility redirects only and must not be advertised." -ForegroundColor DarkGray
     Write-Host ""
 
     & cloudflared tunnel --url $BaseUrl
