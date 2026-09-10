@@ -28,9 +28,9 @@ from app.agent.api import router as agent_router
 
 
 app = FastAPI(
-    title="ATLAS Trading AI",
-    description="Multi-asset AI trading analysis, decision support, and MT5 execution gateway",
-    version="1.6.0",
+    title="ATLAS ULTIMATE",
+    description="Unified multi-asset AI trading intelligence, decision support, and MT5 gateway",
+    version="1.7.0",
 )
 
 app.include_router(dashboard_router)
@@ -43,13 +43,13 @@ app.include_router(website_router)
 
 @app.middleware("http")
 async def dashboard_only_guard(request: Request, call_next):
-    """Allow public reads and analysis-only POSTs; block execution and billing writes."""
+    """Allow the unified ATLAS UI, public reads and analysis-only POSTs; block execution and billing writes."""
     import os
 
     if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":
         path = request.url.path
         read_paths = {
-            "/", "/health", "/api", "/subscribe",
+            "/", "/atlas-ultimate", "/health", "/api", "/subscribe",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/mt5-state",
@@ -94,12 +94,11 @@ def _redact_cockpit_state(state: dict) -> dict:
 @app.get("/api")
 def root():
     return {
-        "system": "ATLAS",
+        "system": "ATLAS ULTIMATE",
         "status": "online",
         "mode": "live_gateway_disabled_by_default",
-        "version": "1.6.0",
-        "subscribe": "/subscribe",
-        "dashboard": "/dashboard",
+        "version": "1.7.0",
+        "main_ui": "/atlas-ultimate",
         "mt5_cockpit": "/mt5/cockpit-state",
         "market_briefing": "/dashboard/market-briefing",
         "agent": "/agent/capabilities",
@@ -111,7 +110,7 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "service": "atlas-trading-api"}
+    return {"status": "healthy", "service": "atlas-ultimate-api"}
 
 
 @app.get("/market/{symbol}")
