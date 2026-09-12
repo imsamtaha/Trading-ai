@@ -11,7 +11,7 @@ def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
         page = client.get("/")
         assert page.status_code == 200
         assert "text/html" in page.headers["content-type"]
-        assert "ATLAS Market" in page.text
+        assert "ATLAS ULTIMATE" in page.text
         for asset in ("site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js"):
             assert client.get(f"/assets/{asset}").status_code == 200
         assert client.get("/api").json()["system"] == "ATLAS"
