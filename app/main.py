@@ -52,7 +52,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/", "/atlas-ultimate", "/health", "/api", "/subscribe",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
-            "/dashboard/demo-status", "/dashboard/mt5-state",
+            "/dashboard/demo-status", "/dashboard/trader-view", "/dashboard/mt5-state",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/reader", "/billing/whish/pro",
