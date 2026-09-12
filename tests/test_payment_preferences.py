@@ -43,7 +43,7 @@ def test_preferences_and_whish_links_are_integrated_in_atlas_ultimate():
     assert b'id="plans"' in page
     redirect = subscribe()
     assert redirect.status_code == 308
-    assert redirect.headers["location"] == "/atlas-ultimate#plans"
+    assert redirect.headers["location"] == "/#plans"
     c = client()
     assert "/ui/preferences.js" in c.get("/billing/whish/reader").text
     script = c.get("/ui/preferences.js")
@@ -51,7 +51,9 @@ def test_preferences_and_whish_links_are_integrated_in_atlas_ultimate():
     assert "atlas-language" in script.text and "atlas-theme" in script.text
 
 
-def test_billing_catalog_is_whish_only():
-    c = client()
-    assert "whish" in c.get("/billing/methods").json()
-    assert "stripe" not in c.get("/billing/methods").text.lower()
+def test_billing_catalog_reports_whish_and_pending_stripe_state():
+    methods = client().get("/billing/methods").json()
+    assert "whish" in methods
+    assert "stripe" in methods
+    assert methods["stripe"]["available"] is False
+    assert methods["stripe"]["mode"] == "verification_pending"
