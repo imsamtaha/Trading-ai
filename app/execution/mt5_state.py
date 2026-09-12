@@ -1,8 +1,8 @@
 """Read-only MT5 state for the Trader Cockpit.
 
-This adapter exposes account, position, and quote state only. It never places
-or closes orders. Live execution remains controlled separately by
-ATLAS_LIVE_TRADING and the execution gateway.
+This adapter exposes account, position, quote state, and low-risk validation
+settings only. It never places or closes orders. Live execution remains
+controlled separately by ATLAS_LIVE_TRADING and the execution gateway.
 """
 from __future__ import annotations
 
@@ -11,12 +11,59 @@ from typing import Any
 from app.execution.mt5 import MT5Broker, MT5ExecutionError
 
 
+ASSET_GROUPS: dict[str, tuple[str, ...]] = {
+    "METALS": ("XAUUSD", "XAGUSD"),
+    "ENERGY": ("GAS", "WTI", "BRENT"),
+    "FOREX_MAJORS": (
+        "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUDUSD", "NZDUSD",
+    ),
+    "CRYPTO": ("BTCUSD", "ETHUSD", "XRPUSD", "SOLUSD"),
+}
+
+DEFAULT_REQUESTED_SYMBOLS: tuple[str, ...] = tuple(
+    symbol for symbols in ASSET_GROUPS.values() for symbol in symbols
+)
+
 SYMBOL_ALIASES: dict[str, tuple[str, ...]] = {
     "XAUUSD": ("XAUUSD", "GOLD", "XAUUSD.", "XAUUSDm", "XAUUSD.a"),
     "XAGUSD": ("XAGUSD", "SILVER", "XAGUSD.", "XAGUSDm", "XAGUSD.a"),
+    "GAS": ("GAS", "NAT.GAS", "NGAS", "NATGAS", "NG", "NGAS.cash"),
+    "WTI": ("WTI", "USOIL", "USOil", "CL", "OIL", "CrudeOIL"),
+    "BRENT": ("BRENT", "UKOIL", "UKOil", "BZ", "Brent"),
     "EURUSD": ("EURUSD", "EURUSD.", "EURUSDm", "EURUSD.a"),
     "GBPUSD": ("GBPUSD", "GBPUSD.", "GBPUSDm", "GBPUSD.a"),
+    "USDJPY": ("USDJPY", "USDJPY.", "USDJPYm", "USDJPY.a"),
+    "USDCHF": ("USDCHF", "USDCHF.", "USDCHFm", "USDCHF.a"),
+    "USDCAD": ("USDCAD", "USDCAD.", "USDCADm", "USDCAD.a"),
+    "AUDUSD": ("AUDUSD", "AUDUSD.", "AUDUSDm", "AUDUSD.a"),
+    "NZDUSD": ("NZDUSD", "NZDUSD.", "NZDUSDm", "NZDUSD.a"),
+    "BTCUSD": ("BTCUSD", "BTCUSDT", "BITCOIN", "BTCUSD.", "BTCUSDm"),
+    "ETHUSD": ("ETHUSD", "ETHUSDT", "ETHEREUM", "ETHUSD.", "ETHUSDm"),
+    "XRPUSD": ("XRPUSD", "XRPUSDT", "RIPPLE", "XRPUSD.", "XRPUSDm"),
+    "SOLUSD": ("SOLUSD", "SOLUSDT", "SOLANA", "SOLUSD.", "SOLUSDm"),
 }
+
+
+def _asset_class(requested: str) -> str:
+    for group, symbols in ASSET_GROUPS.items():
+        if requested in symbols:
+            return group
+    return "OTHER"
+
+
+def _fallback_match(requested: str, normalized: str) -> bool:
+    rules = {
+        "XAUUSD": ("xau", "gold"),
+        "XAGUSD": ("xag", "silver"),
+        "GAS": ("gas", "ngas", "natgas", "nat.gas"),
+        "WTI": ("wti", "usoil", "crude", "oil"),
+        "BRENT": ("brent", "ukoil"),
+        "BTCUSD": ("btc", "bitcoin"),
+        "ETHUSD": ("eth", "ethereum"),
+        "XRPUSD": ("xrp", "ripple"),
+        "SOLUSD": ("sol", "solana"),
+    }
+    return any(token.replace(".", "") in normalized for token in rules.get(requested, ()))
 
 
 class MT5CockpitAdapter:
@@ -48,11 +95,7 @@ class MT5CockpitAdapter:
         for item in mt5.symbols_get() or ():
             name = str(item.name)
             normalized = name.replace(".", "").lower()
-            if needle in normalized or (
-                requested == "XAUUSD" and ("xau" in normalized or "gold" in normalized)
-            ) or (
-                requested == "XAGUSD" and ("xag" in normalized or "silver" in normalized)
-            ):
+            if needle in normalized or _fallback_match(requested, normalized):
                 matches.append(name)
 
         if matches:
@@ -62,13 +105,14 @@ class MT5CockpitAdapter:
 
     def snapshot(
         self,
-        requested_symbols: tuple[str, ...] = ("XAUUSD", "XAGUSD", "EURUSD", "GBPUSD"),
+        requested_symbols: tuple[str, ...] = DEFAULT_REQUESTED_SYMBOLS,
     ) -> dict[str, Any]:
         account = self.broker.connect()
         positions = self.broker.positions()
         prices: dict[str, float] = {}
         resolved: dict[str, str] = {}
         symbol_errors: dict[str, str] = {}
+        rates: list[dict[str, Any]] = []
 
         for requested in requested_symbols:
             try:
@@ -77,8 +121,20 @@ class MT5CockpitAdapter:
                 bid = float(quote["bid"])
                 ask = float(quote["ask"])
                 last = float(quote.get("last", 0.0) or 0.0)
+                mid = last if last > 0 else (bid + ask) / 2.0
+                spread = max(0.0, ask - bid)
                 resolved[requested] = actual
-                prices[requested] = last if last > 0 else (bid + ask) / 2.0
+                prices[requested] = mid
+                rates.append({
+                    "symbol": requested,
+                    "broker_symbol": actual,
+                    "asset_class": _asset_class(requested),
+                    "bid": bid,
+                    "ask": ask,
+                    "last": last,
+                    "mid": mid,
+                    "spread": spread,
+                })
             except MT5ExecutionError as exc:
                 symbol_errors[requested] = str(exc)
 
@@ -89,6 +145,15 @@ class MT5CockpitAdapter:
         return {
             "status": "CONNECTED" if self.broker.connected else "OFFLINE",
             "mode": "mt5_read_only",
+            "risk_profile": {
+                "name": "ATLAS_LOW_RISK_DEMO_VALIDATION",
+                "default_risk_percent": 0.5,
+                "max_risk_percent": 1.0,
+                "max_position_percent": 15.0,
+                "minimum_risk_reward": 1.5,
+                "real_execution": "disabled",
+            },
+            "asset_groups": ASSET_GROUPS,
             "account": {
                 "id": account["login"],
                 "server": server,
@@ -103,6 +168,7 @@ class MT5CockpitAdapter:
                 "positions": positions,
             },
             "prices": prices,
+            "rates": rates,
             "resolved_symbols": resolved,
             "symbol_errors": symbol_errors,
             "broker": {
