@@ -14,7 +14,7 @@ def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
         assert "ATLAS ULTIMATE" in page.text
         for asset in ("site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js"):
             assert client.get(f"/assets/{asset}").status_code == 200
-        assert client.get("/api").json()["system"] == "ATLAS"
+        assert client.get("/api").json()["system"] == "ATLAS ULTIMATE"
 
 
 def test_public_assets_cannot_read_private_files_and_orders_stay_blocked(monkeypatch):
