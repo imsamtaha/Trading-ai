@@ -17,7 +17,11 @@ ASSET_GROUPS: dict[str, tuple[str, ...]] = {
     "FOREX_MAJORS": (
         "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "USDCAD", "AUDUSD", "NZDUSD",
     ),
-    "CRYPTO": ("BTCUSD", "ETHUSD", "XRPUSD", "SOLUSD"),
+    "CRYPTO": (
+        "BTCUSD", "ETHUSD", "BNBUSD", "SOLUSD", "XRPUSD", "ADAUSD", "DOGEUSD",
+        "LTCUSD", "BCHUSD", "DOTUSD", "LINKUSD", "AVAXUSD", "MATICUSD", "POLUSD",
+        "TRXUSD", "UNIUSD", "ATOMUSD", "XLMUSD", "NEARUSD", "APTUSD", "FILUSD",
+    ),
 }
 
 DEFAULT_REQUESTED_SYMBOLS: tuple[str, ...] = tuple(
@@ -37,10 +41,27 @@ SYMBOL_ALIASES: dict[str, tuple[str, ...]] = {
     "USDCAD": ("USDCAD", "USDCAD.", "USDCADm", "USDCAD.a"),
     "AUDUSD": ("AUDUSD", "AUDUSD.", "AUDUSDm", "AUDUSD.a"),
     "NZDUSD": ("NZDUSD", "NZDUSD.", "NZDUSDm", "NZDUSD.a"),
-    "BTCUSD": ("BTCUSD", "BTCUSDT", "BITCOIN", "BTCUSD.", "BTCUSDm"),
-    "ETHUSD": ("ETHUSD", "ETHUSDT", "ETHEREUM", "ETHUSD.", "ETHUSDm"),
-    "XRPUSD": ("XRPUSD", "XRPUSDT", "RIPPLE", "XRPUSD.", "XRPUSDm"),
-    "SOLUSD": ("SOLUSD", "SOLUSDT", "SOLANA", "SOLUSD.", "SOLUSDm"),
+    "BTCUSD": ("BTCUSD", "BTCUSDT", "BITCOIN", "BTCUSD.", "BTCUSDm", "BTCUSD.a"),
+    "ETHUSD": ("ETHUSD", "ETHUSDT", "ETHEREUM", "ETHUSD.", "ETHUSDm", "ETHUSD.a"),
+    "BNBUSD": ("BNBUSD", "BNBUSDT", "BINANCECOIN", "BNBUSD.", "BNBUSDm", "BNBUSD.a"),
+    "SOLUSD": ("SOLUSD", "SOLUSDT", "SOLANA", "SOLUSD.", "SOLUSDm", "SOLUSD.a"),
+    "XRPUSD": ("XRPUSD", "XRPUSDT", "RIPPLE", "XRPUSD.", "XRPUSDm", "XRPUSD.a"),
+    "ADAUSD": ("ADAUSD", "ADAUSDT", "CARDANO", "ADAUSD.", "ADAUSDm", "ADAUSD.a"),
+    "DOGEUSD": ("DOGEUSD", "DOGEUSDT", "DOGECOIN", "DOGEUSD.", "DOGEUSDm", "DOGEUSD.a"),
+    "LTCUSD": ("LTCUSD", "LTCUSDT", "LITECOIN", "LTCUSD.", "LTCUSDm", "LTCUSD.a"),
+    "BCHUSD": ("BCHUSD", "BCHUSDT", "BITCOINCASH", "BCHUSD.", "BCHUSDm", "BCHUSD.a"),
+    "DOTUSD": ("DOTUSD", "DOTUSDT", "POLKADOT", "DOTUSD.", "DOTUSDm", "DOTUSD.a"),
+    "LINKUSD": ("LINKUSD", "LINKUSDT", "CHAINLINK", "LINKUSD.", "LINKUSDm", "LINKUSD.a"),
+    "AVAXUSD": ("AVAXUSD", "AVAXUSDT", "AVALANCHE", "AVAXUSD.", "AVAXUSDm", "AVAXUSD.a"),
+    "MATICUSD": ("MATICUSD", "MATICUSDT", "POLYGON", "MATICUSD.", "MATICUSDm", "MATICUSD.a"),
+    "POLUSD": ("POLUSD", "POLUSDT", "POLYGON", "POLUSD.", "POLUSDm", "POLUSD.a"),
+    "TRXUSD": ("TRXUSD", "TRXUSDT", "TRON", "TRXUSD.", "TRXUSDm", "TRXUSD.a"),
+    "UNIUSD": ("UNIUSD", "UNIUSDT", "UNISWAP", "UNIUSD.", "UNIUSDm", "UNIUSD.a"),
+    "ATOMUSD": ("ATOMUSD", "ATOMUSDT", "COSMOS", "ATOMUSD.", "ATOMUSDm", "ATOMUSD.a"),
+    "XLMUSD": ("XLMUSD", "XLMUSDT", "STELLAR", "XLMUSD.", "XLMUSDm", "XLMUSD.a"),
+    "NEARUSD": ("NEARUSD", "NEARUSDT", "NEAR", "NEARUSD.", "NEARUSDm", "NEARUSD.a"),
+    "APTUSD": ("APTUSD", "APTUSDT", "APTOS", "APTUSD.", "APTUSDm", "APTUSD.a"),
+    "FILUSD": ("FILUSD", "FILUSDT", "FILECOIN", "FILUSD.", "FILUSDm", "FILUSD.a"),
 }
 
 
@@ -60,8 +81,25 @@ def _fallback_match(requested: str, normalized: str) -> bool:
         "BRENT": ("brent", "ukoil"),
         "BTCUSD": ("btc", "bitcoin"),
         "ETHUSD": ("eth", "ethereum"),
-        "XRPUSD": ("xrp", "ripple"),
+        "BNBUSD": ("bnb", "binancecoin"),
         "SOLUSD": ("sol", "solana"),
+        "XRPUSD": ("xrp", "ripple"),
+        "ADAUSD": ("ada", "cardano"),
+        "DOGEUSD": ("doge", "dogecoin"),
+        "LTCUSD": ("ltc", "litecoin"),
+        "BCHUSD": ("bch", "bitcoincash"),
+        "DOTUSD": ("dot", "polkadot"),
+        "LINKUSD": ("link", "chainlink"),
+        "AVAXUSD": ("avax", "avalanche"),
+        "MATICUSD": ("matic", "polygon"),
+        "POLUSD": ("pol", "polygon"),
+        "TRXUSD": ("trx", "tron"),
+        "UNIUSD": ("uni", "uniswap"),
+        "ATOMUSD": ("atom", "cosmos"),
+        "XLMUSD": ("xlm", "stellar"),
+        "NEARUSD": ("near",),
+        "APTUSD": ("apt", "aptos"),
+        "FILUSD": ("fil", "filecoin"),
     }
     return any(token.replace(".", "") in normalized for token in rules.get(requested, ()))
 
