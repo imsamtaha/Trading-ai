@@ -49,6 +49,23 @@ The static builder checks local links, section anchors, an exact public-file
 allowlist, and private-configuration markers. API tests check that the page and
 assets work in dashboard-only mode and execution routes remain blocked.
 
+## Execute the pipeline without MT5
+
+On Linux, CI, or any host without an MT5 terminal, the deterministic pipeline
+can still be executed end to end on locally generated synthetic candles:
+
+```sh
+ATLAS_LIVE_TRADING=false ATLAS_DASHBOARD_ONLY=true \
+python scripts/atlas_offline_cycle.py --reset-ledger
+```
+
+The runner feeds candles through the same production code paths as the Windows
+demo worker (technical -> structure -> strategy candidate -> unified decision
+-> risk gate -> paper ledger -> simulated stop/target exits -> readiness) and
+prints a JSON report. Its output is labelled `SYNTHETIC_LOCAL`, it writes to a
+separate ledger (`data/atlas_offline_ledger.json`), and it never sends an order.
+It is a pipeline check, not market data or a performance claim.
+
 ## Private service readiness
 
 Keep `ATLAS_LIVE_TRADING=false` and `ATLAS_DASHBOARD_ONLY=true`.
