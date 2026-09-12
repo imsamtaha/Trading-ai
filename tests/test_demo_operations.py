@@ -85,18 +85,21 @@ def test_state_alias_and_dashboard_scripts(status_paths, monkeypatch):
     assert client.post('/agent/paper/execute',json={}).status_code == 403
 
 
-def test_demo_status_exposes_performance_center_metrics(status_paths, monkeypatch):
+def _seed_performance_ledger(status_paths):
     ledger_path = status_paths.parent / 'ledger.json'
     ledger_path.write_text(json.dumps({
         'open_positions': [],
         'closed_trades': [
-            {'symbol':'EURUSD','risk_normalized_pnl':120.0,'r_multiple':1.2,'closed_at':'2026-09-10T10:00:00+00:00'},
-            {'symbol':'XAUUSD','risk_normalized_pnl':-50.0,'r_multiple':-0.5,'closed_at':'2026-09-10T11:00:00+00:00'},
-            {'symbol':'EURUSD','risk_normalized_pnl':80.0,'r_multiple':0.8,'closed_at':'2026-09-10T12:00:00+00:00'},
+            {'symbol':'EURUSD','timeframe':'M5','direction':'LONG','exit_reason':'TAKE_PROFIT','risk_normalized_pnl':120.0,'r_multiple':1.2,'closed_at':'2026-09-10T10:00:00+00:00'},
+            {'symbol':'XAUUSD','timeframe':'M5','direction':'SHORT','exit_reason':'STOP_LOSS','risk_normalized_pnl':-50.0,'r_multiple':-0.5,'closed_at':'2026-09-10T11:00:00+00:00'},
+            {'symbol':'EURUSD','timeframe':'M15','direction':'LONG','exit_reason':'TAKE_PROFIT','risk_normalized_pnl':80.0,'r_multiple':0.8,'closed_at':'2026-09-10T12:00:00+00:00'},
         ]
     }))
     write_status('RUNNING', [])
 
+
+def test_demo_status_exposes_performance_center_metrics(status_paths, monkeypatch):
+    _seed_performance_ledger(status_paths)
     response = TestClient(app).get('/dashboard/demo-status')
     assert response.status_code == 200
     performance = response.json()['performance']
@@ -110,8 +113,68 @@ def test_demo_status_exposes_performance_center_metrics(status_paths, monkeypatc
     assert len(performance['recent_closed_trades']) == 3
 
 
+def test_demo_status_filters_performance_by_asset_and_timeframe(status_paths):
+    _seed_performance_ledger(status_paths)
+    data = TestClient(app).get('/dashboard/demo-status?asset=eurusd&timeframe=m5').json()
+    performance = data['performance']
+    assert performance['available_assets'] == ['EURUSD', 'XAUUSD']
+    assert performance['available_timeframes'] == ['M15', 'M5']
+    assert performance['selection'] == {'asset': 'EURUSD', 'timeframe': 'M5'}
+    filtered = performance['filtered']
+    assert filtered['total_pnl'] == 120.0
+    assert filtered['win_rate'] == 100.0
+    assert filtered['equity_curve'] == [120.0]
+    assert filtered['best_asset']['symbol'] == 'EURUSD'
+    assert len(filtered['recent_closed_trades']) == 1
+
+
+def test_demo_status_unknown_filter_returns_empty_metrics(status_paths):
+    _seed_performance_ledger(status_paths)
+    filtered = TestClient(app).get('/dashboard/demo-status?asset=BTCUSD').json()['performance']['filtered']
+    assert filtered['total_pnl'] == 0.0
+    assert filtered['win_rate'] == 0.0
+    assert filtered['equity_curve'] == []
+    assert filtered['best_asset'] is None
+    assert filtered['worst_asset'] is None
+    assert filtered['recent_closed_trades'] == []
+
+
+@pytest.mark.parametrize(
+    'drawdown,level',
+    [(10.0, 'NORMAL'), (20.0, 'WATCH'), (34.99, 'WATCH'), (35.0, 'HIGH')],
+)
+def test_drawdown_alert_thresholds(drawdown, level):
+    from app.dashboard.demo_panel import _drawdown_alert
+    alert = _drawdown_alert(drawdown)
+    assert alert['level'] == level
+    assert alert['drawdown_percent'] == drawdown
+    assert alert['live_activation_blocked'] is True
+
+
+def test_trader_view_is_public_safe_and_read_only(status_paths):
+    _seed_performance_ledger(status_paths)
+    response = TestClient(app).get('/dashboard/trader-view?asset=EURUSD&timeframe=M5')
+    assert response.status_code == 200
+    data = response.json()
+    assert data['paper_demo'] is True
+    assert data['broker_orders'] is False
+    assert data['mode'] == 'PAPER_DEMO'
+    assert data['summary']['closed_trades'] == 3
+    assert data['performance']['selection'] == {'asset': 'EURUSD', 'timeframe': 'M5'}
+    assert 'level' in data['alert']
+    serialized = response.text.lower()
+    for forbidden in ('"login"', '"server"', '"balance"', '"equity"', '"provider"', '"readiness"', 'automatic_live_activation'):
+        assert forbidden not in serialized
+
+
 def test_demo_panel_contains_performance_center_ui(status_paths):
     script = TestClient(app).get('/ui/demo-panel.js').text
     assert 'Performance Center' in script
     assert 'demo-win-rate' in script
     assert 'demo-equity-chart' in script
+    assert 'demo-asset-filter' in script
+    assert 'demo-timeframe-filter' in script
+    assert 'Drawdown Alert' in script
+    assert 'URLSearchParams' in script
+    assert "params.set('asset'" in script
+    assert "params.set('timeframe'" in script
