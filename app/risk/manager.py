@@ -4,8 +4,8 @@ def calculate_risk(
     stop_loss: float,
     take_profit: float,
     account_balance: float = 10000.0,
-    risk_percent: float = 1.0,
-    max_position_percent: float = 25.0,
+    risk_percent: float = 0.5,
+    max_position_percent: float = 15.0,
 ) -> dict:
 
     direction = direction.upper()
@@ -28,10 +28,10 @@ def calculate_risk(
             "reason": "Account balance must be greater than zero.",
         }
 
-    if risk_percent <= 0 or risk_percent > 2:
+    if risk_percent <= 0 or risk_percent > 1:
         return {
             "approved": False,
-            "reason": "Risk percentage must be between 0 and 2.",
+            "reason": "Risk percentage must be between 0 and 1 for ATLAS demo validation.",
         }
 
     if direction == "LONG":
@@ -99,7 +99,7 @@ def calculate_risk(
     if not approved:
         reason = "Risk/reward is below the minimum 1.5:1."
     else:
-        reason = "Risk parameters acceptable."
+        reason = "Risk parameters acceptable for low-risk demo validation."
 
     return {
         "approved": approved,
@@ -115,4 +115,5 @@ def calculate_risk(
         "actual_risk_amount": round(actual_risk, 2),
         "position_size": round(position_size, 8),
         "position_value": round(position_value, 2),
+        "max_position_percent": max_position_percent,
     }
