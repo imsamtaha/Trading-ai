@@ -79,7 +79,7 @@ class MarketBriefingService:
         try: headlines=self.headlines()
         except MarketBriefingError as exc: headlines=[]; errors.append("headlines: "+str(exc))
         available=[x for x in board if x["available"]]; rising=sum((x.get("change_percent") or 0)>0 for x in available); falling=sum((x.get("change_percent") or 0)<0 for x in available); breadth="BULLISH" if rising>falling else "BEARISH" if falling>rising else "NEUTRAL"
-        return {"status":"ONLINE" if board else "DEGRADED","as_of":now,"market_board":board,"market_analysis":{"breadth":breadth,"rising":rising,"falling":falling,"tracked":len(available),"execution":"DISABLED"},"headlines":headlines,"errors":errors,"source":"Yahoo Finance public market data and RSS","disclaimer":"Context only. Public prices, deterministic direction labels and headlines are not ATLAS execution signals."}
+        return {"status":"ONLINE" if board else "DEGRADED","as_of":now,"market_board":board,"market_analysis":{"breadth":breadth,"rising":rising,"falling":falling,"tracked":len(available),"execution":"DISABLED"},"headlines":headlines,"errors":errors,"source":"Yahoo Finance public market data and RSS","disclaimer":"Context only. Public prices, deterministic direction labels and headlines are not ATLAS execution signals and are never used by the execution gate."}
 
 _service=MarketBriefingService()
 def get_market_briefing(): return _service.briefing()
