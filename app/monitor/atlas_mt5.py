@@ -14,6 +14,7 @@ from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.intelligence.journal import SignalJournal
 from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
+from app.risk.ledger_metrics import calculate_ledger_risk_state
 from app.risk.manager import calculate_risk
 from app.strategies.router import generate_strategy_candidate
 from app.strategy.universe import build_universe
@@ -304,6 +305,7 @@ class AtlasMT5Monitor:
         entry = float(quote["ask"] if candidate["direction"] == "LONG" else quote["bid"])
         stop_loss, take_profit = self._rebase_levels(candidate, entry)
         base_risk = candidate.get("metadata", {}).get("risk", {})
+        ledger_risk = calculate_ledger_risk_state(self.ledger, self.account_equity)
         risk = calculate_risk(
             direction=candidate["direction"],
             entry=entry,
@@ -311,6 +313,8 @@ class AtlasMT5Monitor:
             take_profit=take_profit,
             account_balance=self.account_equity,
             risk_percent=self._safe_float(base_risk.get("risk_percent"), 0.5),
+            daily_realized_pnl=ledger_risk["daily_realized_pnl"],
+            open_risk_percent=ledger_risk["open_risk_percent"],
         )
         if not risk.get("approved", False):
             return {
@@ -450,4 +454,3 @@ class AtlasMT5Monitor:
 
     def stop(self) -> None:
         self.running = False
-
