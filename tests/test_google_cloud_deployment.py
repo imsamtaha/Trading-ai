@@ -125,3 +125,10 @@ def test_redeployment_clears_inherited_sensitive_infrastructure():
     assert "--clear-vpc-connector" in script
     assert "--clear-network" in script
     assert "more than one container" in script
+
+
+def test_operator_refuses_to_reuse_cloud_service_accounts():
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "[Guid]::NewGuid" in script
+    assert "Refusing to reuse existing service account" in script
