@@ -97,7 +97,7 @@ function Assert-AllowedProjectRoles {
     $projectRoles = @(Get-ServiceAccountProjectRoles -Email $Email)
     $unexpectedRoles = @($projectRoles | Where-Object { $_ -notin $AllowedRoles })
     if ($unexpectedRoles.Count -gt 0) {
-        throw "Unexpected project IAM roles on $Email: $($unexpectedRoles -join ', ')"
+        throw "Unexpected project IAM roles on $($Email): $($unexpectedRoles -join ', ')"
     }
 }
 
