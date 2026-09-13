@@ -85,3 +85,16 @@ def test_disabled_guard_passes_through_without_enabling_trading(client, monkeypa
     assert response.status_code == 200
     assert response.json() == {"symbol": "EURUSD"}
     assert MT5Config.from_env().dry_run is True
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"],
+)
+def test_public_analysis_posts_can_be_disabled(client, monkeypatch, path):
+    monkeypatch.setenv("ATLAS_PUBLIC_ANALYSIS_ENABLED", "false")
+
+    response = client.post(path)
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Dashboard-only mode is enabled."}
