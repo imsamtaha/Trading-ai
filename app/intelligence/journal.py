@@ -4,7 +4,11 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
+
+
+def _reject_non_json_constant(value: str) -> NoReturn:
+    raise ValueError(f"Invalid JSON numeric constant: {value}")
 
 
 class SignalJournal:
@@ -16,15 +20,21 @@ class SignalJournal:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or os.getenv("ATLAS_SIGNAL_JOURNAL", "data/atlas_signals.jsonl"))
-        self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def append(self, record: dict[str, Any]) -> dict[str, Any]:
         payload = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             **record,
         }
+        encoded = json.dumps(
+            payload,
+            allow_nan=False,
+            default=str,
+            separators=(",", ":"),
+        ) + "\n"
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, default=str, separators=(",", ":")) + "\n")
+            handle.write(encoded)
             handle.flush()
             os.fsync(handle.fileno())
         return payload
@@ -33,20 +43,30 @@ class SignalJournal:
         records = 0
         malformed_lines: list[int] = []
 
-        if self.path.exists():
-            with self.path.open("rb") as handle:
-                for line_number, raw_line in enumerate(handle, start=1):
-                    if not raw_line.strip():
-                        continue
-                    try:
-                        record = json.loads(raw_line.decode("utf-8"))
-                    except (UnicodeDecodeError, json.JSONDecodeError):
-                        malformed_lines.append(line_number)
-                        continue
-                    if not isinstance(record, dict):
-                        malformed_lines.append(line_number)
-                        continue
-                    records += 1
+        if not self.path.exists():
+            return {
+                "status": "MISSING",
+                "records": 0,
+                "malformed_records": 0,
+                "malformed_lines": [],
+            }
+
+        with self.path.open("rb") as handle:
+            for line_number, raw_line in enumerate(handle, start=1):
+                if not raw_line.strip():
+                    continue
+                try:
+                    record = json.loads(
+                        raw_line.decode("utf-8"),
+                        parse_constant=_reject_non_json_constant,
+                    )
+                except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+                    malformed_lines.append(line_number)
+                    continue
+                if not isinstance(record, dict):
+                    malformed_lines.append(line_number)
+                    continue
+                records += 1
 
         return {
             "status": "CORRUPT" if malformed_lines else "OK",
