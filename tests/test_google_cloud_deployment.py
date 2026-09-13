@@ -100,3 +100,28 @@ def test_ci_parses_powershell_and_checks_container_write_boundary():
     assert "Parse Google Cloud deployment script" in workflow
     assert "http://127.0.0.1:8080/mt5/test-order" in workflow
     assert "403" in workflow
+
+
+def test_build_uses_dedicated_least_privileged_identity():
+    cloudbuild = read("cloudbuild.yaml")
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "serviceAccount:" in cloudbuild
+    assert "_BUILD_SERVICE_ACCOUNT" in cloudbuild
+    assert "BuildServiceAccount" in script
+    assert "--service-account" in script
+    assert "roles/artifactregistry.writer" in script
+    assert "roles/logging.logWriter" in script
+    assert "Unexpected project IAM roles" in script
+
+
+def test_redeployment_clears_inherited_sensitive_infrastructure():
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "--clear-secrets" in script
+    assert "--clear-volumes" in script
+    assert "--clear-volume-mounts" in script
+    assert "--clear-cloudsql-instances" in script
+    assert "--clear-vpc-connector" in script
+    assert "--clear-network" in script
+    assert "more than one container" in script
