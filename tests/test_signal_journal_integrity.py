@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from app.intelligence.journal import SignalJournal
 
 
@@ -48,3 +50,28 @@ def test_signal_journal_flushes_record_to_disk_before_fsync(tmp_path: Path, monk
     assert len(observed_contents) == 1
     assert '"symbol":"EURUSD"' in observed_contents[0]
     assert observed_contents[0].endswith("\n")
+
+
+def test_signal_journal_verify_reports_invalid_utf8_line(tmp_path: Path):
+    path = tmp_path / "signals.jsonl"
+    path.write_bytes(b'{"status":"NO_TRADE"}\n{"reason":"\xff"}\n')
+
+    assert SignalJournal(str(path)).verify() == {
+        "status": "CORRUPT",
+        "records": 1,
+        "malformed_records": 1,
+        "malformed_lines": [2],
+    }
+
+
+@pytest.mark.parametrize("value", ["null", "[]", '"text"', "42", "true"])
+def test_signal_journal_verify_rejects_non_object_json(tmp_path: Path, value: str):
+    path = tmp_path / "signals.jsonl"
+    path.write_text(value + "\n", encoding="utf-8")
+
+    assert SignalJournal(str(path)).verify() == {
+        "status": "CORRUPT",
+        "records": 0,
+        "malformed_records": 1,
+        "malformed_lines": [1],
+    }
