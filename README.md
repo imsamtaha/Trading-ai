@@ -18,7 +18,7 @@ Visit `http://127.0.0.1:4173`. The private FastAPI application also serves this
 website at `/`; the previous JSON service metadata is now at `/api`.
 Existing `/subscribe`, `/billing/*`, and `/dashboard*` routes remain intact.
 
-## Deploy on to Google Cloud Run
+## Deploy to Google Cloud Run
 
 The repository includes a safety-locked Cloud Run container, Cloud Build
 pipeline, and a PowerShell deployment script. The cloud revision serves the
