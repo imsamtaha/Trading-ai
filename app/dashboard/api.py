@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from app.dashboard.market_briefing import get_market_briefing
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
+from app.risk.engine import RiskScoreEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
 from app.dashboard.market_intelligence import MarketIntelligenceFeed
 from app.strategy.universe import build_universe
@@ -75,33 +76,92 @@ def _analysis_tools() -> tuple[dict[str, int], Any, Any]:
     return TIMEFRAMES, analyze_timeframe, build_decision
 
 
+def _build_position_risk_state(
+    *,
+    positions: list[Any],
+    symbol: str,
+) -> dict[str, Any]:
+    def get_symbol(position: Any) -> str:
+        if isinstance(position, dict):
+            return str(position.get("symbol", ""))
+        return str(getattr(position, "symbol", ""))
+
+    return {
+        "daily_loss_percent": None,
+        "weekly_loss_percent": None,
+        "drawdown_percent": None,
+        "open_positions": len(positions),
+        "same_symbol_positions": sum(
+            1
+            for position in positions
+            if get_symbol(position) == symbol
+        ),
+    }
+
+
 def _monitor_symbol(
     broker: MT5Broker,
     symbol: str,
     canonical_symbol: str,
     asset_class: str,
     opportunity_score: float,
+    risk_state: dict[str, Any] | None = None,
     count: int = 120,
 ) -> dict[str, Any]:
     quality_engine = SignalQualityEngine()
     timeframes, analyze_timeframe, build_decision = _analysis_tools()
+
     results = {
         tf: analyze_timeframe(broker, symbol, mt5_tf, count)
         for tf, mt5_tf in timeframes.items()
     }
+
     decision, _, _, _ = build_decision(results)
-    quality = quality_engine.evaluate(decision, decision.get("mtf_alignment", "UNKNOWN"))
+
+    quality = quality_engine.evaluate(
+        decision,
+        decision.get("mtf_alignment", "UNKNOWN"),
+    )
+
     quote = broker.quote(symbol)
-    price = quote.get("last") or quote.get("bid") or quote.get("ask") or 0.0
+
+    price = (
+        quote.get("last")
+        or quote.get("bid")
+        or quote.get("ask")
+        or 0.0
+    )
+
+    risk_engine = RiskScoreEngine()
+
+    if risk_state is None:
+        risk_payload = risk_engine.evaluate(
+            risk_percent=0.50,
+            daily_loss_percent=None,
+            weekly_loss_percent=None,
+            drawdown_percent=None,
+            open_positions=None,
+            same_symbol_positions=None,
+            spread_ok=True,
+            data_fresh=True,
+            stop_loss_valid=True,
+        )
+    else:
+        risk_payload = risk_engine.evaluate(**risk_state)
+
     return {
         "symbol": symbol,
         "canonical_symbol": canonical_symbol,
         "asset_class": asset_class,
         "opportunity_score": opportunity_score,
         "price": float(price),
-        "spread_points": round(float(quote.get("spread_points", 0.0) or 0.0), 2),
+        "spread_points": round(
+            float(quote.get("spread_points", 0.0) or 0.0),
+            2,
+        ),
         "decision": decision,
         "quality": quality,
+        "risk": risk_payload,
         "timeframes": {
             tf: {
                 "trend": item["technical"].get("trend"),
@@ -140,21 +200,44 @@ def atlas_dashboard_state() -> dict[str, Any]:
 
         top_n = max(1, min(30, int(os.getenv("ATLAS_DASHBOARD_TOP_N", "12"))))
         universe = build_universe(broker.symbols(), top_n=top_n)
+
+        # Read-only MT5 positions are loaded before symbol monitoring so the
+        # dashboard can expose real position-count risk context.
+        positions = broker.positions()
+
         symbols: list[dict[str, Any]] = []
         symbol_errors: list[dict[str, str]] = []
+
         for item in universe:
             try:
-                symbols.append(_monitor_symbol(
+                symbol_payload = _monitor_symbol(
                     broker,
                     item.broker_symbol,
                     item.canonical_symbol,
                     item.asset_class,
                     item.opportunity_score,
-                ))
-            except Exception as exc:
-                symbol_errors.append({"symbol": item.broker_symbol, "error": str(exc)})
+                    risk_state=None,
+                )
 
-        positions = broker.positions()
+                # Do not fabricate account-history risk metrics.
+                # Daily/weekly loss and drawdown remain None until a verified
+                # history/equity source is connected.
+                symbol_payload["position_risk_state"] = (
+                    _build_position_risk_state(
+                        positions=positions,
+                        symbol=item.broker_symbol,
+                    )
+                )
+
+                symbols.append(symbol_payload)
+
+            except Exception as exc:
+                symbol_errors.append(
+                    {
+                        "symbol": item.broker_symbol,
+                        "error": str(exc),
+                    }
+                )
         public_positions = [
             {
                 "symbol": p["symbol"],

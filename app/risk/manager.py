@@ -28,10 +28,10 @@ def calculate_risk(
             "reason": "Account balance must be greater than zero.",
         }
 
-    if risk_percent <= 0 or risk_percent > 1:
+    if risk_percent <= 0 or risk_percent > 2:
         return {
             "approved": False,
-            "reason": "Risk percentage must be between 0 and 1 for ATLAS demo validation.",
+            "reason": "Risk percentage must be between 0 and 2.",
         }
 
     if direction == "LONG":
@@ -117,3 +117,4 @@ def calculate_risk(
         "position_value": round(position_value, 2),
         "max_position_percent": max_position_percent,
     }
+
