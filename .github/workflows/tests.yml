@@ -27,6 +27,19 @@ jobs:
           ATLAS_DASHBOARD_ONLY: 'true'
         run: python -m pytest -q
 
+      - name: Build and smoke-test Cloud Run container
+        run: |
+          docker build --tag atlas-cloud-run-test .
+          container_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env PORT=8080 atlas-cloud-run-test)
+          trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:8080/health | grep --quiet '"status":"healthy"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
       - name: Set up Node for public demo validation
         uses: actions/setup-node@v4
         with:
