@@ -3,54 +3,17 @@ steps:
     args:
       - build
       - --tag
-      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_SOURCE_REVISION}
       - .
 
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
-
-  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - ${_SERVICE}
-      - --image
-      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
-      - --region
-      - ${_REGION}
-      - --platform
-      - managed
-      - --allow-unauthenticated
-      - --ingress
-      - all
-      - --port
-      - "8080"
-      - --cpu
-      - "1"
-      - --memory
-      - 512Mi
-      - --concurrency
-      - "40"
-      - --min-instances
-      - "0"
-      - --max-instances
-      - "3"
-      - --timeout
-      - "300"
-      - --set-env-vars
-      - ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false
-      - --quiet
-
 images:
-  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_SOURCE_REVISION}
 
 substitutions:
   _REGION: europe-west1
   _REPOSITORY: atlas
   _SERVICE: atlas-market
+  _SOURCE_REVISION: unverified-source
 
 options:
   logging: CLOUD_LOGGING_ONLY
