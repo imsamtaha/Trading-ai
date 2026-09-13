@@ -18,7 +18,7 @@ Each image is tagged with the full, clean Git commit SHA. The operator creates a
 
 ## Runtime identity and safety
 
-Cloud Run uses a dedicated user-managed runtime service account. The deployment process does not grant that identity project roles. The operator needs permission to act as it; the build identity needs only Artifact Registry write and build-log access.
+Cloud Run uses a dedicated user-managed runtime service account with no project roles. Cloud Build uses a separate user-managed identity with project-level Logs Writer and repository-scoped Artifact Registry Writer only. The script rejects unexpected project roles on either reused identity; the operator must be allowed to act as both.
 
 Every cloud revision receives:
 
@@ -27,7 +27,7 @@ Every cloud revision receives:
 - `ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false`
 - `ATLAS_PUBLIC_ANALYSIS_ENABLED=false`
 
-No MT5 credentials, provider keys, Supabase service keys, or bridge tokens enter source, the image, or build configuration. Public writes and potentially costly unauthenticated analysis POSTs are rejected by middleware.
+No MT5 credentials, provider keys, Supabase service keys, or bridge tokens enter source, the image, or build configuration. Public writes and potentially costly unauthenticated analysis POSTs are rejected by middleware. Redeployment clears inherited secrets, volumes and mounts, Cloud SQL connections, and VPC settings, and refuses an existing multi-container service.
 
 The Cloud Run filesystem is ephemeral. SQLite files, ledgers, and journals inside it are not durable evidence.
 
@@ -35,7 +35,7 @@ The Cloud Run filesystem is ephemeral. SQLite files, ledgers, and journals insid
 
 - `Dockerfile`: Python 3.13 container, non-root runtime, Cloud Run port contract.
 - `.dockerignore`: excludes credentials, runtime evidence, local state, tests, and generated output.
-- `cloudbuild.yaml`: build and push only; image tag is `_SOURCE_REVISION`.
+- `cloudbuild.yaml`: build and push only under an explicit `_BUILD_SERVICE_ACCOUNT`; image tag is `_SOURCE_REVISION`.
 - `scripts/deploy_google_cloud.ps1`: validates a clean source revision, provisions minimal runtime identity, performs staged deployment, verifies health and the write guard, then promotes traffic.
 - `tests/test_google_cloud_deployment.py`: enforces build, identity, traceability, staging, safety, retry, and CI contracts.
 - `docs/GOOGLE_CLOUD_DEPLOY.md`: operator prerequisites, deployment, verification, rollback, and deferred domain mapping.
@@ -53,8 +53,9 @@ Build or deployment errors stop the script. Candidate failures receive no produc
 1. Full Python, JavaScript, Docker smoke, and PowerShell parse checks pass in CI.
 2. The image starts with the Cloud Run `PORT` contract and contains `app/` and `web/`.
 3. Build identity does not deploy Cloud Run.
-4. Runtime uses a dedicated service account with no roles granted by this project.
-5. Image and service labels trace to the full Git commit SHA.
-6. Candidate deployment receives no traffic before health and `403` safety verification.
-7. Trading, paper writes, and public analysis POSTs are disabled in Cloud Run.
-8. No claim is made that Cloud Run connects to MT5 or preserves the Windows audit journal.
+4. Runtime and build use separate dedicated identities; unexpected project roles stop deployment.
+5. Existing secrets, storage/database/network attachments, and extra containers cannot be inherited silently.
+6. Image and service labels trace to the full Git commit SHA.
+7. Candidate deployment receives no traffic before health and `403` safety verification.
+8. Trading, paper writes, and public analysis POSTs are disabled in Cloud Run.
+9. No claim is made that Cloud Run connects to MT5 or preserves the Windows audit journal.
