@@ -30,15 +30,19 @@ jobs:
       - name: Build and smoke-test Cloud Run container
         run: |
           docker build --tag atlas-cloud-run-test .
-          container_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env PORT=8080 atlas-cloud-run-test)
+          container_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env PORT=8080 --env ATLAS_DASHBOARD_ONLY=true --env ATLAS_PUBLIC_ANALYSIS_ENABLED=false atlas-cloud-run-test)
           trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
+          healthy=false
           for attempt in {1..30}; do
             if curl --fail --silent --show-error http://127.0.0.1:8080/health | grep --quiet '"status":"healthy"'; then
-              exit 0
+              healthy=true
+              break
             fi
             sleep 1
           done
-          exit 1
+          test "$healthy" = "true"
+          status=$(curl --silent --output /tmp/atlas-write-response.json --write-out '%{http_code}' --request POST http://127.0.0.1:8080/mt5/test-order)
+          test "$status" = "403"
 
       - name: Set up Node for public demo validation
         uses: actions/setup-node@v4
@@ -66,6 +70,12 @@ jobs:
 
       - name: Install focused test dependencies
         run: python -m pip install pytest python-dotenv
+
+      - name: Parse Google Cloud deployment script
+        shell: pwsh
+        run: |
+          $source = Get-Content scripts/deploy_google_cloud.ps1 -Raw
+          $null = [scriptblock]::Create($source)
 
       - name: Verify ATLAS journal integrity and status on Windows
         run: >-
