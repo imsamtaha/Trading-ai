@@ -52,7 +52,7 @@ Defaults:
 | Memory | 512 MiB |
 | Live trading | disabled |
 | Dashboard-only guard | enabled |
-| Agent if paper execution writes | disabled |
+| Agent paper execution writes | disabled |
 
 The script enables the required APIs, creates the Docker repository when needed, submits `cloudbuild.yaml`, obtains the service URL, and calls `GET /health`. It succeeds only when the returned JSON contains `"status": "healthy"`.
 
