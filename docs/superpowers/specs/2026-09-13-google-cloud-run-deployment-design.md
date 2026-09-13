@@ -6,48 +6,55 @@
 
 ## Goal
 
-Deploy the existing ATLAS FastAPI application and its static website to Google Cloud Run while preserving the public read-only safety boundary. The deployment must expose `/health`, the website, dashboard, and analysis endpoints without enabling MT5 execution, broker credentials, automatic paper writes, or payment activation.
+Deploy the existing ATLAS FastAPI application and static website to Google Cloud Run as a public read-only surface. The cloud service exposes health, website, dashboard, and read endpoints without enabling MT5 execution, broker credentials, automatic paper writes, billing writes, or unauthenticated analysis POSTs.
 
-## Chosen architecture
+## Architecture
 
-Cloud Run runs one Linux container built from the repository root. Uvicorn binds to `0.0.0.0` and the Cloud Run-provided `PORT`. The container includes the Python application and `web/` assets. MetaTrader 5 stays on the existing Windows host because the terminal and Python package are Windows-only.
+Cloud Run runs one Linux container built from the repository root. Uvicorn binds to `0.0.0.0` and the Cloud Run-provided `PORT`. MetaTrader 5 and durable trading evidence stay on the Windows host.
 
-Google Cloud Build builds and pushes the image to Artifact Registry, then deploys it to Cloud Run. The configuration uses the active Google Cloud project through `PROJECT_ID`; it does not hardcode an account or project identifier.
+Cloud Build has a build-only role: it builds the image and pushes it to Artifact Registry. The authenticated operator performs the Cloud Run deployment. This avoids giving the build identity Cloud Run deployment or service-account impersonation authority.
 
-## Runtime safety boundary
+Each image is tagged with the full, clean Git commit SHA. The operator creates a tagged Cloud Run candidate with `--no-traffic`, verifies the candidate URL, and only then promotes the verified tag to 100% traffic.
 
-The Cloud Run revision receives these immutable deployment settings:
+## Runtime identity and safety
+
+Cloud Run uses a dedicated user-managed runtime service account. The deployment process does not grant that identity project roles. The operator needs permission to act as it; the build identity needs only Artifact Registry write and build-log access.
+
+Every cloud revision receives:
 
 - `ATLAS_LIVE_TRADING=false`
 - `ATLAS_DASHBOARD_ONLY=true`
 - `ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false`
+- `ATLAS_PUBLIC_ANALYSIS_ENABLED=false`
 
-No `MT5_LOGIN`, `MT5_PASSWORD`, `MT5_SERVER`, API keys, Supabase service keys, or bridge tokens are present in source, the container image, or `cloudbuild.yaml`. Public write routes remain blocked by the application's dashboard-only middleware.
+No MT5 credentials, provider keys, Supabase service keys, or bridge tokens enter source, the image, or build configuration. Public writes and potentially costly unauthenticated analysis POSTs are rejected by middleware.
 
-The Cloud Run filesystem is ephemeral. This deployment therefore does not treat local SQLite files, ledgers, or journals as durable evidence. Persistent MT5 demo monitoring and audit records remain on the Windows worker until a separately designed authenticated ingestion path is approved.
+The Cloud Run filesystem is ephemeral. SQLite files, ledgers, and journals inside it are not durable evidence.
 
-## Deployment components
+## Components
 
-- `Dockerfile`: deterministic Python 3.13 image and Cloud Run-compatible Uvicorn startup.
-- `.dockerignore`: excludes Git history, local environments, credentials, runtime data, tests, caches, and generated output.
-- `cloudbuild.yaml`: builds, pushes, and deploys `atlas-market` in `europe-west1` using Artifact Registry repository `atlas`.
-- `scripts/deploy_google_cloud.ps1`: idempotent Windows operator flow that selects a project, enables required APIs, creates the Artifact Registry repository if absent, submits the build, and verifies `/health`.
-- `tests/test_google_cloud_deployment.py`: enforces the port contract, required assets, disabled trading flags, secret exclusions, and health verification.
-- `docs/GOOGLE_CLOUD_DEPLOY.md`: exact first deployment, verification, logs, rollback, and custom-domain instructions.
+- `Dockerfile`: Python 3.13 container, non-root runtime, Cloud Run port contract.
+- `.dockerignore`: excludes credentials, runtime evidence, local state, tests, and generated output.
+- `cloudbuild.yaml`: build and push only; image tag is `_SOURCE_REVISION`.
+- `scripts/deploy_google_cloud.ps1`: validates a clean source revision, provisions minimal runtime identity, performs staged deployment, verifies health and the write guard, then promotes traffic.
+- `tests/test_google_cloud_deployment.py`: enforces build, identity, traceability, staging, safety, retry, and CI contracts.
+- `docs/GOOGLE_CLOUD_DEPLOY.md`: operator prerequisites, deployment, verification, rollback, and deferred domain mapping.
 
 ## Public access and domain
 
-The initial Cloud Run service is unauthenticated because it is the public marketing/read-only application. The generated `run.app` URL is verified first. Only after `/health` succeeds should `justai-atlas.online` be mapped and its DNS records changed. Domain mapping is kept out of the automated script so a failed revision cannot replace a working public domain.
+The service is unauthenticated because it is the public marketing/read-only application. The generated `run.app` URL is verified first. DNS changes remain outside automation and require the exact Google-generated records after runtime verification.
 
 ## Failure handling
 
-Cloud Build stops on build, push, or deploy failure. The operator script stops on command errors and checks the deployed health endpoint. Cloud Run revisions are immutable, so rollback uses traffic migration to a known-good revision. Runtime logs are read from Cloud Run; no broker or account secrets should appear because they are not configured in this service.
+Build or deployment errors stop the script. Candidate failures receive no production traffic. Health checks retry with bounded delay. A candidate is rejected unless its health payload reports `healthy` and its execution test route returns `403`. Cloud Run revisions are immutable, so rollback moves traffic to a known-good revision.
 
 ## Acceptance criteria
 
-1. The deployment validation test fails before Google Cloud files exist and passes after they are added.
-2. The existing full Python and JavaScript suites remain green in GitHub Actions.
-3. The image starts with the Cloud Run `PORT` contract and includes both `app/` and `web/`.
-4. Deployed environment settings keep live trading, dashboard writes, and agent paper execution disabled.
-5. A real deployment is accepted only after the returned service URL responds to `GET /health` with HTTP 200 and `status=healthy`.
-6. No claim is made that Cloud Run connects to MT5, executes demo broker orders, or preserves the Windows audit journal.
+1. Full Python, JavaScript, Docker smoke, and PowerShell parse checks pass in CI.
+2. The image starts with the Cloud Run `PORT` contract and contains `app/` and `web/`.
+3. Build identity does not deploy Cloud Run.
+4. Runtime uses a dedicated service account with no roles granted by this project.
+5. Image and service labels trace to the full Git commit SHA.
+6. Candidate deployment receives no traffic before health and `403` safety verification.
+7. Trading, paper writes, and public analysis POSTs are disabled in Cloud Run.
+8. No claim is made that Cloud Run connects to MT5 or preserves the Windows audit journal.
