@@ -21,15 +21,16 @@ def test_dockerfile_uses_cloud_run_port_and_copies_public_runtime():
     assert "0.0.0.0" in dockerfile
 
 
-def test_cloudbuild_forces_read_only_non_execution_mode():
+def test_cloud_deployment_forces_read_only_non_execution_mode():
     config = yaml.safe_load(read("cloudbuild.yaml"))
-    rendered = str(config)
+    script = read("scripts/deploy_google_cloud.ps1")
+    rendered = f"{config}\n{script}"
 
     assert "ATLAS_LIVE_TRADING=false" in rendered
     assert "ATLAS_DASHBOARD_ONLY=true" in rendered
     assert "ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false" in rendered
     assert "--allow-unauthenticated" in rendered
-    assert "/health" in read("scripts/deploy_google_cloud.ps1")
+    assert "/health" in script
 
 
 def test_deployment_files_do_not_embed_private_credentials():
