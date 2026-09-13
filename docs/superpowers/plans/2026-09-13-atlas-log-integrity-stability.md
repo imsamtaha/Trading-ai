@@ -2,20 +2,28 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the local ATLAS JSONL signal journal durable and detect malformed or incomplete records before they are trusted as operational evidence.
+**Goal:** Make the local ATLAS JSONL signal journal durable, detect syntactically malformed or non-object records, and expose the verification through the existing demo-status command.
 
-**Architecture:** Keep the existing append-only JSONL format. Add a focused `verify()` reader on `SignalJournal` that validates every non-empty line as a JSON object and reports valid/malformed counts and exact malformed line numbers; make append durability explicit with flush and fsync before returning.
+**Architecture:** Preserve the append-only JSONL format. Synchronize every append before returning, verify the file in binary mode so torn UTF-8 writes are reportable, and include the structured result in `scripts/atlas_demo_status.py` with a nonzero corruption exit code.
 
-**Tech Stack:** Python 3.13, pathlib, json, pytest
+**Tech Stack:** Python 3.13, pathlib, json, pytest, GitHub Actions on Ubuntu and Windows
 
-**Spec:** User request on 2026-09-13 to inspect ATLAS, prioritize stability, improve it, and verify its logs.
+**Spec:** User request on 2026-09-13 to inspect ATLAS, rank three priorities, execute the first available stability improvement, and verify logs.
 
 ## Global Constraints
 
 - Keep ATLAS in paper-demo mode; do not enable broker order submission.
 - Do not expose credentials or account secrets.
-- Preserve the existing JSONL record format and `append(record) -> dict` contract.
-- Make the smallest root-cause fix and run the entire existing test suite.
+- Preserve the existing JSONL representation and `append(record) -> dict` contract.
+- Use TDD and inspect the complete CI logs before merge.
+
+## Ranked Priorities
+
+1. **Local audit durability and integrity verification.** A journal append returned without an explicit disk synchronization, malformed lines were counted but not validated, and no operational status command checked the journal.
+2. **Single-writer and crash-continuity enforcement.** The demo session has a socket lock, but alternate monitor entrypoints can still target the same ledger and journal without a shared file-level writer guard.
+3. **Observable remote audit and heartbeat failures.** Supabase publication failures can return `None` silently, so local operators cannot distinguish a healthy remote audit stream from an unavailable one.
+
+Priority 1 is first because it is independently available in the repository, does not require MT5 or credentials, and protects the evidence used to judge demo performance.
 
 ---
 
@@ -23,60 +31,51 @@
 
 **Files:**
 - Modify: `app/intelligence/journal.py`
-- Modify: `tests/test_intelligence_pipeline.py`
+- Create: `tests/test_signal_journal_integrity.py`
 
 **Interfaces:**
-- Consumes: Existing `SignalJournal(path=None)` and `append(record) -> dict`.
+- Consumes: `SignalJournal(path=None)` and `append(record) -> dict`.
 - Produces: `verify() -> dict[str, object]` with `status`, `records`, `malformed_records`, and `malformed_lines`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write failing tests**
 
-Add tests using a real temporary JSONL file:
+Tests cover malformed JSON, invalid UTF-8, non-object JSON values, valid appended records, and write/flush/fsync ordering.
 
-```python
-def test_signal_journal_verify_reports_malformed_line(tmp_path):
-    path = tmp_path / "signals.jsonl"
-    path.write_text('{"status":"NO_TRADE"}\n{"status":\n{"status":"ERROR"}\n', encoding="utf-8")
-    report = SignalJournal(str(path)).verify()
-    assert report == {
-        "status": "CORRUPT",
-        "records": 2,
-        "malformed_records": 1,
-        "malformed_lines": [2],
-    }
+- [x] **Step 2: Confirm RED**
 
+Run: `python -m pytest tests/test_signal_journal_integrity.py -q`
 
-def test_signal_journal_verify_accepts_appended_records(tmp_path):
-    journal = SignalJournal(str(tmp_path / "signals.jsonl"))
-    journal.append({"symbol": "EURUSD", "status": "NO_TRADE"})
-    assert journal.verify() == {
-        "status": "OK",
-        "records": 1,
-        "malformed_records": 0,
-        "malformed_lines": [],
-    }
+Observed through PR CI: missing `verify()`, missing `fsync`, and invalid UTF-8 handling failed for the intended reasons while the pre-existing tests passed.
+
+- [x] **Step 3: Implement the minimal journal fix**
+
+`append()` now writes one line, flushes it, and calls `os.fsync(handle.fileno())`. `verify()` reads binary physical lines, strictly decodes UTF-8, accepts only JSON objects, and reports exact malformed line numbers.
+
+- [x] **Step 4: Expose verification operationally**
+
+**Files:**
+- Modify: `scripts/atlas_demo_status.py`
+- Modify: `tests/test_mt5_monitor_recovery.py`
+
+The existing status command includes `signal_journal` with path, existence, integrity counts, and line numbers. It exits `3` when the journal is corrupt, `2` when only the ledger is missing, and `0` when available records are structurally valid.
+
+- [x] **Step 5: Verify Linux, Windows, and public demo checks**
+
+**Files:**
+- Modify: `.github/workflows/tests.yml`
+
+Run on Ubuntu: `python -m pytest -q`
+
+Run on Windows: `python -m pytest tests/test_signal_journal_integrity.py -q`
+
+Observed at commit `15d88eb4419836338fa34a301371894163bc69d0`: Ubuntu `213 passed`; Windows `9 passed`; public website validation passed. One upstream GitHub Actions Node 20 deprecation warning remains and is unrelated to ATLAS runtime behavior.
+
+- [ ] **Step 6: Verify the live Windows journal before operational sign-off**
+
+Run on the Windows MT5 host from the repository directory:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\atlas_demo_status.py
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
-
-Run: `python -m pytest tests/test_intelligence_pipeline.py -q`
-
-Expected: FAIL because `SignalJournal.verify` does not exist.
-
-- [ ] **Step 3: Implement the minimal durable append and verifier**
-
-In `append`, write one JSON line, call `handle.flush()`, then `os.fsync(handle.fileno())`.
-
-Implement `verify` by reading each non-empty line, parsing JSON, accepting only JSON objects, and returning the literal report shape defined by the tests.
-
-- [ ] **Step 4: Run focused and full verification**
-
-Run: `python -m pytest tests/test_intelligence_pipeline.py -q`
-
-Run: `python -m pytest -q`
-
-Expected: all tests pass with no failures.
-
-- [ ] **Step 5: Open a pull request**
-
-Commit the test and implementation on `atlas/log-integrity-stability`, allow GitHub Actions to run, inspect the workflow log, and merge only after success.
+Accept exit `0` with `signal_journal.status` equal to `OK`. Exit `3` or `CORRUPT` requires preserving the file for investigation before restarting the worker.
