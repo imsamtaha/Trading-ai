@@ -54,3 +54,48 @@ def test_dockerignore_excludes_secrets_and_runtime_evidence():
     ignored = set(read(".dockerignore").splitlines())
 
     assert {".env", ".env.*", "data/", "*.sqlite3"} <= ignored
+
+
+def test_operator_uses_dedicated_runtime_identity_and_candidate_rollout():
+    cloudbuild = yaml.safe_load(read("cloudbuild.yaml"))
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert not any(step.get("entrypoint") == "gcloud" for step in cloudbuild["steps"])
+    assert "--service-account" in script
+    assert "--no-traffic" in script
+    assert "--tag" in script
+    assert "--to-tags" in script
+
+
+def test_operator_requires_clean_traceable_source_revision():
+    cloudbuild = read("cloudbuild.yaml")
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "_SOURCE_REVISION" in cloudbuild
+    assert "git status --porcelain" in script
+    assert "git rev-parse HEAD" in script
+    assert "--labels" in script
+    assert "source-revision" in script
+
+
+def test_public_cloud_revision_disables_expensive_analysis_posts():
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "ATLAS_PUBLIC_ANALYSIS_ENABLED=false" in script
+
+
+def test_operator_retries_health_and_checks_write_boundary():
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "Start-Sleep" in script
+    assert "/mt5/test-order" in script
+    assert "StatusCode" in script
+    assert "403" in script
+
+
+def test_ci_parses_powershell_and_checks_container_write_boundary():
+    workflow = read(".github/workflows/tests.yml")
+
+    assert "Parse Google Cloud deployment script" in workflow
+    assert "http://127.0.0.1:8080/mt5/test-order" in workflow
+    assert "403" in workflow
