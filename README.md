@@ -18,6 +18,15 @@ Visit `http://127.0.0.1:4173`. The private FastAPI application also serves this
 website at `/`; the previous JSON service metadata is now at `/api`.
 Existing `/subscribe`, `/billing/*`, and `/dashboard*` routes remain intact.
 
+## Deploy on to Google Cloud Run
+
+The repository includes a safety-locked Cloud Run container, Cloud Build
+pipeline, and a PowerShell deployment script. The cloud revision serves the
+website and FastAPI dashboard with live trading and paper writes disabled; MT5
+continues to run only on the persistent Windows host.
+
+See [Google Cloud deployment](docs/GOOGLE_CLOUD_DEPLOY.md).
+
 ## Publish on Vercel or Netlify
 
 Suggested project name: **atlas-market**. A provider must confirm subdomain
