@@ -7,10 +7,25 @@ router = APIRouter()
 router.include_router(views_router)
 router.include_router(api_router)
 
-__all__ = ["router"]
+__all__ = ["router", "mt5_state"]
 
 # Compatibility API for the read-only analysis demo. No orders or ledger writes.
 ATLAS_DEMO_SYMBOLS = ["XAUUSD", "GAS", "XAGUSD", "EURUSD", "XRPUSDT", "SOLUSDT"]
+
+
+@router.get("/dashboard/mt5-state")
+def mt5_state():
+    """Expose MT5 dashboard telemetry through a hard read-only boundary."""
+    from app.dashboard import api as dashboard_api
+
+    state = dashboard_api.atlas_dashboard_state()
+    state["mode"] = "READ_ONLY"
+    state["execution"] = "disabled"
+    services = dict(state.get("services") or {})
+    services["execution_gate"] = "DISABLED"
+    services["subscriber_access"] = "READ_ONLY"
+    state["services"] = services
+    return state
 
 
 def _demo_regime_from_technical(technical):
