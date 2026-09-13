@@ -13,8 +13,11 @@ param(
     [ValidatePattern("^[a-z][a-z0-9-]{2,62}$")]
     [string]$Repository = "atlas",
 
-    [ValidatePattern("^[a-z][a-z0-9-]{0,28}[a-z0-9]$")]
-    [string]$RuntimeServiceAccount = "atlas-cloud-run"
+    [ValidatePattern("^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
+    [string]$RuntimeServiceAccount = "atlas-cloud-run",
+
+    [ValidatePattern("^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
+    [string]$BuildServiceAccount = "atlas-cloud-build"
 )
 
 Set-StrictMode -Version Latest
@@ -31,6 +34,71 @@ function Invoke-Gcloud {
         throw "gcloud failed: gcloud $($Arguments -join ' ')"
     }
     return $output
+}
+
+function Ensure-ServiceAccount {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AccountId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Email,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DisplayName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    & gcloud iam service-accounts describe $Email --project $ProjectId 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Service account already exists: $Email"
+        return
+    }
+
+    Invoke-Gcloud -Arguments @(
+        "iam", "service-accounts", "create", $AccountId,
+        "--display-name", $DisplayName,
+        "--description", $Description,
+        "--project", $ProjectId,
+        "--quiet"
+    ) | Out-Host
+}
+
+function Get-ServiceAccountProjectRoles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Email
+    )
+
+    $roleOutput = Invoke-Gcloud -Arguments @(
+        "projects", "get-iam-policy", $ProjectId,
+        "--flatten=bindings[].members",
+        "--filter=bindings.members=serviceAccount:$Email",
+        "--format=value(bindings.role)"
+    )
+
+    return @(
+        $roleOutput |
+            ForEach-Object { ([string]$_).Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
+function Assert-AllowedProjectRoles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Email,
+
+        [string[]]$AllowedRoles = @()
+    )
+
+    $projectRoles = @(Get-ServiceAccountProjectRoles -Email $Email)
+    $unexpectedRoles = @($projectRoles | Where-Object { $_ -notin $AllowedRoles })
+    if ($unexpectedRoles.Count -gt 0) {
+        throw "Unexpected project IAM roles on $Email: $($unexpectedRoles -join ', ')"
+    }
 }
 
 function Wait-AtlasHealth {
@@ -145,19 +213,39 @@ try {
     }
 
     $runtimeIdentity = "$RuntimeServiceAccount@$ProjectId.iam.gserviceaccount.com"
-    & gcloud iam service-accounts describe $runtimeIdentity --project $ProjectId 2>$null | Out-Null
+    $buildIdentity = "$BuildServiceAccount@$ProjectId.iam.gserviceaccount.com"
+    $buildResource = "projects/$ProjectId/serviceAccounts/$buildIdentity"
 
-    if ($LASTEXITCODE -ne 0) {
-        Invoke-Gcloud -Arguments @(
-            "iam", "service-accounts", "create", $RuntimeServiceAccount,
-            "--display-name", "ATLAS Cloud Run runtime",
-            "--description", "Runtime-only identity for the public ATLAS Cloud Run service",
-            "--project", $ProjectId,
-            "--quiet"
-        ) | Out-Host
-    }
-    else {
-        Write-Host "Runtime service account already exists: $runtimeIdentity"
+    Ensure-ServiceAccount -AccountId $RuntimeServiceAccount -Email $runtimeIdentity -DisplayName "ATLAS Cloud Run runtime" -Description "Runtime-only identity for the public ATLAS Cloud Run service"
+    Ensure-ServiceAccount -AccountId $BuildServiceAccount -Email $buildIdentity -DisplayName "ATLAS Cloud Build worker" -Description "Build-only identity for ATLAS container images"
+
+    Assert-AllowedProjectRoles -Email $runtimeIdentity
+    Assert-AllowedProjectRoles -Email $buildIdentity -AllowedRoles @("roles/logging.logWriter")
+
+    Invoke-Gcloud -Arguments @(
+        "projects", "add-iam-policy-binding", $ProjectId,
+        "--member", "serviceAccount:$buildIdentity",
+        "--role", "roles/logging.logWriter",
+        "--condition=None",
+        "--quiet"
+    ) | Out-Host
+    Invoke-Gcloud -Arguments @(
+        "artifacts", "repositories", "add-iam-policy-binding", $Repository,
+        "--location", $Region,
+        "--project", $ProjectId,
+        "--member", "serviceAccount:$buildIdentity",
+        "--role", "roles/artifactregistry.writer",
+        "--condition=None",
+        "--quiet"
+    ) | Out-Host
+
+    $existingServiceJson = & gcloud run services describe $Service --region $Region --project $ProjectId --format=json 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $existingService = ($existingServiceJson -join [Environment]::NewLine) | ConvertFrom-Json
+        $existingContainers = @($existingService.spec.template.spec.containers)
+        if ($existingContainers.Count -gt 1) {
+            throw "Existing Cloud Run service has more than one container. Refusing to inherit or remove an unreviewed sidecar."
+        }
     }
 
     $imageUri = "$($Region)-docker.pkg.dev/$ProjectId/$Repository/$($Service):$sourceRevision"
@@ -166,7 +254,8 @@ try {
         "--config", "cloudbuild.yaml",
         "--region", $Region,
         "--project", $ProjectId,
-        "--substitutions", "_REGION=$Region,_REPOSITORY=$Repository,_SERVICE=$Service,_SOURCE_REVISION=$sourceRevision",
+        "--service-account", $buildResource,
+        "--substitutions", "_REGION=$Region,_REPOSITORY=$Repository,_SERVICE=$Service,_SOURCE_REVISION=$sourceRevision,_BUILD_SERVICE_ACCOUNT=$BuildServiceAccount",
         "."
     ) | Out-Host
 
@@ -189,6 +278,13 @@ try {
         "--service-account", $runtimeIdentity,
         "--no-traffic",
         "--tag", $candidateTag,
+        "--clear-secrets",
+        "--clear-volumes",
+        "--clear-volume-mounts",
+        "--clear-cloudsql-instances",
+        "--clear-vpc-connector",
+        "--clear-network",
+        "--clear-network-tags",
         "--set-env-vars", "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false",
         "--labels", "source-revision=$sourceRevision,managed-by=atlas-deploy-script",
         "--quiet"
@@ -246,6 +342,7 @@ try {
     Write-Host "Health:           $serviceUrl/health"
     Write-Host "Source revision:  $sourceRevision"
     Write-Host "Runtime identity: $runtimeIdentity"
+    Write-Host "Build identity:   $buildIdentity"
     Write-Host "Mode:             public read-only; trading, paper writes, and public analysis POSTs disabled"
 }
 finally {
