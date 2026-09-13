@@ -15,8 +15,6 @@ substitutions:
   _REGION: europe-west1
   _REPOSITORY: atlas
   _SERVICE: atlas-market
-  _SOURCE_REVISION: unverified-source
-  _BUILD_SERVICE_ACCOUNT: atlas-cloud-build
 
 options:
   logging: CLOUD_LOGGING_ONLY
