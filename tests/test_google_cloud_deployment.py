@@ -132,3 +132,10 @@ def test_operator_refuses_to_reuse_cloud_service_accounts():
 
     assert "[Guid]::NewGuid" in script
     assert "Refusing to reuse existing service account" in script
+
+
+def test_each_release_refuses_to_reuse_service_accounts():
+    script = read("scripts/deploy_google_cloud.ps1")
+
+    assert "[Guid]::NewGuid" in script
+    assert "Refusing to reuse existing service account" in script
