@@ -34,13 +34,13 @@ class SignalJournal:
         malformed_lines: list[int] = []
 
         if self.path.exists():
-            with self.path.open("r", encoding="utf-8") as handle:
-                for line_number, line in enumerate(handle, start=1):
-                    if not line.strip():
+            with self.path.open("rb") as handle:
+                for line_number, raw_line in enumerate(handle, start=1):
+                    if not raw_line.strip():
                         continue
                     try:
-                        record = json.loads(line)
-                    except json.JSONDecodeError:
+                        record = json.loads(raw_line.decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
                         malformed_lines.append(line_number)
                         continue
                     if not isinstance(record, dict):
