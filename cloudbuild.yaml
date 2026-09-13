@@ -9,11 +9,14 @@ steps:
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${_SOURCE_REVISION}
 
+serviceAccount: projects/${PROJECT_ID}/serviceAccounts/${_BUILD_SERVICE_ACCOUNT}@${PROJECT_ID}.iam.gserviceaccount.com
+
 substitutions:
   _REGION: europe-west1
   _REPOSITORY: atlas
   _SERVICE: atlas-market
   _SOURCE_REVISION: unverified-source
+  _BUILD_SERVICE_ACCOUNT: atlas-cloud-build
 
 options:
   logging: CLOUD_LOGGING_ONLY
