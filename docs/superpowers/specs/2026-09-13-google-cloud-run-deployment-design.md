@@ -18,7 +18,7 @@ Each image is tagged with the full, clean Git commit SHA. The operator creates a
 
 ## Runtime identity and safety
 
-Cloud Run uses a dedicated user-managed runtime service account with no project roles. Cloud Build uses a separate user-managed identity with project-level Logs Writer and repository-scoped Artifact Registry Writer only. The script rejects unexpected project roles on either reused identity; the operator must be allowed to act as both.
+Each release creates fresh user-managed runtime and build service accounts with a random suffix and refuses to reuse an existing principal. The runtime identity receives no project roles. The build identity receives project-level Logs Writer and repository-scoped Artifact Registry Writer only. The script rejects unexpected project roles; the operator must be allowed to create and act as both identities.
 
 Every cloud revision receives:
 
