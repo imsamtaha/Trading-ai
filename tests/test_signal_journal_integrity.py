@@ -75,3 +75,36 @@ def test_signal_journal_verify_rejects_non_object_json(tmp_path: Path, value: st
         "malformed_records": 1,
         "malformed_lines": [1],
     }
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_signal_journal_verify_rejects_non_json_numeric_constants(
+    tmp_path: Path,
+    constant: str,
+):
+    path = tmp_path / "signals.jsonl"
+    path.write_text(f'{{"confidence":{constant}}}\n', encoding="utf-8")
+
+    assert SignalJournal(str(path)).verify() == {
+        "status": "CORRUPT",
+        "records": 0,
+        "malformed_records": 1,
+        "malformed_lines": [1],
+    }
+
+
+def test_signal_journal_append_rejects_nan_without_creating_record(tmp_path: Path):
+    path = tmp_path / "signals.jsonl"
+
+    with pytest.raises(ValueError, match="Out of range float values"):
+        SignalJournal(str(path)).append({"confidence": float("nan")})
+
+    assert not path.exists()
+
+
+def test_signal_journal_construction_is_read_only(tmp_path: Path):
+    path = tmp_path / "missing" / "signals.jsonl"
+
+    SignalJournal(str(path))
+
+    assert not path.parent.exists()
