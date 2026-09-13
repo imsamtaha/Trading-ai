@@ -45,3 +45,27 @@ def test_paper_ledger_blocks_duplicate_symbol(tmp_path: Path):
 
     with pytest.raises(PaperLedgerError, match="already exists"):
         ledger.open_trade(**_trade_kwargs())
+
+
+def test_multiple_ledger_instances_preserve_each_others_trades(tmp_path: Path):
+    ledger_path = tmp_path / "atlas_demo.json"
+    first = MT5PaperLedger(str(ledger_path), max_open_positions=3)
+    second = MT5PaperLedger(str(ledger_path), max_open_positions=3)
+
+    first.open_trade(**_trade_kwargs())
+
+    xau_trade = {
+        **_trade_kwargs(),
+        "symbol": "XAUUSD",
+        "entry": 2000.0,
+        "stop_loss": 1990.0,
+        "take_profit": 2020.0,
+    }
+    second.open_trade(**xau_trade)
+
+    reloaded = MT5PaperLedger(str(ledger_path), max_open_positions=3)
+    assert {position["symbol"] for position in reloaded.open_positions()} == {
+        "EURUSD",
+        "XAUUSD",
+    }
+    assert reloaded.summary()["recorded_trades"] == 2
