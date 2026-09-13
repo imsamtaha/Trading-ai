@@ -70,6 +70,38 @@ def test_monitor_uses_terminal_candles(status_paths, monkeypatch):
     assert result['market']['source'] == 'MT5'
 
 
+def test_monitor_blocks_same_candle_reentry_after_close(status_paths, monkeypatch):
+    monkeypatch.setenv('ATLAS_LIVE_TRADING', 'false')
+    monitor = AtlasMT5Monitor(symbols=['EURUSD'])
+    risk = {
+        'approved': True, 'actual_risk_amount': 1.0,
+        'risk_percent': 0.75, 'risk_reward': 2.0,
+        'position_size': 1000.0,
+    }
+    monitor.ledger.open_trade(
+        symbol='EURUSD', direction='LONG', entry=1.1000,
+        stop_loss=1.0990, take_profit=1.1020, position_size=1000.0,
+        risk=risk, strategy='CONTINUATION_5M', confidence=85.0,
+        timeframe='5m', decision={'decision': 'BUY'},
+    )
+    monitor.ledger.close_due_positions('EURUSD', bid=1.0990, ask=1.0991)
+    candidate = {
+        'direction': 'LONG', 'entry': 1.0990, 'stop_loss': 1.0980,
+        'take_profit': 1.1010, 'strategy': 'CONTINUATION_5M',
+        'confidence': 85.0, 'metadata': {'risk': risk},
+    }
+
+    event = monitor._open_paper_trade(
+        timestamp=datetime.now(timezone.utc).isoformat(), symbol='EURUSD',
+        candidate=candidate, decision={'decision': 'BUY'},
+    )
+
+    assert event['status'] == 'SKIPPED'
+    assert 'cooldown' in event['reason'].lower()
+    assert '(300s remaining)' in event['reason']
+    assert monitor.ledger.summary()['open_positions'] == 0
+
+
 def test_state_alias_and_dashboard_scripts(status_paths, monkeypatch):
     from app.dashboard.api import router
     routes = {r.path:r for r in router.routes if hasattr(r,'path')}

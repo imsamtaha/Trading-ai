@@ -37,6 +37,7 @@ def test_paper_ledger_persists_and_closes_take_profit(tmp_path: Path):
     assert closed[0]["r_multiple"] > 1.9
     assert ledger.summary() == {"open_positions": 0, "closed_trades": 1, "recorded_trades": 1}
     assert MT5PaperLedger(str(ledger_path)).closed_trades()[0]["id"] == opened["id"]
+    assert MT5PaperLedger(str(ledger_path)).last_closed_trade("eurusd")["id"] == opened["id"]
 
 
 def test_paper_ledger_blocks_duplicate_symbol(tmp_path: Path):
