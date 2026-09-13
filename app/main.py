@@ -59,10 +59,17 @@ async def dashboard_only_guard(request: Request, call_next):
             "/docs", "/openapi.json",
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        public_analysis_enabled = (
+            os.getenv("ATLAS_PUBLIC_ANALYSIS_ENABLED", "true").lower() == "true"
+        )
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or (request.method == "POST" and path in analysis_paths)
+        ) or (
+            public_analysis_enabled
+            and request.method == "POST"
+            and path in analysis_paths
+        )
         if not allowed:
             return JSONResponse(
                 status_code=403,
