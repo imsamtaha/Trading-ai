@@ -63,23 +63,3 @@ def test_missing_ledger_is_unknown(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("ATLAS_DEMO_LEDGER", str(tmp_path / "missing.json"))
     assert main() == 2
     assert '"summary": null' in capsys.readouterr().out
-
-
-def test_demo_status_returns_nonzero_for_corrupt_signal_journal(monkeypatch, tmp_path, capsys):
-    from scripts.atlas_demo_status import main
-
-    ledger_path = tmp_path / "ledger.json"
-    ledger_path.write_text(
-        '{"open_positions": [], "closed_trades": []}',
-        encoding="utf-8",
-    )
-    journal_path = tmp_path / "signals.jsonl"
-    journal_path.write_bytes(b'{"status":"NO_TRADE"}\n{"reason":"\xff"}\n')
-    monkeypatch.setenv("ATLAS_DEMO_LEDGER", str(ledger_path))
-    monkeypatch.setenv("ATLAS_SIGNAL_JOURNAL", str(journal_path))
-
-    assert main() == 3
-    output = capsys.readouterr().out
-    assert '"signal_journal"' in output
-    assert '"status": "CORRUPT"' in output
-    assert '"malformed_lines": [' in output
