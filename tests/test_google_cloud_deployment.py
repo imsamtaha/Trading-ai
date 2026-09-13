@@ -15,8 +15,8 @@ def test_dockerfile_uses_cloud_run_port_and_copies_public_runtime():
     dockerfile = read("Dockerfile")
 
     assert "python:3.13-slim" in dockerfile
-    assert "COPY app ./app" in dockerfile
-    assert "COPY web ./web" in dockerfile
+    assert re.search(r"COPY(?: --chown=\S+)? app ./app", dockerfile)
+    assert re.search(r"COPY(?: --chown=\S+)? web ./web", dockerfile)
     assert re.search(r"\$\{PORT:-8080\}", dockerfile)
     assert "0.0.0.0" in dockerfile
 
