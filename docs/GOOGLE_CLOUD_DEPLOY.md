@@ -23,8 +23,8 @@ Cloud Build only builds and pushes an image to Artifact Registry. The authentica
 
 1. refuses to deploy a dirty Git working tree;
 2. tags the image with the full Git commit SHA;
-3. creates dedicated runtime and build service accounts;
-4. rejects unexpected project roles on either identity;
+3. generates fresh, release-specific runtime and build service accounts and refuses to reuse an existing identity;
+4. rejects unexpected project roles on either new identity;
 5. grants the build identity only project log writing and repository-scoped Artifact Registry writing;
 6. rejects an existing multi-container service and clears inherited secrets, volumes, Cloud SQL, and VPC settings;
 7. deploys a tagged candidate revision with no production traffic;
@@ -39,7 +39,7 @@ The script never changes the active project in the global `gcloud` configuration
 2. Google Cloud CLI and Git installed on the Windows computer.
 3. The current `Trading-ai` repository checked out with a clean working tree.
 4. An authenticated operator allowed to enable services, create Artifact Registry repositories and service accounts, manage the two narrow IAM bindings, submit builds, deploy Cloud Run services, and act as both service accounts.
-5. No pre-existing project roles on `atlas-cloud-run`; no roles other than Logs Writer on `atlas-cloud-build`. The script stops if it detects a broader project binding.
+5. Permission to create two fresh service accounts per release. Their random suffix prevents inherited principal-specific grants; the script stops if either identity already exists or receives an unexpected project binding.
 
 Confirm the CLI:
 
@@ -67,8 +67,8 @@ Defaults:
 | Region | `europe-west1` |
 | Artifact Registry repository | `atlas` |
 | Cloud Run service | `atlas-market` |
-| Runtime service account | `atlas-cloud-run@PROJECT_ID.iam.gserviceaccount.com` |
-| Build service account | `atlas-cloud-build@PROJECT_ID.iam.gserviceaccount.com` |
+| Runtime service account | `atlas-run-RANDOM8@PROJECT_ID.iam.gserviceaccount.com` |
+| Build service account | `atlas-build-RANDOM8@PROJECT_ID.iam.gserviceaccount.com` |
 | Build permissions | project Logs Writer; repository-scoped Artifact Registry Writer |
 | Public access | enabled |
 | Minimum / maximum instances | 0 / 3 |
@@ -76,7 +76,7 @@ Defaults:
 | Live trading and paper writes | disabled |
 | Public analysis POSTs | disabled |
 
-A permission error or unexpected IAM role is a stop condition. The script does not grant the runtime identity any role. It grants the build identity only `roles/logging.logWriter` at project level and `roles/artifactregistry.writer` on the selected repository.
+A permission error, existing generated identity, or unexpected IAM role is a stop condition. The script does not grant the runtime identity any role. It grants the fresh build identity only `roles/logging.logWriter` at project level and `roles/artifactregistry.writer` on the selected repository. Old runtime identities must remain while their revisions are rollback candidates; retire old build identities and bindings later through a separately reviewed cleanup.
 
 Redeployment deliberately clears inherited secrets, secret/other volumes and mounts, Cloud SQL connections, Serverless/Direct VPC networking, and network tags. It refuses to modify a service with more than one container so an unreviewed sidecar cannot survive the release.
 
