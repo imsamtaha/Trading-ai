@@ -25,7 +25,35 @@ class SignalJournal:
         }
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, default=str, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
         return payload
+
+    def verify(self) -> dict[str, object]:
+        records = 0
+        malformed_lines: list[int] = []
+
+        if self.path.exists():
+            with self.path.open("r", encoding="utf-8") as handle:
+                for line_number, line in enumerate(handle, start=1):
+                    if not line.strip():
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        malformed_lines.append(line_number)
+                        continue
+                    if not isinstance(record, dict):
+                        malformed_lines.append(line_number)
+                        continue
+                    records += 1
+
+        return {
+            "status": "CORRUPT" if malformed_lines else "OK",
+            "records": records,
+            "malformed_records": len(malformed_lines),
+            "malformed_lines": malformed_lines,
+        }
 
     def count(self) -> int:
         if not self.path.exists():
