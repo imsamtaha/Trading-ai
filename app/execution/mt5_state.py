@@ -92,7 +92,7 @@ def _fallback_match(requested: str, normalized: str) -> bool:
         "LINKUSD": ("link", "chainlink"),
         "AVAXUSD": ("avax", "avalanche"),
         "MATICUSD": ("matic", "polygon"),
-        "POLUSD": ("pol", "polygon"),
+        "POLUSD": ("polygon", "matic"),
         "TRXUSD": ("trx", "tron"),
         "UNIUSD": ("uni", "uniswap"),
         "ATOMUSD": ("atom", "cosmos"),
