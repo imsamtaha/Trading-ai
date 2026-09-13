@@ -13,11 +13,8 @@ param(
     [ValidatePattern("^[a-z][a-z0-9-]{2,62}$")]
     [string]$Repository = "atlas",
 
-    [ValidatePattern("^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
-    [string]$RuntimeServiceAccount = "atlas-cloud-run",
-
-    [ValidatePattern("^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
-    [string]$BuildServiceAccount = "atlas-cloud-build"
+    [ValidatePattern("^[a-z0-9]{6,12}$")]
+    [string]$IdentitySuffix = ([Guid]::NewGuid().ToString("N").Substring(0, 8))
 )
 
 Set-StrictMode -Version Latest
@@ -36,7 +33,7 @@ function Invoke-Gcloud {
     return $output
 }
 
-function Ensure-ServiceAccount {
+function New-ServiceAccount {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AccountId,
@@ -53,8 +50,7 @@ function Ensure-ServiceAccount {
 
     & gcloud iam service-accounts describe $Email --project $ProjectId 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "Service account already exists: $Email"
-        return
+        throw "Refusing to reuse existing service account: $Email"
     }
 
     Invoke-Gcloud -Arguments @(
@@ -212,12 +208,14 @@ try {
         Write-Host "Artifact Registry repository already exists: $Repository"
     }
 
+    $RuntimeServiceAccount = "atlas-run-$IdentitySuffix"
+    $BuildServiceAccount = "atlas-build-$IdentitySuffix"
     $runtimeIdentity = "$RuntimeServiceAccount@$ProjectId.iam.gserviceaccount.com"
     $buildIdentity = "$BuildServiceAccount@$ProjectId.iam.gserviceaccount.com"
     $buildResource = "projects/$ProjectId/serviceAccounts/$buildIdentity"
 
-    Ensure-ServiceAccount -AccountId $RuntimeServiceAccount -Email $runtimeIdentity -DisplayName "ATLAS Cloud Run runtime" -Description "Runtime-only identity for the public ATLAS Cloud Run service"
-    Ensure-ServiceAccount -AccountId $BuildServiceAccount -Email $buildIdentity -DisplayName "ATLAS Cloud Build worker" -Description "Build-only identity for ATLAS container images"
+    New-ServiceAccount -AccountId $RuntimeServiceAccount -Email $runtimeIdentity -DisplayName "ATLAS Cloud Run runtime" -Description "Runtime-only identity for ATLAS Cloud Run release $sourceRevision"
+    New-ServiceAccount -AccountId $BuildServiceAccount -Email $buildIdentity -DisplayName "ATLAS Cloud Build worker" -Description "Build-only identity for ATLAS release $sourceRevision"
 
     Assert-AllowedProjectRoles -Email $runtimeIdentity
     Assert-AllowedProjectRoles -Email $buildIdentity -AllowedRoles @("roles/logging.logWriter")
