@@ -48,7 +48,11 @@ def main() -> int:
         "signal_journal": journal_report,
     }
     print(json.dumps(report, indent=2, default=str))
-    return 3 if journal_report["status"] == "CORRUPT" else 0
+    if journal_report["status"] == "CORRUPT":
+        return 3
+    if journal_report["status"] == "MISSING":
+        return 4
+    return 0
 
 
 if __name__ == "__main__":
