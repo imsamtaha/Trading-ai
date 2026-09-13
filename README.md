@@ -20,9 +20,10 @@ Existing `/subscribe`, `/billing/*`, and `/dashboard*` routes remain intact.
 
 ## Deploy to Google Cloud Run
 
-The repository includes a safety-locked Cloud Run container, Cloud Build
-pipeline, and a PowerShell deployment script. The cloud revision serves the
-website and FastAPI dashboard with live trading and paper writes disabled; MT5
+The repository includes a safety-locked Cloud Run container, build-only Cloud
+Build pipeline, and a staged PowerShell deployment script. A candidate receives
+no traffic until health and write-block checks pass. The public cloud revision
+disables live trading, paper writes, and unauthenticated analysis POSTs; MT5
 continues to run only on the persistent Windows host.
 
 See [Google Cloud deployment](docs/GOOGLE_CLOUD_DEPLOY.md).
