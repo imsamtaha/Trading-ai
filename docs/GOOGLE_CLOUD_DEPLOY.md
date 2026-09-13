@@ -23,12 +23,13 @@ Cloud Build only builds and pushes an image to Artifact Registry. The authentica
 
 1. refuses to deploy a dirty Git working tree;
 2. tags the image with the full Git commit SHA;
-3. creates or reuses a dedicated runtime service account with no project roles;
-4. deploys a tagged candidate revision with no production traffic;
-5. retries `GET /health` against the candidate;
-6. verifies `POST /mt5/test-order` returns `403`;
-7. moves 100% of traffic to the verified tag;
-8. verifies the canonical service URL again.
+3. creates dedicated runtime and build service accounts;
+4. rejects unexpected project roles on either identity;
+5. grants the build identity only project log writing and repository-scoped Artifact Registry writing;
+6. rejects an existing multi-container service and clears inherited secrets, volumes, Cloud SQL, and VPC settings;
+7. deploys a tagged candidate revision with no production traffic;
+8. retries `GET /health` and verifies `POST /mt5/test-order` returns `403`;
+9. moves 100% of traffic to the verified tag and checks the canonical URL again.
 
 The script never changes the active project in the global `gcloud` configuration.
 
@@ -37,8 +38,8 @@ The script never changes the active project in the global `gcloud` configuration
 1. A Google Cloud project with billing enabled.
 2. Google Cloud CLI and Git installed on the Windows computer.
 3. The current `Trading-ai` repository checked out with a clean working tree.
-4. An authenticated operator allowed to enable services, create Artifact Registry repositories and service accounts, submit builds, deploy Cloud Run services, and act as the runtime service account.
-5. A Cloud Build service account with only the permissions required to write images to the selected Artifact Registry repository and write build logs.
+4. An authenticated operator allowed to enable services, create Artifact Registry repositories and service accounts, manage the two narrow IAM bindings, submit builds, deploy Cloud Run services, and act as both service accounts.
+5. No pre-existing project roles on `atlas-cloud-run`; no roles other than Logs Writer on `atlas-cloud-build`. The script stops if it detects a broader project binding.
 
 Confirm the CLI:
 
@@ -67,13 +68,17 @@ Defaults:
 | Artifact Registry repository | `atlas` |
 | Cloud Run service | `atlas-market` |
 | Runtime service account | `atlas-cloud-run@PROJECT_ID.iam.gserviceaccount.com` |
+| Build service account | `atlas-cloud-build@PROJECT_ID.iam.gserviceaccount.com` |
+| Build permissions | project Logs Writer; repository-scoped Artifact Registry Writer |
 | Public access | enabled |
 | Minimum / maximum instances | 0 / 3 |
 | Memory | 512 MiB |
 | Live trading and paper writes | disabled |
 | Public analysis POSTs | disabled |
 
-A permission error is a stop condition. Grant only the specific missing permission to the operator or build identity, then rerun the script.
+A permission error or unexpected IAM role is a stop condition. The script does not grant the runtime identity any role. It grants the build identity only `roles/logging.logWriter` at project level and `roles/artifactregistry.writer` on the selected repository.
+
+Redeployment deliberately clears inherited secrets, secret/other volumes and mounts, Cloud SQL connections, Serverless/Direct VPC networking, and network tags. It refuses to modify a service with more than one container so an unreviewed sidecar cannot survive the release.
 
 ## Verify the deployed revision
 
