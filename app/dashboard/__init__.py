@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.dashboard.api import router as api_router
 from app.dashboard.agent_panel import router as agent_panel_router
 from app.dashboard.demo_panel import router as demo_panel_router
+from app.dashboard.trading_hub import enhance_atlas_html
 from app.dashboard.views import DASHBOARD_HTML
 
 router = APIRouter()
@@ -20,8 +21,8 @@ def _stripe_link(plan: str) -> str | None:
 def _stripe_button(plan: str) -> str:
     link = _stripe_link(plan)
     if link:
-        return f'<a class="btn" href="{link}" target="_blank" rel="noopener">Pay with Stripe</a>'
-    return '<span class="btn ghost" aria-disabled="true" title="Stripe checkout becomes available after account verification">Stripe activation pending</span>'
+        return f'<a class="btn atlas-3d" href="{link}" target="_blank" rel="noopener">Pay with Stripe</a>'
+    return '<span class="btn ghost atlas-3d" aria-disabled="true" title="Stripe checkout becomes available after account verification">Stripe activation pending</span>'
 
 
 def _atlas_ultimate_html() -> str:
@@ -34,52 +35,23 @@ def _atlas_ultimate_html() -> str:
   <h2 style="font-size:clamp(28px,4vw,48px);margin:8px 0 6px">Choose your intelligence level.</h2>
   <p class="mini" style="max-width:820px;font-size:13px;line-height:1.6">Three paid intelligence levels. No free demo and no free trial. Market information is decision-support; broker execution remains under the trader's control.</p>
   <div class="plans-grid">
-    <div class="card plan-card">
-      <div class="label">Market Watch</div><div class="big">$29<span class="mini"> / month</span></div>
-      <p class="mini">Live financial news board · Market direction and bias · Market structure · Key levels · Strategy and setup context.</p>
-      {watch_stripe}
-      <a class="btn ghost" href="/billing/whish/watch">Whish Money</a>
-    </div>
-    <div class="card plan-card" style="border-color:#ff7a1a66">
-      <div class="label">ATLAS Signals</div><div class="big">$49<span class="mini"> / month</span></div>
-      <p class="mini">Everything in Market Watch · Manual-execution signals · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.</p>
-      {signals_stripe}
-      <a class="btn ghost" href="/billing/whish/reader">Whish Money</a>
-    </div>
-    <div class="card plan-card">
-      <div class="label">ATLAS Pro</div><div class="big">$99<span class="mini"> / month</span></div>
-      <p class="mini">Everything in Signals · Continuous multi-asset analysis · Opportunity matrix · Risk/position monitoring · Exit and stop alerts · Priority intelligence briefings.</p>
-      {pro_stripe}
-      <a class="btn ghost" href="/billing/whish/pro">Whish Money</a>
-    </div>
-    <div class="card plan-card">
-      <div class="label">Enterprise</div><div class="big">Custom</div>
-      <p class="mini">Manual application and review · Team access · Custom integrations and deployment planning · Commercial quote based on required services.</p>
-      <a class="btn ghost" href="mailto:info@justai-atlas.online?subject=ATLAS%20ULTIMATE%20Enterprise%20Application">Apply / Contact CEO</a>
-    </div>
+    <div class="card plan-card"><div class="label">Market Watch</div><div class="big">$29<span class="mini"> / month</span></div><p class="mini">Live financial news board · Market direction and bias · Market structure · Key levels · Strategy and setup context.</p>{watch_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/watch">Whish Money</a></div>
+    <div class="card plan-card" style="border-color:#ff7a1a66"><div class="label">ATLAS Signals</div><div class="big">$49<span class="mini"> / month</span></div><p class="mini">Everything in Market Watch · Manual-execution signals · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.</p>{signals_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/reader">Whish Money</a></div>
+    <div class="card plan-card"><div class="label">ATLAS Pro</div><div class="big">$99<span class="mini"> / month</span></div><p class="mini">Everything in Signals · Continuous multi-asset analysis · Opportunity matrix · Risk/position monitoring · Exit and stop alerts · Priority intelligence briefings.</p>{pro_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/pro">Whish Money</a></div>
+    <div class="card plan-card"><div class="label">Enterprise</div><div class="big">Custom</div><p class="mini">Manual application and review · Team access · Custom integrations and deployment planning · Commercial quote based on required services.</p><a class="btn ghost atlas-3d" href="mailto:info@justai-atlas.online?subject=ATLAS%20ULTIMATE%20Enterprise%20Application">Apply / Contact CEO</a></div>
   </div>
   <div class="notice">Subscriptions provide market intelligence and monitoring. They do not guarantee outcomes or authorize public subscriber broker execution.</div>
 </section>
 <style>
-.plans-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}}.plan-card{{box-shadow:none;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}}.plan-card:before{{content:"";position:absolute;inset:-80% 45% auto -30%;height:220px;background:radial-gradient(circle,#ff7a1a1f,transparent 68%);pointer-events:none}}.atlas-tech-bg{{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:900px;overflow:hidden}}.atlas-tech-bg:before{{content:"";position:absolute;left:-15%;right:-15%;bottom:-36%;height:72%;transform:rotateX(64deg);transform-origin:center top;background-image:linear-gradient(#ff7a1a14 1px,transparent 1px),linear-gradient(90deg,#91a4bd12 1px,transparent 1px);background-size:58px 58px;filter:drop-shadow(0 0 14px #ff7a1a18)}}.atlas-tech-bg:after{{content:"";position:absolute;width:560px;height:560px;right:-180px;top:20%;border:1px solid #ff7a1a20;border-radius:50%;box-shadow:0 0 80px #ff7a1a12,inset 0 0 80px #91a4bd0b}}.refresh-sector{{margin-left:10px;min-height:30px;padding:5px 10px;font-size:11px;cursor:pointer}}.refresh-sector.loading{{opacity:.55;pointer-events:none}}.last-updated{{font-size:10px;color:var(--muted);margin-left:8px}}@media(max-width:1180px){{.plans-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.plans-grid{{grid-template-columns:1fr}}}}
+.plans-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}}.plan-card{{display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}}.plan-card:before{{content:"";position:absolute;inset:-80% 45% auto -30%;height:220px;background:radial-gradient(circle,#ff7a1a1f,transparent 68%);pointer-events:none}}.atlas-tech-bg{{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:900px;overflow:hidden}}.atlas-tech-bg:before{{content:"";position:absolute;left:-15%;right:-15%;bottom:-36%;height:72%;transform:rotateX(64deg);transform-origin:center top;background-image:linear-gradient(#ff7a1a14 1px,transparent 1px),linear-gradient(90deg,#91a4bd12 1px,transparent 1px);background-size:58px 58px}}.atlas-tech-bg:after{{content:"";position:absolute;width:560px;height:560px;right:-180px;top:20%;border:1px solid #ff7a1a20;border-radius:50%;box-shadow:0 0 80px #ff7a1a12,inset 0 0 80px #91a4bd0b}}@media(max-width:1180px){{.plans-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.plans-grid{{grid-template-columns:1fr}}}}
 </style>
-'''
-    refresh_script = r'''
-<script>
-(function(){
-  function stamp(btn){var s=btn.parentElement.querySelector('.last-updated');if(s)s.textContent='Updated '+new Date().toLocaleTimeString();}
-  function addButton(title,fn){if(!title||title.querySelector('.refresh-sector'))return;var b=document.createElement('button');b.className='btn ghost refresh-sector';b.type='button';b.textContent='↻ Refresh';var s=document.createElement('span');s.className='last-updated';s.textContent='';b.onclick=async function(){b.classList.add('loading');b.textContent='Refreshing…';try{await fn();stamp(b)}finally{b.classList.remove('loading');b.textContent='↻ Refresh'}};title.appendChild(b);title.appendChild(s)}
-  var titles=[].slice.call(document.querySelectorAll('.section-title'));
-  titles.forEach(function(t){var text=t.textContent.toLowerCase();addButton(t,text.indexOf('wall street')>=0||text.indexOf('news')>=0?function(){return window.refreshBriefing?window.refreshBriefing():Promise.resolve()}:function(){return window.refresh?window.refresh():Promise.resolve()})});
-  var actions=document.querySelector('.actions');if(actions){var all=document.createElement('button');all.className='btn ghost';all.type='button';all.textContent='↻ Refresh All';all.onclick=async function(){all.textContent='Refreshing…';try{if(window.refresh)await window.refresh();if(window.refreshBriefing)await window.refreshBriefing();all.textContent='✓ Updated';setTimeout(function(){all.textContent='↻ Refresh All'},1200)}catch(e){all.textContent='Retry Refresh'}};actions.prepend(all)}
-})();
-</script>
 '''
     scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/demo-panel.js"></script>'
     html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
     html = html.replace('<body>', '<body><div class="atlas-tech-bg" aria-hidden="true"></div>')
     html = html.replace('</main>', plans + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', plans + '<div class="notice" id="disclaimer">')
-    return html.replace('</body>', refresh_script + scripts + '</body>')
+    html = html.replace('</body>', scripts + '</body>')
+    return enhance_atlas_html(html)
 
 
 @router.get(CANONICAL_ATLAS_PATH, response_class=HTMLResponse, tags=["dashboard"], include_in_schema=False)
