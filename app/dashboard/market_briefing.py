@@ -29,21 +29,36 @@ def _direction(p):
     return "BULLISH" if p>0.15 else "BEARISH" if p<-0.15 else "NEUTRAL"
 
 def _arabic_headlines(stories):
+    """Localize financial headlines into natural professional MSA without changing facts."""
     key=os.getenv("OPENAI_API_KEY","").strip()
     if not key or key=="YOUR_API_KEY_HERE" or not stories: return stories
     try:
         from openai import OpenAI
         titles=[s["title"] for s in stories]
-        r=OpenAI(api_key=key).chat.completions.create(
-            model=os.getenv("OPENAI_MODEL","gpt-5.6"),temperature=0,response_format={"type":"json_object"},
-            messages=[
-                {"role":"system","content":"Translate only the supplied financial-news headlines into concise, professional Modern Standard Arabic. Do not add facts, forecasts, advice or numbers. Preserve company names and all market/asset symbols in English. Return JSON exactly as {\"titles\":[...]} in the same order."},
-                {"role":"user","content":json.dumps({"titles":titles},ensure_ascii=False)},
-            ])
-        ar=json.loads(r.choices[0].message.content or "{}").get("titles",[])
-        if len(ar)!=len(stories): return stories
-        return [{**s,"title_en":s["title"],"title_ar":str(a),"title":str(a)} for s,a in zip(stories,ar)]
-    except Exception: return stories
+        prompt=(
+            "You are the Arabic financial-news editor for ATLAS. Rewrite ONLY the supplied English "
+            "headlines as concise, natural, professional Modern Standard Arabic suitable for a premium "
+            "financial intelligence dashboard. Do not translate literally. Preserve the exact factual "
+            "meaning, tone, numbers, percentages, currencies, company/person names, tickers and market/asset "
+            "symbols; keep tickers and symbols such as NVDA, EURUSD, XAUUSD and BTCUSD in English. Never add "
+            "facts, forecasts, trading advice, sentiment or interpretation. Prefer standard financial Arabic "
+            "such as يرتفع/يتراجع, وسط ترقب, آفاق التضخم, تقييمات السوق, and نمو الذكاء الاصطناعي when those "
+            "meanings are actually present. Avoid awkward word-for-word phrasing. Return valid JSON only, "
+            "exactly as {\"titles\":[\"...\"]}, preserving input order and count.\n\nINPUT:\n" +
+            json.dumps({"titles":titles},ensure_ascii=False)
+        )
+        r=OpenAI(api_key=key).responses.create(
+            model=os.getenv("OPENAI_MODEL","gpt-5.6"),
+            input=prompt,
+        )
+        raw=(r.output_text or "").strip()
+        if raw.startswith("```"):
+            raw=raw.strip("`").removeprefix("json").strip()
+        ar=json.loads(raw).get("titles",[])
+        if len(ar)!=len(stories) or not all(str(a).strip() for a in ar): return stories
+        return [{**s,"title_en":s["title"],"title_ar":str(a).strip()} for s,a in zip(stories,ar)]
+    except Exception:
+        return stories
 
 class MarketBriefingService:
     """Public market/news analysis that remains isolated from execution."""
