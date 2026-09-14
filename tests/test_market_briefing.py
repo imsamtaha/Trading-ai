@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.dashboard.market_briefing import MarketBriefingService
 
 
@@ -15,19 +17,21 @@ class FakeResponse:
 
 class FakeSession:
     def get(self, url, **kwargs):
-        if "quote" in url:
+        if "/v8/finance/chart/" in url:
             return FakeResponse(
                 {
-                    "quoteResponse": {
+                    "chart": {
                         "result": [
                             {
-                                "symbol": "^GSPC",
-                                "regularMarketPrice": 5100.25,
-                                "regularMarketChange": 25.5,
-                                "regularMarketChangePercent": 0.5,
-                                "marketState": "REGULAR",
+                                "meta": {
+                                    "regularMarketPrice": 5100.25,
+                                    "chartPreviousClose": 5074.75,
+                                    "regularMarketTime": datetime.now(timezone.utc).timestamp(),
+                                },
+                                "indicators": {"quote": [{"close": [5074.75, 5100.25]}]},
                             }
-                        ]
+                        ],
+                        "error": None,
                     }
                 }
             )
@@ -42,5 +46,7 @@ def test_briefing_keeps_market_context_separate_from_execution():
     assert data["status"] == "ONLINE"
     assert data["market_board"][1]["label"] == "S&P 500"
     assert data["market_board"][1]["price"] == 5100.25
+    assert data["market_board"][1]["freshness"] == "FRESH"
     assert data["headlines"][0]["title"] == "Market headline"
+    assert data["market_analysis"]["execution"] == "DISABLED"
     assert "never used by the execution gate" in data["disclaimer"]
