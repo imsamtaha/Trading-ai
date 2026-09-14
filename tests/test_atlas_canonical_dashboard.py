@@ -1,4 +1,5 @@
 from app.dashboard import CANONICAL_ATLAS_PATH, _atlas_ultimate_html
+from app.dashboard.preferences import SCRIPT
 
 
 def test_canonical_atlas_path_is_customer_entrypoint():
@@ -32,3 +33,30 @@ def test_canonical_dashboard_preserves_manual_execution_boundary():
 
     assert "broker execution remains under the trader's control" in html
     assert "do not guarantee outcomes" in html
+
+
+def test_arabic_preferences_cover_dynamic_market_labels():
+    required = {
+        "ATLAS Market Intelligence Boards": "لوحات ذكاء الأسواق من ATLAS",
+        "Breadth": "اتساع السوق",
+        "Rising": "الأسواق الصاعدة",
+        "Falling": "الأسواق المتراجعة",
+        "Tracked": "الأسواق المتابعة",
+        "Usable": "بيانات صالحة للتحليل",
+        "Stale": "بيانات قديمة",
+        "FRESH": "محدّثة",
+        "DELAYED": "متأخرة",
+        "STALE": "قديمة",
+        "UNAVAILABLE": "غير متاح",
+        "No quote time": "وقت السعر غير متاح",
+        "Quote": "وقت السعر",
+    }
+    for english, arabic in required.items():
+        assert f"'{english}':'{arabic}'" in SCRIPT
+
+
+def test_language_change_triggers_only_one_briefing_refresh_path():
+    onchange = SCRIPT.split("bar.querySelector('#atlas-lang').onchange=e=>", 1)[1].split(";bar.querySelector('#atlas-theme')", 1)[0]
+
+    assert "atlas-language-change" in onchange
+    assert "window.refreshBriefing" not in onchange
