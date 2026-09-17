@@ -1,4 +1,4 @@
-from app.strategy.universe import build_universe, normalize_symbol
+from app.strategy.universe import ASSET_CATEGORIES, build_universe, normalize_symbol
 
 
 def test_normalize_common_broker_aliases():
@@ -7,6 +7,17 @@ def test_normalize_common_broker_aliases():
     assert normalize_symbol("USTEC.cash") == "NAS100"
     assert normalize_symbol("SPX500.pro") == "US500"
     assert normalize_symbol("SOLUSD") == "SOLUSD"
+
+
+def test_asset_universe_is_named_and_grouped_by_categories():
+    assert "METALS" in ASSET_CATEGORIES
+    assert "ENERGY" in ASSET_CATEGORIES
+    assert "FOREX" in ASSET_CATEGORIES
+    assert "INDICES" in ASSET_CATEGORIES
+    assert "CRYPTO" in ASSET_CATEGORIES
+    assert ASSET_CATEGORIES["METALS"]["XAUUSD"] == 1
+    assert ASSET_CATEGORIES["FOREX"]["EURUSD"] == 1
+    assert ASSET_CATEGORIES["CRYPTO"]["SOLUSDT"] == 2
 
 
 def test_build_universe_filters_and_ranks_tradeable_symbols():
