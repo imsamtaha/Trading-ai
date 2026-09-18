@@ -17,7 +17,7 @@ from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
 from app.risk.ledger_metrics import calculate_ledger_risk_state
 from app.risk.manager import calculate_risk
 from app.strategies.router import generate_strategy_candidate
-from app.strategy.universe import build_universe
+from app.strategy.universe import build_universe, diversify_universe
 
 
 TIMEFRAME_MAP = {
@@ -79,7 +79,7 @@ class AtlasMT5Monitor:
             item.strip().upper()
             for item in os.getenv(
                 "ATLAS_PREFERRED_CANONICAL",
-                "XAUUSD,XAGUSD,NGAS,EURUSD,XRPUSDT,SOLUSDT",
+                "XAUUSD,XAGUSD,XPTUSD,NGAS,WTI,EURUSD,GBPUSD,USDJPY,AUDJPY,NAS100,US500,GER40,JP225,BTCUSD,ETHUSD,SOLUSDT,XRPUSDT,ADAUSD,WHEAT,CORN",
             ).split(",")
             if item.strip()
         }
@@ -140,7 +140,8 @@ class AtlasMT5Monitor:
         if not self.auto_discover and self.symbols:
             return self.symbols
 
-        ranked = build_universe(self.broker.symbols(), top_n=self.top_n)
+        ranked = build_universe(self.broker.symbols(), top_n=max(self.top_n, 30))
+        ranked = diversify_universe(ranked, top_n=self.top_n)
         preferred = [
             item
             for item in ranked

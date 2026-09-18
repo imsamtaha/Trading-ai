@@ -153,6 +153,8 @@ class MT5Broker:
             "point": float(info.point),
             "digits": int(info.digits),
             "spread_points": float((tick.ask - tick.bid) / info.point),
+            "time": int(getattr(tick, "time", 0) or 0),
+            "time_msc": int(getattr(tick, "time_msc", 0) or 0),
         }
 
     def candles(self, symbol: str, timeframe: int, count: int = 200) -> list[dict[str, Any]]:
