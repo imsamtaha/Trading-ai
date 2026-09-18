@@ -84,6 +84,10 @@ class AtlasMT5Monitor:
             if item.strip()
         }
         self.persist_all_signals = os.getenv("ATLAS_PERSIST_ALL_SIGNALS", "false").lower() == "true"
+        self.max_quote_age_seconds = max(
+            1,
+            int(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")),
+        )
         self.reentry_cooldown_seconds = max(
             TIMEFRAME_SECONDS[interval],
             int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
@@ -110,6 +114,32 @@ class AtlasMT5Monitor:
             return float(value)
         except (TypeError, ValueError):
             return default
+
+    def _validate_quote_freshness(self, quote: dict[str, Any]) -> tuple[bool, str]:
+        """Fail closed when an MT5 quote has no trustworthy current timestamp."""
+        time_msc = int(quote.get("time_msc", 0) or 0)
+        time_sec = int(quote.get("time", 0) or 0)
+
+        if time_msc > 0:
+            quote_timestamp = time_msc / 1000.0
+        elif time_sec > 0:
+            quote_timestamp = float(time_sec)
+        else:
+            return False, "MT5 quote timestamp is missing."
+
+        age_seconds = datetime.now(timezone.utc).timestamp() - quote_timestamp
+
+        if age_seconds < -5:
+            return False, "MT5 quote timestamp is unexpectedly in the future."
+
+        if age_seconds > self.max_quote_age_seconds:
+            return (
+                False,
+                f"MT5 quote is stale ({age_seconds:.1f}s old; "
+                f"maximum {self.max_quote_age_seconds}s).",
+            )
+
+        return True, ""
 
     def _record_event(self, event: dict[str, Any]) -> dict[str, Any]:
         """Write a local audit record and optionally publish its safe envelope."""
@@ -303,6 +333,18 @@ class AtlasMT5Monitor:
             }
 
         quote = self.broker.quote(symbol)
+        quote_fresh, quote_reason = self._validate_quote_freshness(quote)
+        if not quote_fresh:
+            return {
+                "timestamp": timestamp,
+                "symbol": symbol,
+                "timeframe": self.interval,
+                "status": "NO_TRADE",
+                "reason": quote_reason,
+                "candidate": candidate,
+                "decision": decision,
+            }
+
         entry = float(quote["ask"] if candidate["direction"] == "LONG" else quote["bid"])
         stop_loss, take_profit = self._rebase_levels(candidate, entry)
         base_risk = candidate.get("metadata", {}).get("risk", {})
