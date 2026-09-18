@@ -15,6 +15,7 @@ from app.dashboard.market_briefing import get_market_briefing
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
+from app.integrations.mt5_bridge import RemoteMT5BridgeError, fetch_remote_mt5_telemetry
 from app.dashboard.market_intelligence import MarketIntelligenceFeed
 from app.strategy.universe import build_universe
 
@@ -130,6 +131,12 @@ def market_briefing() -> dict[str, Any]:
 @router.get("/state")
 @router.get("/atlas")
 def atlas_dashboard_state() -> dict[str, Any]:
+    if os.getenv("ATLAS_MT5_BRIDGE_URL", "").strip():
+        try:
+            return fetch_remote_mt5_telemetry()
+        except RemoteMT5BridgeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     broker = MT5Broker(MT5Config.from_env())
     try:
         account = broker.connect()
