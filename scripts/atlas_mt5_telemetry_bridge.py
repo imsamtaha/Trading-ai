@@ -70,7 +70,12 @@ def telemetry(authorization: str | None = Header(default=None)) -> dict[str, Any
     os.environ["ATLAS_DASHBOARD_ONLY"] = "true"
     os.environ["MT5_REQUIRE_DEMO"] = "true"
 
-    payload = atlas_dashboard_state()
+    remote_url = os.environ.pop("ATLAS_MT5_BRIDGE_URL", None)
+    try:
+        payload = atlas_dashboard_state()
+    finally:
+        if remote_url is not None:
+            os.environ["ATLAS_MT5_BRIDGE_URL"] = remote_url
     return _assert_demo_read_only(payload)
 
 
