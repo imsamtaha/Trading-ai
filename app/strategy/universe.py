@@ -28,6 +28,8 @@ ASSET_CATEGORIES = {
     "METALS": {
         "XAUUSD": 1,
         "XAGUSD": 1,
+        "XPTUSD": 2,
+        "XPDUSD": 3,
     },
     "ENERGY": {
         "NGAS": 1,
@@ -48,6 +50,10 @@ ASSET_CATEGORIES = {
         "EURJPY": 2,
         "GBPJPY": 2,
         "EURGBP": 3,
+        "AUDJPY": 2,
+        "CADJPY": 3,
+        "EURAUD": 3,
+        "EURCAD": 3,
     },
     "INDICES": {
         "NAS100": 1,
@@ -58,6 +64,11 @@ ASSET_CATEGORIES = {
         "GER40": 2,
         "DE40": 2,
         "UK100": 3,
+        "JP225": 2,
+        "HK50": 3,
+        "FRA40": 3,
+        "AUS200": 3,
+        "EU50": 3,
     },
     "CRYPTO": {
         "BTCUSD": 1,
@@ -70,6 +81,17 @@ ASSET_CATEGORIES = {
         "XRPUSDT": 2,
         "BNBUSD": 3,
         "BNBUSDT": 3,
+        "ADAUSD": 3,
+        "DOGEUSD": 3,
+        "LTCUSD": 3,
+        "AVAXUSD": 3,
+        "LINKUSD": 3,
+    },
+    "COMMODITIES": {
+        "WHEAT": 3,
+        "CORN": 3,
+        "COCOA": 3,
+        "COFFEE": 3,
     },
 }
 
@@ -94,21 +116,39 @@ ALIASES = {
     "SPX500": "US500",
     "DAX40": "GER40",
     "DE40": "GER40",
+    "PLATINUM": "XPTUSD",
+    "PALLADIUM": "XPDUSD",
+    "NIKKEI": "JP225",
+    "NIKKEI225": "JP225",
+    "JPN225": "JP225",
+    "CAC40": "FRA40",
+    "ASX200": "AUS200",
+    "STOXX50": "EU50",
+    "EUROSTOXX50": "EU50",
 }
 
 
 def normalize_symbol(symbol: str) -> str:
     token = re.sub(r"[^A-Z0-9]", "", symbol.upper())
-    # Broker suffixes/prefixes frequently append m, pro, cash, etc. Prefer
-    # known category symbols contained in the broker symbol.
-    for canonical in sorted(CATEGORY_SYMBOLS, key=len, reverse=True):
-        if canonical in token:
-            return ALIASES.get(canonical, canonical)
-    for alias, canonical in ALIASES.items():
-        if alias in token:
-            return canonical
-    return token
 
+    # Exact matches first.
+    if token in ALIASES:
+        return ALIASES[token]
+    if token in CATEGORY_SYMBOLS:
+        return token
+
+    # Only broker-style prefixes/suffixes are accepted.
+    # Do not classify arbitrary internal substrings such as FAKEXAUUSDTEST.
+    candidates = sorted(
+        set(CATEGORY_SYMBOLS) | set(ALIASES),
+        key=len,
+        reverse=True,
+    )
+    for candidate in candidates:
+        if token.startswith(candidate) or token.endswith(candidate):
+            return ALIASES.get(candidate, candidate)
+
+    return token
 
 def classify_symbol(canonical: str) -> tuple[str, int] | None:
     if canonical in CATEGORY_SYMBOLS:
@@ -171,3 +211,35 @@ def build_universe(raw_symbols: Iterable[dict], top_n: int = 30) -> list[Univers
 
     ranked.sort(key=lambda x: (-x.opportunity_score, x.priority, x.canonical_symbol))
     return ranked[:max(1, int(top_n))]
+
+
+def diversify_universe(
+    ranked: Iterable[UniverseSymbol],
+    top_n: int = 12,
+) -> list[UniverseSymbol]:
+    """Diversify discovery without changing opportunity scores."""
+    limit = max(1, int(top_n))
+    candidates = [item for item in ranked if item.tradeable]
+
+    selected: list[UniverseSymbol] = []
+    selected_symbols: set[str] = set()
+    covered_classes: set[str] = set()
+
+    for item in candidates:
+        if item.asset_class in covered_classes:
+            continue
+        selected.append(item)
+        selected_symbols.add(item.canonical_symbol)
+        covered_classes.add(item.asset_class)
+        if len(selected) >= limit:
+            return selected
+
+    for item in candidates:
+        if item.canonical_symbol in selected_symbols:
+            continue
+        selected.append(item)
+        selected_symbols.add(item.canonical_symbol)
+        if len(selected) >= limit:
+            break
+
+    return selected
