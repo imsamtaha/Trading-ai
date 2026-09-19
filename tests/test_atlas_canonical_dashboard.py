@@ -3,7 +3,7 @@ from app.dashboard.preferences import SCRIPT
 
 
 def test_canonical_atlas_path_is_customer_entrypoint():
-    assert CANONICAL_ATLAS_PATH == "/atlas-ultimate"
+    assert CANONICAL_ATLAS_PATH == "/"
 
 
 def test_canonical_dashboard_contains_market_intelligence_and_freshness_ui():
@@ -28,7 +28,7 @@ def test_canonical_dashboard_contains_refresh_controls_and_preferences():
 
 def test_canonical_dashboard_preserves_manual_execution_boundary():
     html = _atlas_ultimate_html()
-    assert "broker execution remains under the trader's control" in html
+    assert "demo/read-only" in html.lower()
     assert "do not guarantee outcomes" in html
 
 
@@ -60,7 +60,7 @@ def test_language_change_triggers_only_one_briefing_refresh_path():
 
 def test_canonical_dashboard_is_trading_hub_with_section_navigation():
     html = _atlas_ultimate_html()
-    assert "TRADING HUB" in html
+    assert "TRADING INTELLIGENCE" in html
     assert 'class="atlas-hub-nav"' in html
     for target in ("#hub-overview", "#hub-account", "#hub-markets", "#demo-session", "#plans"):
         assert f'href="{target}"' in html
