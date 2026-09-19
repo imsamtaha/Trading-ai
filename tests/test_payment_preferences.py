@@ -27,10 +27,12 @@ def test_whish_persists_pending_request_without_granting_access(tmp_path, monkey
     monkeypatch.setenv("ATLAS_WHISH_DB", str(tmp_path / "whish.db"))
     c = client()
     result = c.post("/billing/whish/pro/request", json={"email": "a@example.com"}).json()
+    assert result["provider"] == "Whish Pay"
     assert result["amount_usd"] == 99
     assert result["status"] == "PENDING_REVIEW"
     assert result["access_granted"] is False
     assert result["automatic_renewal"] is False
+    assert result["merchant_checkout_active"] is False
     assert c.post("/billing/whish/pro/request", json={"email": "a@example.com"}).json()["reference"] == result["reference"]
     assert c.post("/billing/whish/invalid/request", json={"email": "a@example.com"}).status_code == 404
     assert c.post("/billing/whish/pro/request", json={"email": "invalid"}).status_code == 422
@@ -41,6 +43,7 @@ def test_preferences_and_whish_links_are_integrated_in_atlas_ultimate():
     assert b"/ui/preferences.js" in page
     assert b"/billing/whish/reader" in page and b"/billing/whish/pro" in page
     assert b'id="plans"' in page
+    assert b"Pay with Whish Pay" in page
     redirect = subscribe()
     assert redirect.status_code == 308
     assert redirect.headers["location"] == "/#plans"
@@ -55,5 +58,7 @@ def test_billing_catalog_reports_whish_and_pending_stripe_state():
     methods = client().get("/billing/methods").json()
     assert "whish" in methods
     assert "stripe" in methods
+    assert methods["whish"]["provider"] == "Whish Pay"
+    assert methods["whish"]["checkout_type"] == "wallet_payment_gateway"
     assert methods["stripe"]["available"] is False
     assert methods["stripe"]["mode"] == "verification_pending"
