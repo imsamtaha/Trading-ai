@@ -29,7 +29,7 @@ def test_canonical_dashboard_contains_refresh_controls_and_preferences():
 def test_canonical_dashboard_preserves_manual_execution_boundary():
     html = _atlas_ultimate_html()
     assert "demo/read-only" in html.lower()
-    assert "do not guarantee outcomes" in html
+    assert "does not guarantee trading outcomes" in html
 
 
 def test_arabic_preferences_cover_dynamic_market_labels():
