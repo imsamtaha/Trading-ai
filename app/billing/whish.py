@@ -1,4 +1,8 @@
-"""Manual Whish payment requests. These records NEVER grant subscription access."""
+"""Manual Whish Pay payment requests.
+
+The manual fallback NEVER grants subscription access. Merchant checkout must remain
+fail-closed until Whish provides approved merchant credentials and API contract.
+"""
 import os
 import re
 import secrets
@@ -18,8 +22,14 @@ def settings():
     recipient = os.getenv("ATLAS_WHISH_RECIPIENT", "").strip()
     contact = os.getenv("ATLAS_WHISH_SUPPORT", "").strip()
     enabled = os.getenv("ATLAS_WHISH_ENABLED", "false").lower() == "true"
-    return {"available": enabled and bool(recipient and contact),
-            "recipient": recipient, "support": contact}
+    return {
+        "available": enabled and bool(recipient and contact),
+        "provider": "Whish Pay",
+        "recipient": recipient,
+        "support": contact,
+        "mode": "manual_review" if enabled and bool(recipient and contact)
+        else "merchant_activation_pending",
+    }
 
 
 class PaymentRequest(BaseModel):
@@ -32,7 +42,7 @@ def request_payment(plan_id: str, body: PaymentRequest):
         raise HTTPException(404, "Unknown subscription plan.")
     config = settings()
     if not config["available"]:
-        raise HTTPException(503, "Whish Money is not configured yet.")
+        raise HTTPException(503, "Whish Pay is not configured yet.")
     email = body.email.strip().lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(422, "Enter a valid email address.")
@@ -57,10 +67,18 @@ def request_payment(plan_id: str, body: PaymentRequest):
                      datetime.now(timezone.utc).isoformat()))
     except sqlite3.Error as exc:
         raise HTTPException(503, "Payment request storage unavailable.") from exc
-    return {"reference": reference, "status": "PENDING_REVIEW",
-            "amount_usd": plan.monthly_price, "trial_days": plan.trial_days,
-            "recipient": config["recipient"], "support": config["support"],
-            "access_granted": False, "automatic_renewal": False}
+    return {
+        "provider": "Whish Pay",
+        "reference": reference,
+        "status": "PENDING_REVIEW",
+        "amount_usd": plan.monthly_price,
+        "trial_days": plan.trial_days,
+        "recipient": config["recipient"],
+        "support": config["support"],
+        "access_granted": False,
+        "automatic_renewal": False,
+        "merchant_checkout_active": False,
+    }
 
 
 @router.get("/{plan_id}", response_class=HTMLResponse)
@@ -72,16 +90,16 @@ def payment_page(plan_id: str):
 
 WHISH_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ATLAS | Whish Money</title>
+<title>ATLAS | Whish Pay</title>
 <style>body{background:#07090e;color:#f3f5f7;font:16px system-ui;margin:0}
 main{max-width:600px;margin:40px auto;padding:24px}input,button{font:inherit;padding:12px;border-radius:8px}
 input{box-sizing:border-box;width:100%;margin:12px 0}button{background:#ff8a24;color:#111;border:0}
 a{color:#ff8a24}dt{margin-top:12px}dd{margin:4px 0;overflow-wrap:anywhere}</style>
-<body><main><h1>Whish Money</h1><p>Manual payment review</p>
-<p>Request your 3-day trial first. Contact support to confirm the start date and payment instructions. Monthly renewals are manual.</p>
-<p>A request or receipt does not activate access. Payment must be verified by the owner.</p>
+<body><main><h1>Whish Pay</h1><p>ATLAS subscription payment</p>
+<p>Whish Pay merchant checkout is being activated. Until merchant credentials are approved, this page uses a manual payment-review fallback.</p>
+<p>A request or receipt does not activate access. Payment must be verified before subscription access is granted.</p>
 <form id="requestForm"><label for="email">Email address</label><input id="email" type="email" maxlength="254" required autocomplete="email">
-<button id="submit">Request Whish payment</button></form>
+<button id="submit">Request Whish Pay payment</button></form>
 <div id="result" role="status" aria-live="polite"></div><p><a href="/subscribe">Back to plans</a></p></main>
 <script>
 document.getElementById('requestForm').addEventListener('submit',async e=>{
@@ -91,7 +109,7 @@ document.getElementById('requestForm').addEventListener('submit',async e=>{
  body:JSON.stringify({email:document.getElementById('email').value})});const d=await r.json();
  if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:'Payment request unavailable.');
  const list=document.createElement('dl');
- for(const [label,value] of [['Reference',d.reference],['Status','Pending review'],['Monthly price',d.amount_usd+' USD'],
+ for(const [label,value] of [['Provider',d.provider],['Reference',d.reference],['Status','Pending review'],['Monthly price',d.amount_usd+' USD'],
  ['Recipient',d.recipient],['Support',d.support]]){let dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;list.append(dt,dd)}
  result.append(list);
  }catch(e){result.textContent=e.message}finally{button.disabled=false}
