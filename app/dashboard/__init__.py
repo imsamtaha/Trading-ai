@@ -55,6 +55,11 @@ def _atlas_ultimate_html() -> str:
     return enhance_atlas_html(html)
 
 
+def atlas_ultimate_view() -> HTMLResponse:
+    """Compatibility callable used by tests and internal integrations."""
+    return HTMLResponse(_atlas_ultimate_html())
+
+
 @router.get(LEGACY_ATLAS_PATH, include_in_schema=False)
 def legacy_atlas_redirect() -> RedirectResponse:
     return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
