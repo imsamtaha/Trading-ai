@@ -98,7 +98,7 @@ def root():
         "status": "online",
         "mode": "live_gateway_disabled_by_default",
         "version": "1.7.0",
-        "main_ui": "/atlas-ultimate",
+        "main_ui": "/",
         "mt5_cockpit": "/mt5/cockpit-state",
         "market_briefing": "/dashboard/market-briefing",
         "agent": "/agent/capabilities",
