@@ -10,7 +10,8 @@ from app.dashboard.trading_hub import enhance_atlas_html
 from app.dashboard.views import DASHBOARD_HTML
 
 router = APIRouter()
-CANONICAL_ATLAS_PATH = "/atlas-ultimate"
+CANONICAL_ATLAS_PATH = "/"
+LEGACY_ATLAS_PATH = "/atlas-ultimate"
 
 
 def _stripe_link(plan: str) -> str | None:
@@ -54,9 +55,9 @@ def _atlas_ultimate_html() -> str:
     return enhance_atlas_html(html)
 
 
-@router.get(CANONICAL_ATLAS_PATH, response_class=HTMLResponse, tags=["dashboard"], include_in_schema=False)
-def atlas_ultimate_view() -> HTMLResponse:
-    return HTMLResponse(_atlas_ultimate_html())
+@router.get(LEGACY_ATLAS_PATH, include_in_schema=False)
+def legacy_atlas_redirect() -> RedirectResponse:
+    return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
 
 
 @router.get("/dashboard", include_in_schema=False)
@@ -68,7 +69,7 @@ router.include_router(api_router)
 router.include_router(agent_panel_router)
 router.include_router(demo_panel_router)
 
-__all__ = ["router", "mt5_state", "CANONICAL_ATLAS_PATH"]
+__all__ = ["router", "mt5_state", "CANONICAL_ATLAS_PATH", "LEGACY_ATLAS_PATH"]
 
 ATLAS_DEMO_SYMBOLS = ["XAUUSD", "GAS", "XAGUSD", "EURUSD", "XRPUSDT", "SOLUSDT"]
 
