@@ -1,2 +1,3 @@
 openai>=3.16.2,<4
+python-dotenv>=1.0.1
 socksio>=1.0.0
