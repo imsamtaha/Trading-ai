@@ -98,7 +98,7 @@ gcloud builds submit   --config cloudbuild.yaml   --region "$REGION"   --project
 
 CANDIDATE_TAG="candidate-${SOURCE_REVISION:0:12}"
 
-gcloud run deploy "$SERVICE"   --image "$IMAGE_URI"   --region "$REGION"   --project "$PROJECT_ID"   --platform managed   --allow-unauthenticated   --ingress all   --port 8080   --cpu 1   --memory 512Mi   --concurrency 40   --min-instances 0   --max-instances 3   --timeout 60   --service-account "$RUNTIME_IDENTITY"   --no-traffic   --tag "$CANDIDATE_TAG"   --clear-secrets   --clear-volumes   --clear-volume-mounts   --clear-cloudsql-instances   --clear-vpc-connector   --set-env-vars "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false"   --labels "source-revision=$SOURCE_REVISION,managed-by=atlas-deploy-script"   --quiet
+gcloud run deploy "$SERVICE"   --image "$IMAGE_URI"   --region "$REGION"   --project "$PROJECT_ID"   --platform managed   --allow-unauthenticated   --ingress all   --port 8080   --cpu 1   --memory 512Mi   --concurrency 40   --min-instances 0   --max-instances 3   --timeout 60   --service-account "$RUNTIME_IDENTITY"   --no-traffic   --tag "$CANDIDATE_TAG"   --clear-secrets   --clear-volumes   --clear-volume-mounts   --clear-cloudsql-instances   --clear-vpc-connector   --set-env-vars "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false,ATLAS_WHISH_ENABLED=true,ATLAS_WHISH_RECIPIENT=+96181061607,ATLAS_WHISH_SUPPORT=info@justai-atlas.online"   --labels "source-revision=$SOURCE_REVISION,managed-by=atlas-deploy-script"   --quiet
 
 SERVICE_JSON="$(gcloud run services describe "$SERVICE"   --region "$REGION"   --project "$PROJECT_ID"   --format=json)"
 
