@@ -91,7 +91,7 @@ def payment_page(plan_id: str):
     plan = PLANS[plan_id]
     config = settings()
 
-    recipient = config["recipient"] or "+96181061607"
+    recipient = config["recipient"] or "76420910"
     support = config["support"] or "info@justai-atlas.online"
     qr_url = config["qr_image_url"]
     qr_block = (
