@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import os
 import sys
@@ -54,6 +55,22 @@ def to_dict(value: Any) -> dict[str, Any]:
     raise TypeError(f"Cannot convert {type(value)!r} to dict")
 
 
+def decode_tool_arguments(raw_arguments: Any) -> dict[str, Any]:
+    if raw_arguments is None:
+        return {}
+    if isinstance(raw_arguments, dict):
+        return raw_arguments
+    if isinstance(raw_arguments, str):
+        try:
+            decoded = json.loads(raw_arguments)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Function arguments were not valid JSON.") from exc
+        if isinstance(decoded, dict):
+            return decoded
+        raise ValueError("Function arguments must decode to a JSON object.")
+    raise ValueError("Function arguments must be an object or JSON object string.")
+
+
 async def run_tool_handler(name: str, arguments: dict[str, Any]) -> tuple[bool, str]:
     handler = TOOL_HANDLERS.get(name)
     if handler is None:
@@ -61,16 +78,21 @@ async def run_tool_handler(name: str, arguments: dict[str, Any]) -> tuple[bool, 
 
     try:
         result = handler(arguments)
-        if asyncio.iscoroutine(result):
+        if inspect.isawaitable(result):
             result = await result
         if isinstance(result, str):
             return True, result
         return True, json.dumps(result, ensure_ascii=False)
     except Exception as exc:  # Tool failures should be returned to the agent, not crash the app.
-        return False, f"{type(exc).__name__}: {exc}"
+        print(f"\n[tool-error] {name}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        return False, "Local tool execution failed. Check runner logs for details."
 
 
-async def handle_required_actions(client: AsyncOpenAI, session_id: str) -> None:
+async def handle_required_actions(
+    client: AsyncOpenAI,
+    session_id: str,
+    handled_actions: set[tuple[str, str]],
+) -> None:
     session = await client.beta.agents.sessions.retrieve(session_id)
     actions = getattr(session, "required_actions", None) or []
 
@@ -80,15 +102,22 @@ async def handle_required_actions(client: AsyncOpenAI, session_id: str) -> None:
 
         if action_type == "function_call":
             name = str(action.get("name", ""))
-            arguments = action.get("arguments") or {}
-            if not isinstance(arguments, dict):
-                arguments = {"value": arguments}
+            turn_id = str(action["turn_id"])
+            call_id = str(action["call_id"])
+            action_key = (turn_id, call_id)
+            if action_key in handled_actions:
+                continue
 
-            success, payload = await run_tool_handler(name, arguments)
+            try:
+                arguments = decode_tool_arguments(action.get("arguments"))
+                success, payload = await run_tool_handler(name, arguments)
+            except ValueError as exc:
+                success, payload = False, str(exc)
+
             event: dict[str, Any] = {
                 "type": "agent.session.input.tool_result",
-                "turn_id": action["turn_id"],
-                "call_id": action["call_id"],
+                "turn_id": turn_id,
+                "call_id": call_id,
                 "success": success,
             }
             if success:
@@ -99,7 +128,9 @@ async def handle_required_actions(client: AsyncOpenAI, session_id: str) -> None:
             await client.beta.agents.sessions.events.create(
                 session_id,
                 events=[event],
+                idempotency_key=f"agents-session-{session_id}-tool-{turn_id}-{call_id}",
             )
+            handled_actions.add(action_key)
             print(f"\n[tool] {name}: {'ok' if success else 'error'}", flush=True)
             continue
 
@@ -112,7 +143,12 @@ async def handle_required_actions(client: AsyncOpenAI, session_id: str) -> None:
         raise RuntimeError(f"Unsupported required action: {action}")
 
 
-async def print_event(client: AsyncOpenAI, session_id: str, event: Any) -> bool:
+async def print_event(
+    client: AsyncOpenAI,
+    session_id: str,
+    event: Any,
+    handled_actions: set[tuple[str, str]],
+) -> bool:
     data = to_dict(event)
     event_type = data.get("type", "unknown")
 
@@ -126,7 +162,7 @@ async def print_event(client: AsyncOpenAI, session_id: str, event: Any) -> bool:
         return False
 
     if event_type == "agent.session.requires_action":
-        await handle_required_actions(client, session_id)
+        await handle_required_actions(client, session_id, handled_actions)
         return False
 
     if event_type == "error":
@@ -198,6 +234,8 @@ async def run(initial_message: str) -> int:
         print(f"[user] {initial_message}\n", flush=True)
 
         stream = await client.beta.agents.sessions.events.stream(session.id)
+        seen_event_ids: set[str] = set()
+        handled_actions: set[tuple[str, str]] = set()
         try:
             await client.beta.agents.sessions.events.create(
                 session.id,
@@ -217,10 +255,18 @@ async def run(initial_message: str) -> int:
                         ],
                     }
                 ],
+                idempotency_key=f"agents-session-{session.id}-initial-message",
             )
 
             async for event in stream:
-                if await print_event(client, session.id, event):
+                event_data = to_dict(event)
+                event_id = event_data.get("event_id")
+                if event_id:
+                    if event_id in seen_event_ids:
+                        continue
+                    seen_event_ids.add(event_id)
+
+                if await print_event(client, session.id, event_data, handled_actions):
                     break
             else:
                 raise RuntimeError(
