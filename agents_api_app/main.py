@@ -8,8 +8,11 @@ import sys
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from dotenv import load_dotenv
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, OpenAIError
 
+
+load_dotenv()
 
 PROJECT_ID = os.getenv("OPENAI_PROJECT_ID", "proj_V3bmvxhDANZ7tenDvgJSLxV6")
 DEFAULT_MESSAGE = os.getenv(
