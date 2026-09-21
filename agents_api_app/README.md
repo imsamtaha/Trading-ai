@@ -11,9 +11,10 @@ Default OpenAI project:
 - Python 3.10+
 - An OpenAI API key that can access the project above
 - `openai>=3.16.2,<4`
+- `python-dotenv>=1.0.1` to load local `.env` files
 - `socksio>=1.0.0` for environments that use a SOCKS proxy through `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`
 
-The API key is read only from `OPENAI_API_KEY`. Do not commit it.
+The API key is read from `OPENAI_API_KEY`. The runner loads a local `.env` file automatically, so you can keep your key there while developing. Do not commit real secrets.
 
 ## Windows PowerShell
 
@@ -25,9 +26,17 @@ py -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -r .\agents_api_app\requirements.txt
 
+Copy-Item .\agents_api_app\.env.example .\agents_api_app\.env
+notepad .\agents_api_app\.env
+
+python .\agents_api_app\main.py
+```
+
+You can also set variables directly in the shell:
+
+```powershell
 $env:OPENAI_API_KEY="YOUR_KEY_HERE"
 $env:OPENAI_PROJECT_ID="proj_V3bmvxhDANZ7tenDvgJSLxV6"
-
 python .\agents_api_app\main.py
 ```
 
@@ -45,9 +54,17 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r agents_api_app/requirements.txt
 
+cp agents_api_app/.env.example agents_api_app/.env
+nano agents_api_app/.env
+
+python agents_api_app/main.py
+```
+
+You can also export variables directly:
+
+```bash
 export OPENAI_API_KEY="YOUR_KEY_HERE"
 export OPENAI_PROJECT_ID="proj_V3bmvxhDANZ7tenDvgJSLxV6"
-
 python agents_api_app/main.py
 ```
 
