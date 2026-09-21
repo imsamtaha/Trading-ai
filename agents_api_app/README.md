@@ -11,6 +11,7 @@ Default OpenAI project:
 - Python 3.10+
 - An OpenAI API key that can access the project above
 - `openai>=3.16.2,<4`
+- `socksio>=1.0.0` for environments that use a SOCKS proxy through `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`
 
 The API key is read only from `OPENAI_API_KEY`. Do not commit it.
 
