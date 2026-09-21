@@ -55,7 +55,7 @@ if ($saved -and ((OwnedProcess $saved.worker 'app.monitor.demo_session' $saved.w
 if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw "Port $Port is occupied. Choose -Port with a free port." }
 $env:ATLAS_LIVE_TRADING='false'
 $env:ATLAS_DASHBOARD_ONLY='true'
-$env:ATLAS_AGENT_PAPER_EXECUTION_ENABLED='false'
+$env:ATLAS_AGENT_PAPER_EXECUTION_ENABLED='true'
 $env:MT5_REQUIRE_DEMO='true'
 $env:ATLAS_ENVIRONMENT='paper'
 $server = Start-Process -FilePath $pythonPath -ArgumentList @('-m','uvicorn','app.main:app','--host','127.0.0.1','--port',"$Port") -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $projectRoot 'data\dashboard.log') -RedirectStandardError (Join-Path $projectRoot 'data\dashboard-errors.log')
