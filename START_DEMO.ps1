@@ -19,6 +19,9 @@ python -m pip install -r requirements.txt
 
 $env:ATLAS_LIVE_TRADING = "false"
 $env:ATLAS_DASHBOARD_ONLY = "true"
+$env:ATLAS_AGENT_PAPER_EXECUTION_ENABLED = "true"
+$env:MT5_REQUIRE_DEMO = "true"
+$env:ATLAS_ENVIRONMENT = "paper"
 
 $Port = if ($env:ATLAS_DEMO_PORT) { $env:ATLAS_DEMO_PORT } else { "8010" }
 $HostAddress = if ($env:ATLAS_DEMO_HOST) { $env:ATLAS_DEMO_HOST } else { "127.0.0.1" }
