@@ -55,17 +55,23 @@ async def dashboard_only_guard(request: Request, call_next):
             "/dashboard/demo-status", "/dashboard/trader-view", "/dashboard/mt5-state",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
-            "/billing/methods", "/billing/plans", "/billing/whish/reader", "/billing/whish/pro",
+            "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
             "/docs", "/openapi.json",
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        whish_request = (
+            request.method == "POST"
+            and path.startswith("/billing/whish/")
+            and path.endswith("/request")
+            and os.getenv("ATLAS_WHISH_ENABLED", "false").lower() == "true"
+        )
         public_analysis_enabled = (
             os.getenv("ATLAS_PUBLIC_ANALYSIS_ENABLED", "true").lower() == "true"
         )
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or (
+        ) or whish_request or (
             public_analysis_enabled
             and request.method == "POST"
             and path in analysis_paths
