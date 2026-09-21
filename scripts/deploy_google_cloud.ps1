@@ -283,7 +283,7 @@ try {
         "--clear-vpc-connector",
         "--clear-network",
         "--clear-network-tags",
-        "--set-env-vars", "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false",
+        "--set-env-vars", "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false,ATLAS_WHISH_ENABLED=true,ATLAS_WHISH_RECIPIENT=+96181061607,ATLAS_WHISH_SUPPORT=info@justai-atlas.online",
         "--labels", "source-revision=$sourceRevision,managed-by=atlas-deploy-script",
         "--quiet"
     ) | Out-Host
