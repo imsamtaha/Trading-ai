@@ -152,7 +152,7 @@ form.addEventListener('submit',event=>{{
   event.preventDefault();
   const login=document.getElementById('login').value.trim();
   const server=document.getElementById('server').value.trim();
-  if(!/^\d{{4,20}}$/.test(login)){{document.getElementById('login').setCustomValidity('Enter a valid MT5 account number.');document.getElementById('login').reportValidity();return;}}
+  if(!/^\\d{{4,20}}$/.test(login)){{document.getElementById('login').setCustomValidity('Enter a valid MT5 account number.');document.getElementById('login').reportValidity();return;}}
   document.getElementById('login').setCustomValidity('');
   if(server.length<3||!/fxpro/i.test(server)){{document.getElementById('server').setCustomValidity('Enter the FxPro MT5 server name shown for your demo account.');document.getElementById('server').reportValidity();return;}}
   document.getElementById('server').setCustomValidity('');
