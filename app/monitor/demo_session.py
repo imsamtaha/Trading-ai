@@ -15,7 +15,7 @@ def write_status(status: str, events: list[dict] | None = None) -> None:
     path = Path(os.getenv("ATLAS_DEMO_STATUS", "data/atlas_demo_status.json"))
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"status": status, "updated_at": datetime.now(timezone.utc).isoformat(),
-               "mode": "PAPER_DEMO", "live_execution": False,
+               "mode": "LIVE_DEMO", "live_execution": False, "demo_execution": True,
                "cycle_seconds": max(10, int(os.getenv("ATLAS_CYCLE_SECONDS", "30"))),
                "events": [{"symbol": event.get("symbol"), "status": event.get("status"),
                            "reason": event.get("reason") if event.get("status") not in {"ERROR", "MT5_ERROR"}
@@ -33,7 +33,7 @@ def main() -> None:
         raise ValueError("Demo session refuses live execution configuration.")
     os.environ["MT5_REQUIRE_DEMO"] = "true"
     os.environ["ATLAS_DASHBOARD_ONLY"] = "true"
-    os.environ["ATLAS_AGENT_PAPER_EXECUTION_ENABLED"] = "false"
+    os.environ["ATLAS_AGENT_PAPER_EXECUTION_ENABLED"] = "true"
     # Binding is held for the worker lifetime and released on process exit.
     with socket.socket() as lock:
         lock.bind(("127.0.0.1", int(os.getenv("ATLAS_DEMO_LOCK_PORT", "18765"))))

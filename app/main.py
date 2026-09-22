@@ -60,6 +60,12 @@ async def dashboard_only_guard(request: Request, call_next):
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
         fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
+        paper_demo_execute = (
+            request.method == "POST"
+            and path == "/agent/paper/execute"
+            and os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true"
+            and os.getenv("ATLAS_AGENT_PAPER_EXECUTION_ENABLED", "false").lower() == "true"
+        )
         whish_request = (
             request.method == "POST"
             and path.startswith("/billing/whish/")
@@ -72,7 +78,7 @@ async def dashboard_only_guard(request: Request, call_next):
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or whish_request or fxpro_demo_verify or (
+        ) or whish_request or fxpro_demo_verify or paper_demo_execute or (
             public_analysis_enabled
             and request.method == "POST"
             and path in analysis_paths
@@ -107,10 +113,12 @@ def _redact_cockpit_state(state: dict) -> dict:
 
 @app.get("/api")
 def root():
+    import os
+    mode = "live_demo" if os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true" else "live_gateway_disabled_by_default"
     return {
         "system": "ATLAS ULTIMATE",
         "status": "online",
-        "mode": "live_gateway_disabled_by_default",
+        "mode": mode,
         "version": "1.7.0",
         "main_ui": "/",
         "mt5_cockpit": "/mt5/cockpit-state",

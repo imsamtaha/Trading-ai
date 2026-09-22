@@ -54,6 +54,7 @@ if ($saved -and ((OwnedProcess $saved.worker 'app.monitor.demo_session' $saved.w
 }
 if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw "Port $Port is occupied. Choose -Port with a free port." }
 $env:ATLAS_LIVE_TRADING='false'
+$env:ATLAS_LIVE_DEMO='true'
 $env:ATLAS_DASHBOARD_ONLY='true'
 $env:ATLAS_AGENT_PAPER_EXECUTION_ENABLED='true'
 $env:MT5_REQUIRE_DEMO='true'
@@ -75,5 +76,5 @@ try {
     else { StopOwnedProcess $server.Id 'uvicorn' $pythonPath }
     throw
 }
-Write-Host "ATLAS paper session launched: http://127.0.0.1:$Port/dashboard"
-Write-Host 'Check the Demo Session panel for RUNNING. Live trading remains disabled.'
+Write-Host "ATLAS LIVE DEMO session launched: http://127.0.0.1:$Port/dashboard"
+Write-Host 'Check the Live Demo panel for RUNNING. Real-money trading remains disabled.'

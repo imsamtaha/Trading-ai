@@ -69,8 +69,9 @@ def current_fxpro_demo_account() -> dict:
         login = str(getattr(info, "login", ""))
         return {
             "connected": True,
-            "mode": "DEMO_READ_ONLY",
+            "mode": "LIVE_DEMO" if os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true" else "DEMO_CONNECTED",
             "broker_orders": False,
+            "demo_execution": os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true",
             "login": login,
             "masked_login": f"***{login[-4:]}" if login else "***",
             "server": server,
@@ -91,7 +92,7 @@ def fxpro_entry_card() -> str:
       <h2 style="font-size:clamp(28px,4vw,46px);margin:8px 0 8px">Connect with FxPro MT5.</h2>
       <p class="mini" style="font-size:13px;line-height:1.65;max-width:760px">
         Start from your FxPro MT5 demo account, then enter ATLAS through the dedicated MT5 onboarding flow.
-        The current connection flow is demo/read-only and never asks for a broker password.
+        The current connection flow is a live demo workspace using real-time MT5 demo data and ATLAS simulated execution. It never asks for a broker password.
       </p>
     </div>
     <div class="fxpro-entry-actions">
@@ -150,7 +151,7 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input{{width:100%;border
     <div class="steps">
       <div class="step"><div class="num">1</div><div><b>Open or create FxPro MT5</b><span>Use the FxPro app or mobile site and choose an MT5 demo account.</span></div></div>
       <div class="step"><div class="num">2</div><div><b>Return to ATLAS</b><span>Enter the MT5 account number and the exact FxPro MT5 server name shown for the demo account.</span></div></div>
-      <div class="step"><div class="num">3</div><div><b>Enter ATLAS</b><span>ATLAS keeps this onboarding draft only in the current browser session. Broker execution is not enabled by this page.</span></div></div>
+      <div class="step"><div class="num">3</div><div><b>Enter ATLAS Live Demo</b><span>ATLAS can generate and track demo setups against real-time MT5 demo data. Real-money execution stays off.</span></div></div>
     </div>
 
     <div class="actions two">
@@ -166,8 +167,8 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input{{width:100%;border
     <p>ATLAS now verifies the FxPro MT5 demo session that is already authenticated on the ATLAS Windows bridge. No FxPro/MT5 password is requested or stored here.</p>
 
     <div class="mode-pill">
-      <strong>Demo · Verified bridge connection</strong>
-      <span>Broker orders remain disabled.</span>
+      <strong>LIVE DEMO · MT5 CONNECTED</strong>
+      <span>ATLAS demo execution active · real-money execution off.</span>
     </div>
 
     <div id="bridgeStatus" class="micro">Checking the ATLAS Windows MT5 bridge…</div>
@@ -209,8 +210,8 @@ async function refreshBridgeStatus(){{
     bridge.textContent='CONNECTED: '+data.masked_login+' · '+data.server+' · '+data.company;
     bridge.style.color='#9ff0c8';
     form.style.display='none';
-    document.getElementById('savedTitle').textContent='FxPro MT5 Demo is connected.';
-    document.getElementById('savedDetails').textContent='ATLAS verified the active Windows MT5 bridge for '+data.masked_login+' on '+data.server+'. Broker orders remain disabled.';
+    document.getElementById('savedTitle').textContent='FxPro MT5 Live Demo is connected.';
+    document.getElementById('savedDetails').textContent='ATLAS verified '+data.masked_login+' on '+data.server+'. Live demo execution is '+(data.demo_execution?'ACTIVE':'STANDBY')+'. Real-money execution is off.';
     saved.classList.add('show');
     try{{sessionStorage.setItem('atlas.fxpro.mt5.connectionDraft',JSON.stringify({{broker:'FxPro',platform:'MT5',mode:'demo',verified:true,masked_login:data.masked_login,server:data.server,verifiedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.mt5.returnPending')}}catch{{}}
   }}catch(error){{
@@ -238,7 +239,7 @@ form.addEventListener('submit',async event=>{{
     if(!response.ok)throw new Error(data.detail||'MT5 demo verification failed.');
     try{{sessionStorage.setItem('atlas.fxpro.mt5.connectionDraft',JSON.stringify({{broker:'FxPro',platform:'MT5',mode:'demo',verified:true,login,server:data.server,verifiedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.mt5.returnPending')}}catch{{}}
     bridge.textContent='Connected bridge: '+data.masked_login+' · '+data.server;
-    document.getElementById('savedDetails').textContent='Verified '+data.masked_login+' on '+data.server+' · Balance $'+Number(data.balance).toFixed(2)+' · Equity $'+Number(data.equity).toFixed(2)+' · broker orders disabled.';
+    document.getElementById('savedDetails').textContent='Verified '+data.masked_login+' on '+data.server+' · Balance $'+Number(data.balance).toFixed(2)+' · Equity $'+Number(data.equity).toFixed(2)+' · Live Demo active · real-money execution off.';
     saved.classList.add('show');
     saved.scrollIntoView({{behavior:'smooth',block:'nearest'}});
   }}catch(error){{
@@ -268,6 +269,7 @@ def fxpro_mt5_status() -> dict:
         "connected": True,
         "mode": account["mode"],
         "broker_orders": False,
+        "demo_execution": account["demo_execution"],
         "masked_login": account["masked_login"],
         "server": account["server"],
         "company": account["company"],
@@ -290,8 +292,9 @@ def fxpro_mt5_verify(payload: FxProDemoVerifyPayload) -> dict:
     return {
         "connected": True,
         "verified": True,
-        "mode": "DEMO_READ_ONLY",
+        "mode": account["mode"],
         "broker_orders": False,
+        "demo_execution": account["demo_execution"],
         "masked_login": account["masked_login"],
         "server": account["server"],
         "company": account["company"],

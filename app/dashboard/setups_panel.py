@@ -62,9 +62,10 @@ def _scan_setups() -> dict[str, Any]:
     active = [item for item in results if item.get("qualified") is True]
     watch = [item for item in results if item.get("status") == "WATCH"]
     return {
-        "mode": "PAPER_DEMO",
+        "mode": "LIVE_DEMO",
         "broker_orders": False,
-        "execution": "disabled",
+        "demo_execution": True,
+        "execution": "simulated_demo",
         "strategy_mode": strategy_mode,
 
         "interval": interval,
@@ -74,7 +75,7 @@ def _scan_setups() -> dict[str, Any]:
         "setups": active,
         "watchlist": watch,
         "scanned": len(results),
-        "disclaimer": "Paper/demo setup scanner only. No broker orders or live execution.",
+        "disclaimer": "Live demo setup scanner with ATLAS simulated demo execution. Real-money broker orders are disabled.",
     }
 
 
@@ -121,8 +122,8 @@ panel.innerHTML=\`
 <div class="setup-head">
   <div>
     <div class="label">ACTIVE SETUPS</div>
-    <div class="demo-title">ATLAS Demo Setup Engine</div>
-    <div class="mini">Paper/demo analysis only · broker execution disabled</div>
+    <div class="demo-title">ATLAS Live Demo Setup Engine</div>
+    <div class="mini">Real-time MT5 demo analysis · simulated ATLAS demo execution · real-money orders off</div>
   </div>
   <div class="demo-status stale" id="setupStatus"><span class="demo-dot"></span><span id="setupStatusText">SCANNING</span></div>
 </div>
@@ -178,7 +179,7 @@ async function refreshSetups(){
     }
 
     document.getElementById('setupMeta').textContent=
-      \`Mode: \${data.mode||'PAPER_DEMO'} · Strategy: \${data.strategy_mode||'BALANCED'} · Interval: \${data.interval||'15m'} · Active: \${data.active_count||0} · Watch: \${data.watch_count||0} · Broker orders: disabled\`;
+      \`Mode: \${data.mode||'LIVE_DEMO'} · Strategy: \${data.strategy_mode||'BALANCED'} · Interval: \${data.interval||'15m'} · Active: \${data.active_count||0} · Watch: \${data.watch_count||0} · Demo execution: ACTIVE · Real-money: OFF\`;
     status(active.length?'ACTIVE':'MONITORING',active.length?'online':'stale');
   }catch(error){
     status('UNAVAILABLE','offline');

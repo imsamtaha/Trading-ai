@@ -199,12 +199,17 @@ def atlas_dashboard_state() -> dict[str, Any]:
         account_type = _account_type(raw_account)
         execution_enabled = (
             _env_bool("ATLAS_LIVE_TRADING", False)
+            and account_type == "REAL"
             and bool(account.get("trade_allowed", False))
+        )
+        live_demo = (
+            _env_bool("ATLAS_LIVE_DEMO", False)
+            and account_type == "DEMO"
         )
         return {
             "status": "ONLINE",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "mode": "LIVE_EXECUTION" if execution_enabled else "READ_ONLY",
+            "mode": "LIVE_EXECUTION" if execution_enabled else ("LIVE_DEMO" if live_demo else "READ_ONLY"),
             "account": _public_account(account, raw_account),
             "verified_live_account": account_type == "REAL",
             "symbols": symbols,
@@ -217,11 +222,15 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "services": {
                 "mt5": "ONLINE",
                 "supabase": journal_status,
-                "execution_gate": "ENABLED" if execution_enabled else "DISABLED",
-                "subscriber_access": "READ_ONLY",
+                "execution_gate": "ENABLED" if execution_enabled else ("DEMO_SIMULATED" if live_demo else "DISABLED"),
+                "subscriber_access": "LIVE_DEMO" if live_demo else "READ_ONLY",
                 "financial_markets": financial_market["status"],
             },
-            "disclaimer": "Read-only account and strategy telemetry. Past or current results do not guarantee future performance.",
+            "disclaimer": (
+                "LIVE DEMO uses real-time MT5 demo data with simulated ATLAS execution. Real-money trading is off."
+                if live_demo
+                else "Account and strategy telemetry only. Past or current results do not guarantee future performance."
+            ),
         }
     except MT5ExecutionError as exc:
         raise HTTPException(status_code=503, detail=str(exc))

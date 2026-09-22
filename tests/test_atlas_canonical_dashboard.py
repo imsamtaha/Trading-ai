@@ -26,10 +26,10 @@ def test_canonical_dashboard_contains_refresh_controls_and_preferences():
     assert '/ui/preferences.js' in html
 
 
-def test_canonical_dashboard_preserves_manual_execution_boundary():
+def test_canonical_dashboard_exposes_live_demo_without_real_money():
     html = _atlas_ultimate_html()
-    assert "demo/read-only" in html.lower()
-    assert "does not guarantee trading outcomes" in html
+    assert "live demo" in html.lower()
+    assert "real-money trading remains off" in html.lower()
 
 
 def test_arabic_preferences_cover_dynamic_market_labels():
@@ -75,26 +75,26 @@ def test_trading_hub_has_premium_3d_and_mobile_ui_hooks():
     assert "@media(max-width:700px)" in html
 
 
-def test_trading_hub_localizes_demo_panel_and_keeps_paper_boundary():
+def test_trading_hub_localizes_live_demo_panel_and_keeps_real_money_boundary():
     html = _atlas_ultimate_html()
     required = (
-        "FORWARD DEMO VALIDATION",
-        "ATLAS Demo Trading",
-        "Open Paper Trades",
+        "LIVE DEMO",
+        "ATLAS Live Demo Trading",
+        "Open Demo Trades",
         "Closed Trades",
         "Review Target",
         "Profit Factor",
         "Expectancy",
         "Drawdown / Risk",
         "Latest Demo Events",
-        "Live Readiness Gate",
+        "Real-Money Readiness Gate",
         "Performance Center",
-        "No broker orders",
+        "no real-money orders",
     )
     for phrase in required:
         assert phrase in html
     assert "تداول تجريبي" in html
-    assert "لا أوامر للوسيط" in html
+    assert "لا أوامر بأموال حقيقية" in html
 
 
 def test_canonical_page_does_not_inject_duplicate_refresh_all_control():
