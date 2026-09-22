@@ -6,13 +6,14 @@ import json
 import os
 import sys
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, OpenAIError
 
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
 PROJECT_ID = os.getenv("OPENAI_PROJECT_ID", "proj_V3bmvxhDANZ7tenDvgJSLxV6")
 DEFAULT_MESSAGE = os.getenv(
@@ -86,8 +87,12 @@ async def run_tool_handler(name: str, arguments: dict[str, Any]) -> tuple[bool, 
         if isinstance(result, str):
             return True, result
         return True, json.dumps(result, ensure_ascii=False)
-    except Exception as exc:  # Tool failures should be returned to the agent, not crash the app.
-        print(f"\n[tool-error] {name}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+    except Exception as exc:
+        print(
+            f"\n[tool-error] {name}: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
         return False, "Local tool execution failed. Check runner logs for details."
 
 
@@ -140,7 +145,7 @@ async def handle_required_actions(
         if action_type == "environment_connection":
             raise RuntimeError(
                 "The session requested an environment connection, but this app uses "
-                "an OpenAI-hosted sandbox and has no external environment connector configured."
+                "environment type 'none' and has no executor to connect."
             )
 
         raise RuntimeError(f"Unsupported required action: {action}")
@@ -197,7 +202,6 @@ async def print_event(
             return True
         return False
 
-    # Keep lifecycle/tool visibility without dumping large payloads.
     if event_type not in {"agent.session.idle"}:
         print(f"\n[event] {event_type}", flush=True)
 
@@ -223,14 +227,9 @@ async def run(initial_message: str) -> int:
         agent = await client.beta.agents.create(**AGENT_CONFIG)
         print(f"[agent] created: {agent.id}", flush=True)
 
-        # Create the reusable-agent session first so we have a stable session ID,
-        # then subscribe before sending input. This avoids missing early events.
         session = await client.beta.agents.sessions.create(
             agent_id=agent.id,
-            environment={
-                "type": "openai_hosted",
-                "network": {"access": "disabled"},
-            },
+            environment={"type": "none"},
         )
         print(f"[session] created: {session.id}", flush=True)
         print(f"[project] {PROJECT_ID}", flush=True)
