@@ -5,7 +5,8 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_FILES = {"index.html", "robots.txt", "assets/site.css", "assets/site.js",
-                "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js"}
+                "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js",
+                "assets/atlas-brand.css", "assets/atlas-main-logo.svg"}
 
 
 class Links(HTMLParser):
