@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.dashboard.api import router as api_router
 from app.dashboard.agent_panel import router as agent_panel_router
 from app.dashboard.demo_panel import router as demo_panel_router
+from app.dashboard.fxpro_onboarding import fxpro_entry_card, router as fxpro_onboarding_router
 from app.dashboard.trading_hub import enhance_atlas_html
 from app.dashboard.views import DASHBOARD_HTML
 
@@ -30,6 +31,7 @@ def _atlas_ultimate_html() -> str:
     watch_stripe = _stripe_button("watch")
     signals_stripe = _stripe_button("reader")
     pro_stripe = _stripe_button("pro")
+    fxpro_entry = fxpro_entry_card()
     plans = f'''
 <section id="plans" class="card atlas-plans" style="margin-top:18px">
   <div class="label">ATLAS ULTIMATE ACCESS</div>
@@ -50,7 +52,8 @@ def _atlas_ultimate_html() -> str:
     scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/demo-panel.js"></script>'
     html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
     html = html.replace('<body>', '<body><div class="atlas-tech-bg" aria-hidden="true"></div>')
-    html = html.replace('</main>', plans + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', plans + '<div class="notice" id="disclaimer">')
+    insert = fxpro_entry + plans
+    html = html.replace('</main>', insert + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', insert + '<div class="notice" id="disclaimer">')
     html = html.replace('</body>', scripts + '</body>')
     return enhance_atlas_html(html)
 
@@ -73,6 +76,7 @@ def legacy_dashboard_redirect() -> RedirectResponse:
 router.include_router(api_router)
 router.include_router(agent_panel_router)
 router.include_router(demo_panel_router)
+router.include_router(fxpro_onboarding_router)
 
 __all__ = ["router", "mt5_state", "CANONICAL_ATLAS_PATH", "LEGACY_ATLAS_PATH"]
 
