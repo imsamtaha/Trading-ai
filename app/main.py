@@ -49,7 +49,7 @@ async def dashboard_only_guard(request: Request, call_next):
     if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":
         path = request.url.path
         read_paths = {
-            "/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5",
+            "/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5", "/connect/fxpro-mt5/status",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view", "/dashboard/mt5-state", "/dashboard/active-setups",
@@ -59,6 +59,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/docs", "/openapi.json",
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
         whish_request = (
             request.method == "POST"
             and path.startswith("/billing/whish/")
@@ -71,7 +72,7 @@ async def dashboard_only_guard(request: Request, call_next):
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or whish_request or (
+        ) or whish_request or fxpro_demo_verify or (
             public_analysis_enabled
             and request.method == "POST"
             and path in analysis_paths
