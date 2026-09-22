@@ -5,8 +5,9 @@ import json
 import os
 from urllib.parse import urlparse
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
 router = APIRouter(tags=["fxpro-onboarding"])
 
@@ -31,6 +32,54 @@ def fxpro_open_account_url() -> str:
     """
 
     return _external_https_url(os.getenv("ATLAS_FXPRO_PARTNER_URL"))
+
+
+class FxProDemoVerifyPayload(BaseModel):
+    login: str = Field(min_length=4, max_length=20, pattern=r"^\d+$")
+    server: str = Field(min_length=3, max_length=80)
+
+
+def current_fxpro_demo_account() -> dict:
+    """Read the FxPro MT5 demo session already authenticated on the Windows bridge."""
+    try:
+        import MetaTrader5 as mt5
+    except ImportError as exc:
+        raise RuntimeError("MetaTrader5 integration is unavailable on this host.") from exc
+
+    terminal = os.getenv(
+        "ATLAS_FXPRO_MT5_TERMINAL_PATH",
+        r"C:\Program Files\FxPro Markets MT5\terminal64.exe",
+    ).strip()
+    initialized = mt5.initialize(path=terminal) if terminal else mt5.initialize()
+    if not initialized:
+        raise RuntimeError("FxPro MT5 terminal is not connected.")
+
+    try:
+        info = mt5.account_info()
+        if info is None:
+            raise RuntimeError("FxPro MT5 account information is unavailable.")
+        server = str(getattr(info, "server", "") or "")
+        company = str(getattr(info, "company", "") or "")
+        trade_mode = int(getattr(info, "trade_mode", -1))
+        if trade_mode != int(mt5.ACCOUNT_TRADE_MODE_DEMO):
+            raise RuntimeError("ATLAS requires an MT5 demo account for this connection.")
+        if "fxpro" not in f"{server} {company}".lower():
+            raise RuntimeError("The connected MT5 terminal is not an FxPro demo session.")
+
+        login = str(getattr(info, "login", ""))
+        return {
+            "connected": True,
+            "mode": "DEMO_READ_ONLY",
+            "broker_orders": False,
+            "login": login,
+            "masked_login": f"***{login[-4:]}" if login else "***",
+            "server": server,
+            "company": company,
+            "balance": float(getattr(info, "balance", 0.0) or 0.0),
+            "equity": float(getattr(info, "equity", 0.0) or 0.0),
+        }
+    finally:
+        mt5.shutdown()
 
 
 def fxpro_entry_card() -> str:
@@ -113,13 +162,15 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input{{width:100%;border
 
   <section id="connectPanel" class="card panel" aria-labelledby="connectTitle">
     <div class="eyebrow">FXPRO MT5 → ATLAS</div>
-    <h2 id="connectTitle">Prepare your FxPro MT5 demo connection</h2>
-    <p>Current ATLAS onboarding accepts demo account metadata only. It does not request or store an FxPro/MT5 password.</p>
+    <h2 id="connectTitle">Verify your FxPro MT5 demo connection</h2>
+    <p>ATLAS now verifies the FxPro MT5 demo session that is already authenticated on the ATLAS Windows bridge. No FxPro/MT5 password is requested or stored here.</p>
 
     <div class="mode-pill">
-      <strong>Demo · Read-only onboarding</strong>
-      <span>Live connection is not enabled here.</span>
+      <strong>Demo · Verified bridge connection</strong>
+      <span>Broker orders remain disabled.</span>
     </div>
+
+    <div id="bridgeStatus" class="micro">Checking the ATLAS Windows MT5 bridge…</div>
 
     <form id="fxproForm">
       <label for="login">MT5 account number</label>
@@ -130,12 +181,12 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input{{width:100%;border
 
       <div class="notice"><b>Security:</b> Do not enter your FxPro password, MT5 master password, investor password, PIN, recovery code, or payment details on this page.</div>
 
-      <button class="button primary" type="submit" style="width:100%">Continue with FxPro MT5</button>
+      <button id="verifyButton" class="button primary" type="submit" style="width:100%">Verify & connect FxPro MT5</button>
     </form>
 
     <div id="saved" class="success" role="status">
-      <b>FxPro MT5 demo entry prepared.</b>
-      <div style="margin-top:5px">Your account number and server are kept only for this browser session. This is onboarding metadata, not broker authentication.</div>
+      <b id="savedTitle">FxPro MT5 demo connected.</b>
+      <div id="savedDetails" style="margin-top:5px">ATLAS verified the demo account against the connected Windows MT5 terminal.</div>
       <div class="divider"></div>
       <a class="button secondary" href="/" style="display:block">Enter ATLAS dashboard →</a>
     </div>
@@ -148,17 +199,46 @@ const form=document.getElementById('fxproForm');
 const saved=document.getElementById('saved');
 document.getElementById('existing').addEventListener('click',()=>{{panel.classList.add('open');panel.scrollIntoView({{behavior:'smooth',block:'start'}});}});
 document.getElementById('openFxPro').addEventListener('click',()=>{{try{{sessionStorage.setItem('atlas.fxpro.mt5.returnPending','1')}}catch{{}}}});
-form.addEventListener('submit',event=>{{
+async function refreshBridgeStatus(){{
+  const bridge=document.getElementById('bridgeStatus');
+  try{{
+    const response=await fetch('/connect/fxpro-mt5/status',{{cache:'no-store'}});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.detail||'FxPro MT5 bridge is unavailable.');
+    bridge.textContent='Bridge detected: '+data.masked_login+' · '+data.server+' · '+data.company;
+    const serverInput=document.getElementById('server');
+    if(!serverInput.value)serverInput.value=data.server;
+  }}catch(error){{
+    bridge.textContent='Bridge not connected: '+error.message;
+  }}
+}}
+refreshBridgeStatus();
+form.addEventListener('submit',async event=>{{
   event.preventDefault();
   const login=document.getElementById('login').value.trim();
   const server=document.getElementById('server').value.trim();
+  const button=document.getElementById('verifyButton');
+  const bridge=document.getElementById('bridgeStatus');
   if(!/^\\d{{4,20}}$/.test(login)){{document.getElementById('login').setCustomValidity('Enter a valid MT5 account number.');document.getElementById('login').reportValidity();return;}}
   document.getElementById('login').setCustomValidity('');
   if(server.length<3||!/fxpro/i.test(server)){{document.getElementById('server').setCustomValidity('Enter the FxPro MT5 server name shown for your demo account.');document.getElementById('server').reportValidity();return;}}
   document.getElementById('server').setCustomValidity('');
-  try{{sessionStorage.setItem('atlas.fxpro.mt5.connectionDraft',JSON.stringify({{broker:'FxPro',platform:'MT5',mode:'demo',login,server,savedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.mt5.returnPending')}}catch{{}}
-  saved.classList.add('show');
-  saved.scrollIntoView({{behavior:'smooth',block:'nearest'}});
+  button.disabled=true;button.textContent='Verifying MT5 demo…';bridge.textContent='Checking the connected FxPro MT5 demo session…';
+  try{{
+    const response=await fetch('/connect/fxpro-mt5/verify',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{login,server}})}});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.detail||'MT5 demo verification failed.');
+    try{{sessionStorage.setItem('atlas.fxpro.mt5.connectionDraft',JSON.stringify({{broker:'FxPro',platform:'MT5',mode:'demo',verified:true,login,server:data.server,verifiedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.mt5.returnPending')}}catch{{}}
+    bridge.textContent='Connected bridge: '+data.masked_login+' · '+data.server;
+    document.getElementById('savedDetails').textContent='Verified '+data.masked_login+' on '+data.server+' · Balance $'+Number(data.balance).toFixed(2)+' · Equity $'+Number(data.equity).toFixed(2)+' · broker orders disabled.';
+    saved.classList.add('show');
+    saved.scrollIntoView({{behavior:'smooth',block:'nearest'}});
+  }}catch(error){{
+    bridge.textContent='Not connected: '+error.message;
+    saved.classList.remove('show');
+  }}finally{{
+    button.disabled=false;button.textContent='Verify & connect FxPro MT5';
+  }}
 }});
 try{{
   if(sessionStorage.getItem('atlas.fxpro.mt5.returnPending')==='1'){{panel.classList.add('open')}}
@@ -168,6 +248,48 @@ try{{
 </script>
 </body>
 </html>"""
+
+
+@router.get(FXPRO_CONNECT_PATH + "/status", include_in_schema=False)
+def fxpro_mt5_status() -> dict:
+    try:
+        account = current_fxpro_demo_account()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {
+        "connected": True,
+        "mode": account["mode"],
+        "broker_orders": False,
+        "masked_login": account["masked_login"],
+        "server": account["server"],
+        "company": account["company"],
+    }
+
+
+@router.post(FXPRO_CONNECT_PATH + "/verify", include_in_schema=False)
+def fxpro_mt5_verify(payload: FxProDemoVerifyPayload) -> dict:
+    try:
+        account = current_fxpro_demo_account()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    if payload.login != account["login"] or payload.server.strip().lower() != account["server"].strip().lower():
+        raise HTTPException(
+            status_code=409,
+            detail="The supplied MT5 demo account does not match the FxPro demo session connected to ATLAS.",
+        )
+
+    return {
+        "connected": True,
+        "verified": True,
+        "mode": "DEMO_READ_ONLY",
+        "broker_orders": False,
+        "masked_login": account["masked_login"],
+        "server": account["server"],
+        "company": account["company"],
+        "balance": account["balance"],
+        "equity": account["equity"],
+    }
 
 
 @router.get(LEGACY_FXPRO_CONNECT_PATH, include_in_schema=False)
