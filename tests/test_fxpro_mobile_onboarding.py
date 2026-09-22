@@ -30,6 +30,9 @@ def test_fxpro_mt5_entry_is_available_in_dashboard_only_mode(monkeypatch):
     assert 'name="password"' not in response.text.lower()
     assert "Do not enter your FxPro password" in response.text
     assert "atlas.fxpro.mt5.connectionDraft" in response.text
+    assert "FxPro MT5 Demo is connected." in response.text
+    assert "Cache-Control" not in response.text
+    assert response.headers["cache-control"].startswith("no-store")
 
 
 def test_legacy_fxpro_mobile_path_redirects_to_mt5_entry(monkeypatch):

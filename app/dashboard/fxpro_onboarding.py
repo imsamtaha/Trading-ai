@@ -202,14 +202,22 @@ document.getElementById('openFxPro').addEventListener('click',()=>{{try{{session
 async function refreshBridgeStatus(){{
   const bridge=document.getElementById('bridgeStatus');
   try{{
-    const response=await fetch('/connect/fxpro-mt5/status',{{cache:'no-store'}});
+    const response=await fetch('/connect/fxpro-mt5/status?ts='+Date.now(),{{cache:'no-store'}});
     const data=await response.json();
-    if(!response.ok)throw new Error(data.detail||'FxPro MT5 bridge is unavailable.');
-    bridge.textContent='Bridge detected: '+data.masked_login+' · '+data.server+' · '+data.company;
-    const serverInput=document.getElementById('server');
-    if(!serverInput.value)serverInput.value=data.server;
+    if(!response.ok||data.connected!==true)throw new Error(data.detail||'FxPro MT5 bridge is unavailable.');
+    panel.classList.add('open');
+    bridge.textContent='CONNECTED: '+data.masked_login+' · '+data.server+' · '+data.company;
+    bridge.style.color='#9ff0c8';
+    form.style.display='none';
+    document.getElementById('savedTitle').textContent='FxPro MT5 Demo is connected.';
+    document.getElementById('savedDetails').textContent='ATLAS verified the active Windows MT5 bridge for '+data.masked_login+' on '+data.server+'. Broker orders remain disabled.';
+    saved.classList.add('show');
+    try{{sessionStorage.setItem('atlas.fxpro.mt5.connectionDraft',JSON.stringify({{broker:'FxPro',platform:'MT5',mode:'demo',verified:true,masked_login:data.masked_login,server:data.server,verifiedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.mt5.returnPending')}}catch{{}}
   }}catch(error){{
     bridge.textContent='Bridge not connected: '+error.message;
+    bridge.style.color='';
+    form.style.display='';
+    saved.classList.remove('show');
   }}
 }}
 refreshBridgeStatus();
@@ -299,4 +307,11 @@ def legacy_fxpro_mobile_entry() -> RedirectResponse:
 
 @router.get(FXPRO_CONNECT_PATH, response_class=HTMLResponse, include_in_schema=False)
 def fxpro_mt5_entry() -> HTMLResponse:
-    return HTMLResponse(_page())
+    return HTMLResponse(
+        _page(),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
