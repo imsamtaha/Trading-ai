@@ -183,14 +183,15 @@ def test_drawdown_alert_thresholds(drawdown, level):
     assert alert['live_activation_blocked'] is True
 
 
-def test_trader_view_is_public_safe_and_read_only(status_paths):
+def test_trader_view_is_public_safe_live_demo(status_paths):
     _seed_performance_ledger(status_paths)
     response = TestClient(app).get('/dashboard/trader-view?asset=EURUSD&timeframe=M5')
     assert response.status_code == 200
     data = response.json()
     assert data['paper_demo'] is True
     assert data['broker_orders'] is False
-    assert data['mode'] == 'PAPER_DEMO'
+    assert data['demo_execution'] is True
+    assert data['mode'] == 'LIVE_DEMO'
     assert data['summary']['closed_trades'] == 3
     assert data['performance']['selection'] == {'asset': 'EURUSD', 'timeframe': 'M5'}
     assert 'level' in data['alert']

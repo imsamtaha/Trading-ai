@@ -25,12 +25,12 @@ def test_fxpro_mt5_entry_is_available_in_dashboard_only_mode(monkeypatch):
 
     assert response.status_code == 200
     assert "Connect with FxPro MT5" in response.text
-    assert "Demo · Verified bridge connection" in response.text
+    assert "LIVE DEMO · MT5 CONNECTED" in response.text
     assert 'inputmode="numeric"' in response.text
     assert 'name="password"' not in response.text.lower()
     assert "Do not enter your FxPro password" in response.text
     assert "atlas.fxpro.mt5.connectionDraft" in response.text
-    assert "FxPro MT5 Demo is connected." in response.text
+    assert "FxPro MT5 Live Demo is connected." in response.text
     assert "Cache-Control" not in response.text
     assert response.headers["cache-control"].startswith("no-store")
 
@@ -59,8 +59,9 @@ def test_fxpro_partner_url_rejects_non_https_values(monkeypatch):
 def _connected_demo_account():
     return {
         "connected": True,
-        "mode": "DEMO_READ_ONLY",
+        "mode": "LIVE_DEMO",
         "broker_orders": False,
+        "demo_execution": True,
         "login": "592031391",
         "masked_login": "***1391",
         "server": "FxPro-MT5 Demo",
@@ -86,6 +87,7 @@ def test_fxpro_mt5_status_reports_connected_demo_without_full_login(monkeypatch)
     assert data["masked_login"] == "***1391"
     assert "login" not in data
     assert data["broker_orders"] is False
+    assert data["demo_execution"] is True
 
 
 def test_fxpro_mt5_verify_matches_connected_demo(monkeypatch):
@@ -104,8 +106,9 @@ def test_fxpro_mt5_verify_matches_connected_demo(monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert data["verified"] is True
-    assert data["mode"] == "DEMO_READ_ONLY"
+    assert data["mode"] == "LIVE_DEMO"
     assert data["broker_orders"] is False
+    assert data["demo_execution"] is True
     assert data["masked_login"] == "***1391"
     assert data["balance"] == 10000.0
 

@@ -9,12 +9,13 @@ def test_dashboard_loads_active_setups_panel_script():
     assert '/ui/setups-panel.js' in html
 
 
-def test_active_setups_endpoint_is_read_only_and_available(monkeypatch):
+def test_active_setups_endpoint_is_live_demo_and_available(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     payload = {
-        "mode": "PAPER_DEMO",
+        "mode": "LIVE_DEMO",
         "broker_orders": False,
-        "execution": "disabled",
+        "demo_execution": True,
+        "execution": "simulated_demo",
         "strategy_mode": "BALANCED",
         "interval": "15m",
         "active_count": 1,
@@ -42,11 +43,12 @@ def test_active_setups_endpoint_is_read_only_and_available(monkeypatch):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["mode"] == "PAPER_DEMO"
+    assert data["mode"] == "LIVE_DEMO"
     assert data["broker_orders"] is False
-    assert data["execution"] == "disabled"
+    assert data["demo_execution"] is True
+    assert data["execution"] == "simulated_demo"
     assert data["setups"][0]["symbol"] == "EURUSD"
 
     script = client.get("/ui/setups-panel.js")
     assert script.status_code == 200
-    assert "ATLAS Demo Setup Engine" in script.text
+    assert "ATLAS Live Demo Setup Engine" in script.text
