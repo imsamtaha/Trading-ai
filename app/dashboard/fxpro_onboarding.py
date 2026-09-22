@@ -135,7 +135,7 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input,select{{width:100%
 
     <div id="saved" class="success" role="status">
       <b>ATLAS entry prepared on this phone.</b>
-      <div style="margin-top:5px">Your account number and server were saved only in this browser so you can continue the onboarding flow.</div>
+      <div style="margin-top:5px">Your account number and server were kept only for this browser session so you can continue the onboarding flow.</div>
       <div class="divider"></div>
       <a class="button secondary" href="/" style="display:block">Continue to ATLAS dashboard →</a>
     </div>
@@ -147,7 +147,7 @@ const panel=document.getElementById('connectPanel');
 const form=document.getElementById('fxproForm');
 const saved=document.getElementById('saved');
 document.getElementById('existing').addEventListener('click',()=>{{panel.classList.add('open');panel.scrollIntoView({{behavior:'smooth',block:'start'}});}});
-document.getElementById('openFxPro').addEventListener('click',()=>{{try{{localStorage.setItem('atlas.fxpro.returnPending','1')}}catch{{}}}});
+document.getElementById('openFxPro').addEventListener('click',()=>{{try{{sessionStorage.setItem('atlas.fxpro.returnPending','1')}}catch{{}}}});
 form.addEventListener('submit',event=>{{
   event.preventDefault();
   const mode=form.elements.mode.value;
@@ -157,13 +157,13 @@ form.addEventListener('submit',event=>{{
   document.getElementById('login').setCustomValidity('');
   if(server.length<3){{document.getElementById('server').setCustomValidity('Enter the MT5 server name shown by FxPro.');document.getElementById('server').reportValidity();return;}}
   document.getElementById('server').setCustomValidity('');
-  try{{localStorage.setItem('atlas.fxpro.connectionDraft',JSON.stringify({{mode,login,server,savedAt:new Date().toISOString()}}));localStorage.removeItem('atlas.fxpro.returnPending')}}catch{{}}
+  try{{sessionStorage.setItem('atlas.fxpro.connectionDraft',JSON.stringify({{mode,login,server,savedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.returnPending')}}catch{{}}
   saved.classList.add('show');
   saved.scrollIntoView({{behavior:'smooth',block:'nearest'}});
 }});
 try{{
-  if(localStorage.getItem('atlas.fxpro.returnPending')==='1'){{panel.classList.add('open')}}
-  const prior=JSON.parse(localStorage.getItem('atlas.fxpro.connectionDraft')||'null');
+  if(sessionStorage.getItem('atlas.fxpro.returnPending')==='1'){{panel.classList.add('open')}}
+  const prior=JSON.parse(sessionStorage.getItem('atlas.fxpro.connectionDraft')||'null');
   if(prior&&prior.login&&prior.server){{document.getElementById('login').value=prior.login;document.getElementById('server').value=prior.server;const radio=form.querySelector('input[name="mode"][value="'+(prior.mode||'demo')+'"]');if(radio)radio.checked=true;}}
 }}catch{{}}
 </script>
