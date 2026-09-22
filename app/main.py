@@ -49,7 +49,7 @@ async def dashboard_only_guard(request: Request, call_next):
     if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":
         path = request.url.path
         read_paths = {
-            "/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro",
+            "/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view", "/dashboard/mt5-state",
