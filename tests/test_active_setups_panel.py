@@ -1,0 +1,52 @@
+from fastapi.testclient import TestClient
+
+from app.dashboard import _atlas_ultimate_html
+from app.main import app
+
+
+def test_dashboard_loads_active_setups_panel_script():
+    html = _atlas_ultimate_html()
+    assert '/ui/setups-panel.js' in html
+
+
+def test_active_setups_endpoint_is_read_only_and_available(monkeypatch):
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
+    payload = {
+        "mode": "PAPER_DEMO",
+        "broker_orders": False,
+        "execution": "disabled",
+        "strategy_mode": "BALANCED",
+        "interval": "15m",
+        "active_count": 1,
+        "watch_count": 0,
+        "errors": 0,
+        "setups": [
+            {
+                "symbol": "EURUSD",
+                "status": "ACTIVE_SETUP",
+                "qualified": True,
+                "direction": "LONG",
+                "confidence": 80.0,
+            }
+        ],
+        "watchlist": [],
+        "scanned": 1,
+    }
+
+
+    monkeypatch.setattr("app.dashboard.setups_panel._scan_setups", lambda: payload)
+    monkeypatch.setattr("app.dashboard.setups_panel._CACHE", {"expires_at": 0.0, "payload": None})
+
+    client = TestClient(app)
+    response = client.get("/dashboard/active-setups")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mode"] == "PAPER_DEMO"
+    assert data["broker_orders"] is False
+    assert data["execution"] == "disabled"
+    assert data["setups"][0]["symbol"] == "EURUSD"
+
+    script = client.get("/ui/setups-panel.js")
+    assert script.status_code == 200
+    assert "ATLAS Demo Setup Engine" in script.text
