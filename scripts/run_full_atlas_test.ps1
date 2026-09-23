@@ -80,7 +80,7 @@ else {
 
 # risk_safety
 Invoke-AtlasCommandGroup "risk_safety" @(
-    'python -m pytest tests/test_risk_manager.py tests/test_execution.py tests/test_atlas_agent_paper_gate.py tests/test_mt5_demo_safety.py -q'
+    'python -m pytest tests/test_atlas_risk_management_v2.py tests/test_execution.py tests/test_atlas_agent_paper_gate.py tests/test_demo_operations.py -q'
 ) $true | Out-Null
 
 # windows_integrity
@@ -115,7 +115,10 @@ else {
             try {
                 $health = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:18080/health' -TimeoutSec 2
                 if ($health.StatusCode -eq 200) { $healthy = $true; break }
-            } catch { Start-Sleep -Seconds 1 }
+            }
+            catch {
+                Start-Sleep -Seconds 1
+            }
         }
         if (-not $healthy) { throw "/health did not return 200" }
         try {
@@ -148,7 +151,10 @@ else {
     try {
         python -c "import MetaTrader5" 2>$null
         $mt5Available = ($LASTEXITCODE -eq 0)
-    } catch { $mt5Available = $false }
+    }
+    catch {
+        $mt5Available = $false
+    }
 
     if (-not $mt5Available) {
         Add-AtlasResult "mt5_demo_runtime" "NOT_RUN" $false 0 "MetaTrader5 Python package is unavailable"
