@@ -21,6 +21,16 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
+      - name: Validate full-test orchestrator contracts
+        env:
+          ATLAS_LIVE_TRADING: 'false'
+          ATLAS_DASHBOARD_ONLY: 'true'
+        run: >-
+          python -m pytest
+          tests/test_atlas_test_report.py
+          tests/test_full_test_orchestrator_contract.py
+          -q
+
       - name: Run tests
         env:
           ATLAS_LIVE_TRADING: 'false'
@@ -30,7 +40,7 @@ jobs:
       - name: Build and smoke-test Cloud Run container
         run: |
           docker build --tag atlas-cloud-run-test .
-          container_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env PORT=8080 --env ATLAS_DASHBOARD_ONLY=true --env ATLAS_PUBLIC_ANALYSIS_ENABLED=false atlas-cloud-run-test)
+          container_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env PORT=8080 --env ATLAS_DASHBOARD_ONLY=true --env ATLAS_PUBLIC_ANALYSIS_ENABLED=false --env ATLAS_LIVE_TRADING=false atlas-cloud-run-test)
           trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
           healthy=false
           for attempt in {1..30}; do
@@ -71,11 +81,13 @@ jobs:
       - name: Install focused test dependencies
         run: python -m pip install pytest python-dotenv
 
-      - name: Parse Google Cloud deployment script
+      - name: Parse PowerShell test and deployment scripts
         shell: pwsh
         run: |
-          $source = Get-Content scripts/deploy_google_cloud.ps1 -Raw
-          $null = [scriptblock]::Create($source)
+          $deploySource = Get-Content scripts/deploy_google_cloud.ps1 -Raw
+          $null = [scriptblock]::Create($deploySource)
+          $testSource = Get-Content scripts/run_full_atlas_test.ps1 -Raw
+          $null = [scriptblock]::Create($testSource)
 
       - name: Verify ATLAS journal integrity and status on Windows
         run: >-
