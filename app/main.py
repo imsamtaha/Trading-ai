@@ -1,11 +1,12 @@
 from pathlib import Path
+from types import SimpleNamespace
 from dotenv import load_dotenv
 
 # Load Windows server configuration before constructing routers/services.
 # Existing process environment variables retain precedence.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.website import router as website_router
 
@@ -17,6 +18,7 @@ from app.strategies.trade import create_trade_candidate
 from app.ai.analyst import analyze_market
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.execution.live_gate import LiveAuthorizationError, authorize_live_order
 from app.execution.mt5_state import MT5CockpitAdapter
 from app.database.repository import get_account, get_trades
 from app.performance.metrics import calculate_metrics
@@ -249,14 +251,24 @@ def mt5_test_order(
     volume: float,
     stop_loss: float,
     take_profit: float,
+    confirmed: bool = False,
+    authorization: str | None = Header(default=None),
 ):
-    """Route an order only through the private ATLAS execution gate.
-
-    The default is dry-run; dashboard-only mode blocks this endpoint.
-    """
+    """Owner-confirmed real-account order through the private execution gate."""
     service = _mt5_service()
+    if service.broker.config.dry_run:
+        raise HTTPException(status_code=403, detail="Live execution is disabled.")
     try:
-        service.broker.connect()
+        account = service.broker.connect()
+        authorize_live_order(
+            authorization=authorization,
+            confirmed=confirmed,
+            account=SimpleNamespace(**{
+                "login": account["login"],
+                "trade_mode": account["trade_mode"],
+                "trade_allowed": account["trade_allowed"],
+            }),
+        )
         decision = {
             "decision": direction.upper(),
             "confidence": 100.0,
@@ -269,6 +281,8 @@ def mt5_test_order(
             stop_loss=stop_loss,
             take_profit=take_profit,
         )
+    except LiveAuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     except MT5ExecutionError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     finally:
