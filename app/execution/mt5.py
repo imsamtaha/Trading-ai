@@ -82,6 +82,7 @@ class MT5Broker:
             "equity": float(account.equity),
             "currency": str(account.currency),
             "trade_allowed": bool(account.trade_allowed),
+            "trade_mode": int(account.trade_mode),
             "live_trading_enabled": not self.config.dry_run,
         }
 
