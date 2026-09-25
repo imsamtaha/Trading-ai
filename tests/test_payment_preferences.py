@@ -44,6 +44,7 @@ def test_preferences_and_whish_links_are_integrated_in_atlas_ultimate():
     assert b"/billing/whish/reader" in page and b"/billing/whish/pro" in page
     assert b'id="plans"' in page
     assert b"Pay with Whish Pay" in page
+    assert b"Stripe not configured for this plan" in page
     redirect = subscribe()
     assert redirect.status_code == 308
     assert redirect.headers["location"] == "/#plans"
@@ -60,5 +61,8 @@ def test_billing_catalog_reports_whish_and_pending_stripe_state():
     assert "stripe" in methods
     assert methods["whish"]["provider"] == "Whish Pay"
     assert methods["whish"]["checkout_type"] == "wallet_payment_gateway"
+    assert methods["stripe"]["provider"] == "Stripe"
     assert methods["stripe"]["available"] is False
-    assert methods["stripe"]["mode"] == "verification_pending"
+    assert methods["stripe"]["mode"] == "account_activation_or_checkout_pending"
+    assert methods["stripe"]["required_plans"] == ["reader", "pro"]
+    assert methods["stripe"]["unsupported_plans"] == ["watch"]

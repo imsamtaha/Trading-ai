@@ -22,9 +22,12 @@ def payment_methods() -> dict:
     whish = whish_settings()
     return {
         "stripe": {
+            "provider": "Stripe",
             "available": len(links) == 2,
-            "mode": "live_checkout" if len(links) == 2 else "verification_pending",
+            "mode": "live_checkout" if len(links) == 2 else "account_activation_or_checkout_pending",
             "plans": sorted(links.keys()),
+            "required_plans": ["reader", "pro"],
+            "unsupported_plans": ["watch"],
         },
         "whish": {
             "provider": "Whish Pay",

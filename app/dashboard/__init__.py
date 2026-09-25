@@ -25,11 +25,10 @@ def _stripe_button(plan: str) -> str:
     link = _stripe_link(plan)
     if link:
         return f'<a class="btn atlas-3d" href="{link}" target="_blank" rel="noopener">Pay with Stripe</a>'
-    return '<span class="btn ghost atlas-3d" aria-disabled="true" title="Stripe checkout becomes available after account verification">Stripe activation pending</span>'
+    return '<span class="btn ghost atlas-3d" aria-disabled="true" title="Stripe checkout becomes available after account activation and checkout configuration">Stripe activation pending</span>'
 
 
 def _atlas_ultimate_html() -> str:
-    watch_stripe = _stripe_button("watch")
     signals_stripe = _stripe_button("reader")
     pro_stripe = _stripe_button("pro")
     fxpro_entry = fxpro_entry_card()
@@ -39,7 +38,7 @@ def _atlas_ultimate_html() -> str:
   <h2 style="font-size:clamp(28px,4vw,48px);margin:8px 0 6px">Choose your intelligence level.</h2>
   <p class="mini" style="max-width:820px;font-size:13px;line-height:1.6">Choose an ATLAS intelligence subscription for customer access. Stripe and Whish Pay are ATLAS subscription payment methods only; FxPro account funding remains separate. The current trading workspace is LIVE DEMO with real-time MT5 demo data and simulated ATLAS execution.</p>
   <div class="plans-grid">
-    <div class="card plan-card"><div class="label">Market Watch</div><div class="big">$29<span class="mini"> / month</span></div><p class="mini">Live financial news board · Market direction and bias · Market structure · Key levels · Strategy and setup context.</p>{watch_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/watch">Pay with Whish Pay</a></div>
+    <div class="card plan-card"><div class="label">Market Watch</div><div class="big">$29<span class="mini"> / month</span></div><p class="mini">Live financial news board · Market direction and bias · Market structure · Key levels · Strategy and setup context.</p><span class="btn ghost atlas-3d" aria-disabled="true" title="Stripe price not configured for Market Watch">Stripe not configured for this plan</span><a class="btn ghost atlas-3d" href="/billing/whish/watch">Pay with Whish Pay</a></div>
     <div class="card plan-card" style="border-color:#ff7a1a66"><div class="label">ATLAS Signals</div><div class="big">$49<span class="mini"> / month</span></div><p class="mini">Everything in Market Watch · Manual-execution signals · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.</p>{signals_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/reader">Pay with Whish Pay</a></div>
     <div class="card plan-card"><div class="label">ATLAS Pro</div><div class="big">$99<span class="mini"> / month</span></div><p class="mini">Everything in Signals · Continuous multi-asset analysis · Opportunity matrix · Risk/position monitoring · Exit and stop alerts · Priority intelligence briefings.</p>{pro_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/pro">Pay with Whish Pay</a></div>
     <div class="card plan-card"><div class="label">Enterprise</div><div class="big">Custom</div><p class="mini">Manual application and review · Team access · Custom integrations and deployment planning · Commercial quote based on required services.</p><a class="btn ghost atlas-3d" href="mailto:info@justai-atlas.online?subject=ATLAS%20ULTIMATE%20Enterprise%20Application">Apply / Contact CEO</a></div>
