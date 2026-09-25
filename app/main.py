@@ -76,13 +76,15 @@ async def dashboard_only_guard(request: Request, call_next):
             and path.endswith("/request")
             and os.getenv("ATLAS_WHISH_ENABLED", "false").lower() == "true"
         )
+        customer_v2_read = request.method in {"GET", "HEAD"} and path.startswith("/api/v2/customer/")
+        customer_v2_demo_cycle = request.method == "POST" and path == "/api/v2/customer/cycle/demo"
         public_analysis_enabled = (
             os.getenv("ATLAS_PUBLIC_ANALYSIS_ENABLED", "true").lower() == "true"
         )
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or whish_request or fxpro_demo_verify or paper_demo_execute or (
+        ) or whish_request or fxpro_demo_verify or customer_v2_read or customer_v2_demo_cycle or paper_demo_execute or (
             public_analysis_enabled
             and request.method == "POST"
             and path in analysis_paths

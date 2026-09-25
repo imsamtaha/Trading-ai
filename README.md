@@ -234,3 +234,21 @@ Before any real-money use, ATLAS still requires:
 - Hard kill-switch and account-risk controls
 
 The current version is a strong demo, not a licensed financial advisory or autonomous live-trading product.
+
+## Customer Realtime v2
+
+ATLAS v2 adds a customer-scoped realtime intelligence path under `/api/v2/customer`.
+
+Key endpoints:
+
+- `GET /api/v2/customer/account`
+- `GET /api/v2/customer/positions`
+- `GET /api/v2/customer/decisions/latest`
+- `GET /api/v2/customer/agents/status`
+- `GET /api/v2/customer/alerts`
+- `GET /api/v2/customer/rescue/status`
+- `POST /api/v2/customer/cycle/demo`
+
+Requests require `X-Customer-ID` and `X-Account-ID`. The first end-to-end execution target is `LIVE_DEMO`. The customer runtime uses immutable snapshots, specialist agents, weighted coordination, confidence calibration, an independent Capital Guardian, deterministic risk validation, idempotent demo routing, position monitoring, Rescue Agent actions, notifications, audit traces, replay/shadow validation, and agent-health metrics.
+
+The legacy agent path remains frozen for reference and compatibility while customer v2 is validated. Production execution is represented by a separate inactive adapter and is not enabled by this v2 implementation.

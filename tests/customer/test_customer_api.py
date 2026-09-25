@@ -49,3 +49,11 @@ def test_customer_api_responses_do_not_expose_paper_terminology():
         response = client.get(url, headers=_h())
         assert response.status_code == 200
         assert "paper" not in response.text.lower()
+
+
+def test_dashboard_only_mode_allows_customer_v2_reads_and_demo_cycle(monkeypatch):
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
+    assert client.get("/api/v2/customer/account", headers=_h()).status_code == 200
+    response = client.post("/api/v2/customer/cycle/demo", headers=_h())
+    assert response.status_code == 200
+    assert response.json()["mode"] == "LIVE_DEMO"
