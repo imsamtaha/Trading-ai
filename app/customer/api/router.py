@@ -1,0 +1,70 @@
+﻿from __future__ import annotations
+
+from fastapi import APIRouter, Header, HTTPException
+
+from app.customer.service import CustomerAccessError, customer_service
+
+
+router = APIRouter()
+
+
+def _identity(x_customer_id: str = Header(...), x_account_id: str = Header(...)) -> tuple[str, str]:
+    try:
+        customer_service.authorize(x_customer_id, x_account_id)
+    except CustomerAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return x_customer_id, x_account_id
+
+
+@router.get("/api/v2/customer/account")
+def account(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    return customer_service.account(*identity)
+
+
+@router.get("/api/v2/customer/positions")
+def positions(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    customer_id, account_id = identity
+    return {"customer_id": customer_id, "account_id": account_id, "positions": customer_service.list_positions(customer_id, account_id)}
+
+
+@router.get("/api/v2/customer/decisions/latest")
+def latest_decision(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    return customer_service.latest_decision(*identity)
+
+
+@router.get("/api/v2/customer/agents/status")
+def agents_status(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    customer_id, account_id = identity
+    return {"customer_id": customer_id, "account_id": account_id, **customer_service.agent_status[(customer_id, account_id)]}
+
+
+@router.get("/api/v2/customer/alerts")
+def alerts(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    customer_id, account_id = identity
+    return {"customer_id": customer_id, "account_id": account_id, "alerts": customer_service.list_alerts(customer_id, account_id)}
+
+
+@router.get("/api/v2/customer/rescue/status")
+def rescue_status(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    customer_id, account_id = identity
+    return {"customer_id": customer_id, "account_id": account_id, **customer_service.rescue[(customer_id, account_id)]}
+
+
+@router.post("/api/v2/customer/cycle/demo")
+def cycle_demo(identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    return customer_service.start_demo_cycle(*identity)
+
+
+@router.post("/api/v2/internal/replay")
+def replay(payload: dict, identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    return {"customer_id": identity[0], "account_id": identity[1], "status": "ACCEPTED", "snapshot_ids": list(payload.get("snapshot_ids", []))}
+
+
+@router.get("/api/v2/internal/audit/{trace_id}")
+def audit_trace(trace_id: str, identity: tuple[str, str] = __import__('fastapi').Depends(_identity)):
+    try:
+        return {"trace_id": trace_id, "events": customer_service.audit_trace(identity[0], identity[1], trace_id)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

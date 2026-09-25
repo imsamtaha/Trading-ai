@@ -27,6 +27,7 @@ from app.subscription import router as subscription_router
 from app.billing import router as billing_router
 from app.dashboard.preferences import router as preferences_router
 from app.agent.api import router as agent_router
+from app.customer.api.router import router as customer_v2_router
 
 
 app = FastAPI(
@@ -40,6 +41,7 @@ app.include_router(subscription_router)
 app.include_router(billing_router)
 app.include_router(preferences_router)
 app.include_router(agent_router)
+app.include_router(customer_v2_router)
 app.include_router(website_router)
 
 
@@ -302,3 +304,4 @@ def performance(account_id: int):
         "metrics": metrics,
         "trades": trades,
     }
+

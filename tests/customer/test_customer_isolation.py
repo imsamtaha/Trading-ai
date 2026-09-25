@@ -1,0 +1,38 @@
+﻿from fastapi.testclient import TestClient
+
+from app.customer.service import customer_service
+from app.main import app
+
+
+client = TestClient(app)
+
+
+def setup_function():
+    customer_service.reset()
+    customer_service.register_account("c1", "a1", tier="PRO")
+    customer_service.register_account("c2", "a2", tier="PRO")
+    customer_service.add_position("c1", "a1", {"ticket": 1, "symbol": "EURUSD"})
+    customer_service.add_position("c2", "a2", {"ticket": 2, "symbol": "GBPUSD"})
+    customer_service.add_alert("c1", "a1", {"trace_id": "trace-c1", "event": "TEST"})
+    customer_service.add_audit("c1", "a1", "trace-c1", {"event": "ONLY_C1"})
+
+
+def _h(customer, account):
+    return {"X-Customer-ID": customer, "X-Account-ID": account}
+
+
+def test_positions_and_alerts_are_scoped_to_request_identity():
+    c2_positions = client.get("/api/v2/customer/positions", headers=_h("c2", "a2")).json()["positions"]
+    assert [p["ticket"] for p in c2_positions] == [2]
+    c2_alerts = client.get("/api/v2/customer/alerts", headers=_h("c2", "a2")).json()["alerts"]
+    assert c2_alerts == []
+
+
+def test_valid_trace_owned_by_other_customer_is_not_disclosed():
+    response = client.get("/api/v2/internal/audit/trace-c1", headers=_h("c2", "a2"))
+    assert response.status_code == 404
+
+
+def test_mismatched_account_identity_is_rejected():
+    response = client.get("/api/v2/customer/account", headers=_h("c1", "a2"))
+    assert response.status_code == 403
