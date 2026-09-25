@@ -28,9 +28,12 @@ class SupabaseCustomerAccountRepository:
     def _headers(self, prefer: str | None = None) -> dict[str, str]:
         headers = {
             "apikey": self.service_key,
-            "Authorization": f"Bearer {self.service_key}",
             "Content-Type": "application/json",
         }
+        # Modern Supabase sb_secret_* keys are opaque API keys, not JWTs.
+        # Only legacy service-role JWTs belong in Authorization: Bearer.
+        if not self.service_key.startswith("sb_secret_"):
+            headers["Authorization"] = f"Bearer {self.service_key}"
         if prefer:
             headers["Prefer"] = prefer
         return headers

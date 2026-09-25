@@ -34,3 +34,18 @@ def test_authorize_rehydrates_account_from_repository_after_restart():
     account = service.authorize("c1", "a1", auth_subject="subject-1")
     assert account["tier"] == "ELITE"
     assert service.accounts[("c1", "a1")]["auth_subject"] == "subject-1"
+
+
+def test_modern_supabase_secret_key_is_not_sent_as_bearer():
+    from app.customer.repository import SupabaseCustomerAccountRepository
+    repo = SupabaseCustomerAccountRepository("https://example.supabase.co", "sb_secret_test")
+    headers = repo._headers()
+    assert headers["apikey"] == "sb_secret_test"
+    assert "Authorization" not in headers
+
+
+def test_legacy_service_role_jwt_is_sent_as_bearer():
+    from app.customer.repository import SupabaseCustomerAccountRepository
+    repo = SupabaseCustomerAccountRepository("https://example.supabase.co", "legacy.jwt.token")
+    headers = repo._headers()
+    assert headers["Authorization"] == "Bearer legacy.jwt.token"
