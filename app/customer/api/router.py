@@ -1,12 +1,29 @@
 ﻿from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
+from pydantic import BaseModel, Field
 
 from app.customer.auth import CustomerAuthError, verify_supabase_access_token
 from app.customer.service import CustomerAccessError, customer_service
 
 
 router = APIRouter()
+
+
+class DemoCyclePayload(BaseModel):
+    symbol: str = Field(default="EURUSD", min_length=1, max_length=40)
+    timeframe: str = Field(default="5m", pattern="^(5m|15m|30m|1h)$")
+    demo_volume: float = Field(default=0.1, gt=0)
+    requested_risk_pct: float = Field(default=1.0, gt=0, le=2.0)
+
+
+def _subject(authorization: str | None = Header(default=None)) -> str:
+    try:
+        return verify_supabase_access_token(authorization)
+    except CustomerAuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
 def _identity(
@@ -27,6 +44,11 @@ def _identity(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return x_customer_id, x_account_id
+
+
+@router.get("/api/v2/customer/accounts")
+def accounts(subject: str = Depends(_subject)):
+    return {"accounts": customer_service.accounts_for_subject(subject)}
 
 
 @router.get("/api/v2/customer/account")
@@ -64,8 +86,11 @@ def rescue_status(identity: tuple[str, str] = Depends(_identity)):
 
 
 @router.post("/api/v2/customer/cycle/demo")
-def cycle_demo(identity: tuple[str, str] = Depends(_identity)):
-    return customer_service.start_demo_cycle(*identity)
+def cycle_demo(payload: DemoCyclePayload = Body(default=DemoCyclePayload()), identity: tuple[str, str] = Depends(_identity)):
+    try:
+        return customer_service.start_demo_cycle(*identity, **payload.model_dump())
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/api/v2/internal/replay")

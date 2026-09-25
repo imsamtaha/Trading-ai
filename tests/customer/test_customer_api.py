@@ -7,9 +7,19 @@ from app.main import app
 
 client = TestClient(app)
 
+class _ApiDemoRuntime:
+    def run(self, **kwargs):
+        return {
+            "status": "BLOCKED", "mode": "LIVE_DEMO", "trace_id": "api-cycle",
+            "decision": "WAIT", "confidence": 0.0, "rescue": "HOLD",
+            "agents": ["technical", "system_watchdog"],
+        }
+
+
 
 @pytest.fixture(autouse=True)
 def _fake_auth(monkeypatch):
+    monkeypatch.setattr(customer_service, "demo_runtime", _ApiDemoRuntime())
     def verify(value):
         if not value or not value.startswith("Bearer "):
             raise ValueError("missing bearer token")
@@ -30,6 +40,14 @@ def setup_function():
 def _h(customer="c1", account="a1"):
     return {"X-Customer-ID": customer, "X-Account-ID": account, "Authorization": f"Bearer {customer}"}
 
+
+
+
+def test_authenticated_subject_lists_only_owned_accounts():
+    response = client.get("/api/v2/customer/accounts", headers={"Authorization":"Bearer c1"})
+    assert response.status_code == 200
+    rows = response.json()["accounts"]
+    assert [(row["customer_id"], row["account_id"]) for row in rows] == [("c1", "a1")]
 
 def test_customer_v2_endpoints_have_scoped_shapes_and_trace_ids():
     assert client.get("/api/v2/customer/account", headers=_h()).json()["customer_id"] == "c1"

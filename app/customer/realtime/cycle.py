@@ -118,6 +118,7 @@ class CustomerRealtimeCycle:
         self._audit(snapshot, trace_id, "NOTIFICATION", event_type=notification["event"])
         return {
             "status": execution.status,
+            "agents": [v.agent for v in verdicts],
             "trace_id": trace_id,
             "decision": decision.decision.value,
             "confidence": decision.confidence,

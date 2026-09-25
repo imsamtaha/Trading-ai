@@ -188,7 +188,7 @@ def test_trader_view_is_public_safe_live_demo(status_paths):
     response = TestClient(app).get('/dashboard/trader-view?asset=EURUSD&timeframe=M5')
     assert response.status_code == 200
     data = response.json()
-    assert data['paper_demo'] is True
+    assert data['live_demo'] is True
     assert data['broker_orders'] is False
     assert data['demo_execution'] is True
     assert data['mode'] == 'LIVE_DEMO'

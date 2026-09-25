@@ -24,7 +24,7 @@ def client(monkeypatch):
 
 @pytest.mark.parametrize("path", [
     "/", "/health", "/dashboard", "/dashboard/", "/subscribe",
-    "/ui/preferences.js", "/ui/agent-panel.js", "/agent/capabilities",
+    "/ui/preferences.js", "/ui/customer-v2-panel.js", "/agent/capabilities",
     "/docs", "/openapi.json", "/billing/plans",
 ])
 def test_public_reads_are_allowed(client, path):

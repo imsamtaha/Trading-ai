@@ -43,6 +43,8 @@ try {
   localStorage.removeItem('atlas-storage-check');
   client=createClient(AUTH_ORIGIN,PUBLIC_KEY,{auth:AUTH_OPTIONS});
 } catch {message='storage';busy=false;}
+window.atlasAuth={getSession:async()=>{if(!client)return null;const {data,error}=await client.auth.getSession();if(error)return null;return data.session||null;},getUser:()=>user};
+function emitAuthChange(){window.dispatchEvent(new CustomEvent('atlas-auth-change'));}
 
 async function verify(href=location.origin + '/') {
   const request=++verification;
@@ -58,7 +60,7 @@ async function verify(href=location.origin + '/') {
   } catch(error) {
     if(request!==verification)return;
     user=null;message=error.message in text()?error.message:'unavailable';
-  } finally {if(request===verification){busy=false;render();}}
+  } finally {if(request===verification){busy=false;render();emitAuthChange();}}
 }
 button.addEventListener('click',async()=>{
   if(!client)return;
@@ -75,13 +77,13 @@ logout.addEventListener('click',async()=>{
     if(error)throw error;
     user=null;message='signedOut';
   } catch {message='outError';}
-  finally {busy=false;render();}
+  finally {busy=false;render();emitAuthChange();}
 });
 document.addEventListener('atlas-language-change',render);
 window.addEventListener('atlas-language-change',render);
 if(client) {
   client.auth.onAuthStateChange(event=>{
-    if(event==='SIGNED_OUT'){++verification;user=null;busy=false;message='signedOut';render();}
+    if(event==='SIGNED_OUT'){++verification;user=null;busy=false;message='signedOut';render();emitAuthChange();}
     if(event==='TOKEN_REFRESHED' || event==='SIGNED_IN') queueMicrotask(()=>verify());
   });
   verify(location.href);

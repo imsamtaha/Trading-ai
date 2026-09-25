@@ -1,4 +1,4 @@
-"""Read-only paper-session progress, distinct from broker account telemetry."""
+"""LIVE_DEMO session progress, distinct from broker account telemetry."""
 import json
 import os
 from datetime import datetime, timezone
@@ -89,13 +89,13 @@ def _drawdown_alert(drawdown_percent: float | int | None) -> dict[str, Any]:
     value = round(float(drawdown_percent or 0.0), 2)
     if value >= 35.0:
         level = "HIGH"
-        message = "High paper drawdown. Keep live activation blocked and review risk evidence."
+        message = "High demo drawdown. Review the LIVE_DEMO risk evidence."
     elif value >= 20.0:
         level = "WATCH"
-        message = "Paper drawdown is elevated. Continue demo validation and monitor risk."
+        message = "Demo drawdown is elevated. Continue LIVE_DEMO validation and monitor risk."
     else:
         level = "NORMAL"
-        message = "Paper drawdown remains below the monitoring watch threshold."
+        message = "Demo drawdown remains below the monitoring watch threshold."
     return {
         "level": level,
         "drawdown_percent": value,
@@ -154,7 +154,7 @@ def trader_view(asset: str | None = None, timeframe: str | None = None):
         performance = state["performance"]
         return {
             "mode": "LIVE_DEMO",
-            "paper_demo": True,
+            "live_demo": True,
             "demo_execution": True,
             "broker_orders": False,
             "status": str(state["session"].get("status") or "UNKNOWN"),
@@ -205,7 +205,7 @@ const panel=document.createElement('section');panel.className='card demo-session
 panel.innerHTML=`
 <div class="demo-head"><div><div class="label">LIVE DEMO</div><div class="demo-title">ATLAS Live Demo Trading</div><div class="mini">Real-time MT5 demo quotes · ATLAS simulated demo execution · no real-money orders</div></div><div class="demo-status" id="demoStatus"><span class="demo-dot"></span><span id="demoStatusText">CONNECTING</span></div></div>
 <div class="demo-metrics"><div class="demo-metric"><div class="label">Open Demo Trades</div><div class="demo-value" id="demoOpen">—</div></div><div class="demo-metric"><div class="label">Closed Trades</div><div class="demo-value" id="demoClosed">—</div></div><div class="demo-metric"><div class="label">Review Target</div><div class="demo-value" id="demoTarget">—</div></div><div class="demo-metric"><div class="label">Profit Factor</div><div class="demo-value" id="demoPF">—</div></div><div class="demo-metric"><div class="label">Expectancy</div><div class="demo-value" id="demoExpectancy">—</div></div><div class="demo-metric"><div class="label">Drawdown / Risk</div><div class="demo-value" id="demoDD">—</div></div></div>
-<div class="demo-meta"><div><div class="label">Latest Demo Events</div><ul class="demo-events" id="demoEvents"><li>Loading session activity…</li></ul></div><div><div class="label">Real-Money Readiness Gate</div><div class="demo-gate" id="demoReadiness">Evaluating demo evidence…</div><div class="drawdown-alert" id="demo-drawdown-alert"><div class="label">Drawdown Alert</div><div><b id="demo-alert-level">—</b><span id="demo-alert-message">Waiting for paper-risk evidence…</span></div></div><div class="demo-foot" id="demoUpdated">Last update: —</div></div></div>
+<div class="demo-meta"><div><div class="label">Latest Demo Events</div><ul class="demo-events" id="demoEvents"><li>Loading session activity…</li></ul></div><div><div class="label">Real-Money Readiness Gate</div><div class="demo-gate" id="demoReadiness">Evaluating demo evidence…</div><div class="drawdown-alert" id="demo-drawdown-alert"><div class="label">Drawdown Alert</div><div><b id="demo-alert-level">—</b><span id="demo-alert-message">Waiting for demo-risk evidence…</span></div></div><div class="demo-foot" id="demoUpdated">Last update: —</div></div></div>
 <div class="performance-center"><div class="performance-head"><div><div class="label">DEMO ANALYTICS</div><div class="demo-title">Performance Center</div><div class="mini">Risk-normalized live-demo results · simulated, not real-money P/L</div></div><div class="performance-filters"><label>Asset<select id="demo-asset-filter"><option value="ALL">All Assets</option></select></label><label>Timeframe<select id="demo-timeframe-filter"><option value="ALL">All Timeframes</option></select></label></div></div><div class="performance-grid"><div class="demo-metric"><div class="label">Win Rate</div><div class="demo-value" id="demo-win-rate">—</div></div><div class="demo-metric"><div class="label">Cumulative P/L</div><div class="demo-value" id="demo-total-pnl">—</div></div><div class="demo-metric"><div class="label">Best Asset</div><div class="demo-value" id="demo-best-asset">—</div></div><div class="demo-metric"><div class="label">Worst Asset</div><div class="demo-value" id="demo-worst-asset">—</div></div></div><div class="performance-body"><div class="equity-box"><div class="label">Equity Curve · Risk Normalized</div><svg class="equity-svg" id="demo-equity-chart" viewBox="0 0 600 150" preserveAspectRatio="none"><line class="equity-zero" x1="0" y1="75" x2="600" y2="75"></line><polyline class="equity-line" id="demo-equity-line" points=""></polyline></svg></div><div class="history-box"><div class="label">Recent Closed Trades</div><div id="demo-trade-history"><div class="mini" style="padding:10px 0">No closed trades yet.</div></div></div></div></div>`;
 
 const hero=root.querySelector('.hero');if(hero&&hero.parentNode===root)hero.insertAdjacentElement('afterend',panel);else root.prepend(panel);
