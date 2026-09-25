@@ -15,5 +15,5 @@ create index if not exists atlas_customer_accounts_auth_subject_idx on public.at
 alter table public.atlas_customer_accounts enable row level security;
 -- No public RLS policy: backend service credentials own customer mapping writes/reads.
 
-revoke all on table public.atlas_customer_accounts from anon, authenticated;
+revoke all on table public.atlas_customer_accounts from public, anon, authenticated, service_role;
 grant select, insert, update, delete on table public.atlas_customer_accounts to service_role;
