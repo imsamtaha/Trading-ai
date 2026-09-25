@@ -1,10 +1,20 @@
 ﻿from fastapi.testclient import TestClient
+import pytest
 
 from app.customer.service import customer_service
 from app.main import app
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _fake_auth(monkeypatch):
+    def verify(value):
+        if not value or not value.startswith("Bearer "):
+            raise ValueError("missing bearer token")
+        return value.removeprefix("Bearer ")
+    monkeypatch.setattr("app.customer.api.router.verify_supabase_access_token", verify, raising=False)
 
 
 def setup_function():
@@ -18,7 +28,7 @@ def setup_function():
 
 
 def _h(customer, account):
-    return {"X-Customer-ID": customer, "X-Account-ID": account}
+    return {"X-Customer-ID": customer, "X-Account-ID": account, "Authorization": f"Bearer {customer}"}
 
 
 def test_positions_and_alerts_are_scoped_to_request_identity():
@@ -35,4 +45,15 @@ def test_valid_trace_owned_by_other_customer_is_not_disclosed():
 
 def test_mismatched_account_identity_is_rejected():
     response = client.get("/api/v2/customer/account", headers=_h("c1", "a2"))
+    assert response.status_code == 403
+
+
+def test_missing_authentication_is_rejected():
+    response = client.get("/api/v2/customer/account", headers={"X-Customer-ID": "c1", "X-Account-ID": "a1"})
+    assert response.status_code == 401
+
+
+def test_authenticated_subject_cannot_spoof_another_customer():
+    headers = {"X-Customer-ID": "c1", "X-Account-ID": "a1", "Authorization": "Bearer c2"}
+    response = client.get("/api/v2/customer/account", headers=headers)
     assert response.status_code == 403

@@ -43,6 +43,10 @@ def test_snapshot_is_immutable_and_keeps_same_cycle_identity():
     assert snap.mode is Mode.LIVE_DEMO
     with pytest.raises(FrozenInstanceError):
         snap.symbol = "GBPUSD"
+    with pytest.raises(TypeError):
+        snap.market["bid"] = 9.9
+    with pytest.raises(TypeError):
+        snap.account["equity"] = 0
 
 
 def test_stale_market_timestamp_is_detected():

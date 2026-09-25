@@ -1,10 +1,20 @@
 ﻿from fastapi.testclient import TestClient
+import pytest
 
 from app.customer.service import customer_service
 from app.main import app
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _fake_auth(monkeypatch):
+    def verify(value):
+        if not value or not value.startswith("Bearer "):
+            raise ValueError("missing bearer token")
+        return value.removeprefix("Bearer ")
+    monkeypatch.setattr("app.customer.api.router.verify_supabase_access_token", verify, raising=False)
 
 
 def setup_function():
@@ -18,7 +28,7 @@ def setup_function():
 
 
 def _h(customer="c1", account="a1"):
-    return {"X-Customer-ID": customer, "X-Account-ID": account}
+    return {"X-Customer-ID": customer, "X-Account-ID": account, "Authorization": f"Bearer {customer}"}
 
 
 def test_customer_v2_endpoints_have_scoped_shapes_and_trace_ids():

@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from uuid import uuid4
+from types import MappingProxyType
 
 from app.customer.contracts import CustomerContext, MarketSnapshot
 
@@ -40,11 +41,11 @@ def build_snapshot(
         timeframe=timeframe,
         market_timestamp=market_time,
         snapshot_timestamp=snapshot_time,
-        market=dict(market),
-        account=dict(account),
-        system=dict(system),
-        news=dict(news) if news is not None else None,
-        sentiment=dict(sentiment) if sentiment is not None else None,
+        market=MappingProxyType(dict(market)),
+        account=MappingProxyType(dict(account)),
+        system=MappingProxyType(dict(system)),
+        news=MappingProxyType(dict(news)) if news is not None else None,
+        sentiment=MappingProxyType(dict(sentiment)) if sentiment is not None else None,
     )
 
 

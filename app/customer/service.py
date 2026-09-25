@@ -25,21 +25,26 @@ class CustomerService:
     def _key(customer_id: str, account_id: str):
         return customer_id, account_id
 
-    def register_account(self, customer_id: str, account_id: str, *, tier: str, mode: str = "LIVE_DEMO"):
+    def register_account(self, customer_id: str, account_id: str, *, tier: str, mode: str = "LIVE_DEMO", auth_subject: str | None = None):
         key = self._key(customer_id, account_id)
-        self.accounts[key] = {"customer_id": customer_id, "account_id": account_id, "tier": tier, "mode": mode}
+        self.accounts[key] = {"customer_id": customer_id, "account_id": account_id, "tier": tier, "mode": mode, "auth_subject": auth_subject or customer_id}
         return self.accounts[key]
 
-    def authorize(self, customer_id: str, account_id: str):
+    def authorize(self, customer_id: str, account_id: str, *, auth_subject: str | None = None):
         key = self._key(customer_id, account_id)
         if key in self.accounts:
-            return self.accounts[key]
+            account = self.accounts[key]
+            if auth_subject is not None and account.get("auth_subject") != auth_subject:
+                raise CustomerAccessError("authenticated user does not own this customer account")
+            return account
         if any(aid == account_id for _, aid in self.accounts):
             raise CustomerAccessError("account does not belong to customer")
         raise KeyError("account not found")
 
     def account(self, customer_id: str, account_id: str):
-        return dict(self.authorize(customer_id, account_id))
+        account = dict(self.authorize(customer_id, account_id))
+        account.pop("auth_subject", None)
+        return account
 
     def add_position(self, customer_id: str, account_id: str, position: dict):
         self.authorize(customer_id, account_id)
