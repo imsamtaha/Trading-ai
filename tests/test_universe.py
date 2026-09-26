@@ -37,3 +37,14 @@ def test_build_universe_deduplicates_canonical_symbols():
     ]
     universe = build_universe(raw, top_n=10)
     assert len([x for x in universe if x.canonical_symbol == "XAUUSD"]) == 1
+
+
+def test_normalize_expanded_fxpro_assets():
+    assert normalize_symbol("#Japan225") == "JP225"
+    assert normalize_symbol("#HongKong50") == "HK50"
+    assert normalize_symbol("#Euro50") == "EU50"
+    assert normalize_symbol("#France40") == "FRA40"
+    assert normalize_symbol("#US2000") == "US2000"
+    assert normalize_symbol("AUDJPY") == "AUDJPY"
+    assert normalize_symbol("EURCAD") == "EURCAD"
+    assert normalize_symbol("CADJPY") == "CADJPY"

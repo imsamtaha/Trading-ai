@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # Allow python scripts/verify_mt5.py from the repository root.
 sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env", override=False)
+load_dotenv(ROOT / ".env.local", override=False)
 
 from app.execution.heartbeat import AtlasHeartbeat
 

@@ -3,6 +3,7 @@ import os
 import re
 import secrets
 import sqlite3
+from html import escape
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -17,9 +18,12 @@ router = APIRouter(prefix="/billing/whish", tags=["billing"])
 def settings():
     recipient = os.getenv("ATLAS_WHISH_RECIPIENT", "").strip()
     contact = os.getenv("ATLAS_WHISH_SUPPORT", "").strip()
+    phone = os.getenv("ATLAS_WHISH_PHONE", contact).strip()
+    qr_image_url = os.getenv("ATLAS_WHISH_QR_IMAGE_URL", "").strip()
     enabled = os.getenv("ATLAS_WHISH_ENABLED", "false").lower() == "true"
     return {"available": enabled and bool(recipient and contact),
-            "recipient": recipient, "support": contact}
+            "recipient": recipient, "support": contact,
+            "phone": phone, "qr_image_url": qr_image_url}
 
 
 class PaymentRequest(BaseModel):
@@ -60,6 +64,7 @@ def request_payment(plan_id: str, body: PaymentRequest):
     return {"reference": reference, "status": "PENDING_REVIEW",
             "amount_usd": plan.monthly_price, "trial_days": plan.trial_days,
             "recipient": config["recipient"], "support": config["support"],
+            "phone": config["phone"], "qr_image_url": config["qr_image_url"],
             "access_granted": False, "automatic_renewal": False}
 
 
@@ -67,7 +72,32 @@ def request_payment(plan_id: str, body: PaymentRequest):
 def payment_page(plan_id: str):
     if plan_id not in PLANS:
         raise HTTPException(404, "Unknown subscription plan.")
-    return HTMLResponse(WHISH_HTML.replace("__PLAN__", plan_id))
+    plan = PLANS[plan_id]
+    feature_items = "".join(f"<li>{feature}</li>" for feature in plan.features)
+    config = settings()
+    phone = escape(config["phone"])
+    support = escape(config["support"])
+    qr_image_url = escape(config["qr_image_url"])
+    phone_html = (
+        f"<p><strong>Send Whish payment to:</strong> {phone}</p>"
+        if phone
+        else "<p>Payment phone number is not configured yet.</p>"
+    )
+    qr_html = (
+        f'<p><img class="qr" src="{qr_image_url}" alt="Whish payment QR code"></p>'
+        if qr_image_url
+        else "<p>QR code is not configured yet. Use the phone number or contact support.</p>"
+    )
+    html = (
+        WHISH_HTML.replace("__PLAN__", plan_id)
+        .replace("__PLAN_NAME__", escape(plan.name))
+        .replace("__PLAN_PRICE__", str(plan.monthly_price))
+        .replace("__PLAN_FEATURES__", feature_items)
+        .replace("__WHISH_PHONE_BLOCK__", phone_html)
+        .replace("__WHISH_QR_BLOCK__", qr_html)
+        .replace("__WHISH_SUPPORT__", support)
+    )
+    return HTMLResponse(html)
 
 
 WHISH_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
@@ -76,9 +106,16 @@ WHISH_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
 <style>body{background:#07090e;color:#f3f5f7;font:16px system-ui;margin:0}
 main{max-width:600px;margin:40px auto;padding:24px}input,button{font:inherit;padding:12px;border-radius:8px}
 input{box-sizing:border-box;width:100%;margin:12px 0}button{background:#ff8a24;color:#111;border:0}
-a{color:#ff8a24}dt{margin-top:12px}dd{margin:4px 0;overflow-wrap:anywhere}</style>
+a{color:#ff8a24}dt{margin-top:12px}dd{margin:4px 0;overflow-wrap:anywhere}.paybox{border:1px solid #263246;background:#101620;border-radius:14px;padding:16px;margin:18px 0}.qr{max-width:220px;width:100%;border-radius:12px;background:#fff;padding:8px}</style>
 <body><main><h1>Whish Money</h1><p>Manual payment review</p>
-<p>Request your 3-day trial first. Contact support to confirm the start date and payment instructions. Monthly renewals are manual.</p>
+<h2>__PLAN_NAME__ - $__PLAN_PRICE__/month</h2>
+<ul>__PLAN_FEATURES__</ul>
+<p>ATLAS Signals ($99) sends the signals to the trader. ATLAS Execution ($149) executes approved signals after account approval, safety-gate setup, and manual owner activation.</p>
+<section class="paybox"><h2>Send payment</h2>
+__WHISH_PHONE_BLOCK__
+__WHISH_QR_BLOCK__
+<p>Support / confirmation: __WHISH_SUPPORT__</p></section>
+<p>Contact support to confirm the start date and payment instructions. Monthly renewals are manual.</p>
 <p>A request or receipt does not activate access. Payment must be verified by the owner.</p>
 <form id="requestForm"><label for="email">Email address</label><input id="email" type="email" maxlength="254" required autocomplete="email">
 <button id="submit">Request Whish payment</button></form>
@@ -92,7 +129,7 @@ document.getElementById('requestForm').addEventListener('submit',async e=>{
  if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:'Payment request unavailable.');
  const list=document.createElement('dl');
  for(const [label,value] of [['Reference',d.reference],['Status','Pending review'],['Monthly price',d.amount_usd+' USD'],
- ['Recipient',d.recipient],['Support',d.support]]){let dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;list.append(dt,dd)}
+ ['Recipient',d.recipient],['Whish phone',d.phone||d.support],['Support',d.support]]){let dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;list.append(dt,dd)}
  result.append(list);
  }catch(e){result.textContent=e.message}finally{button.disabled=false}
 });

@@ -75,4 +75,6 @@ class AtlasExecutionService:
             "min_confidence": self.policy.min_confidence,
             "max_risk_level": self.policy.max_risk_level,
             "mt5_dry_run": self.broker.config.dry_run,
+            "real_money_execution_requested": self.broker.config.real_money_execution,
+            "real_money_acknowledged": bool(self.broker.config.real_money_ack),
         }

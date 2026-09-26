@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+from dotenv import load_dotenv
 
 try:
     import MetaTrader5 as mt5
 except ImportError:  # pragma: no cover - package is Windows-only in deployment
     mt5 = None
+
+ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT / ".env", override=False)
+load_dotenv(ROOT / ".env.local", override=False)
+
+REAL_MONEY_ACK = "I_ACCEPT_REAL_MONEY_EXECUTION_RISK"
 
 
 @dataclass(frozen=True)
@@ -19,6 +28,8 @@ class MT5Config:
     magic: int = 260830
     deviation: int = 20
     dry_run: bool = True
+    real_money_execution: bool = False
+    real_money_ack: str = ""
 
     @classmethod
     def from_env(cls) -> "MT5Config":
@@ -31,11 +42,20 @@ class MT5Config:
             magic=int(os.getenv("MT5_MAGIC", "260830")),
             deviation=int(os.getenv("MT5_DEVIATION", "20")),
             dry_run=os.getenv("ATLAS_LIVE_TRADING", "false").lower() != "true",
+            real_money_execution=os.getenv("ATLAS_REAL_MONEY_EXECUTION", "false").lower() == "true",
+            real_money_ack=os.getenv("ATLAS_REAL_MONEY_ACK", ""),
         )
 
 
 class MT5ExecutionError(RuntimeError):
     pass
+
+
+def account_type_name(raw_account: Any) -> str:
+    return {0: "DEMO", 1: "CONTEST", 2: "REAL"}.get(
+        int(getattr(raw_account, "trade_mode", -1)),
+        "UNKNOWN",
+    )
 
 
 class MT5Broker:
@@ -68,14 +88,23 @@ class MT5Broker:
             raise MT5ExecutionError(f"MT5 account unavailable: {code}")
 
         self.connected = True
+        account_type = account_type_name(account)
         return {
             "login": int(account.login),
             "server": str(account.server),
+            "account_type": account_type,
             "balance": float(account.balance),
             "equity": float(account.equity),
             "currency": str(account.currency),
             "trade_allowed": bool(account.trade_allowed),
             "live_trading_enabled": not self.config.dry_run,
+            "real_money_execution_enabled": (
+                (not self.config.dry_run)
+                and self.config.real_money_execution
+                and self.config.real_money_ack == REAL_MONEY_ACK
+                and account_type == "REAL"
+                and bool(account.trade_allowed)
+            ),
         }
 
     def disconnect(self) -> None:
@@ -247,6 +276,18 @@ class MT5Broker:
         account = mt5.account_info()
         if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
+        account_type = account_type_name(account)
+        if not self.config.real_money_execution:
+            raise MT5ExecutionError("Real-money execution is disabled. Set ATLAS_REAL_MONEY_EXECUTION=true only after account approval.")
+        if self.config.real_money_ack != REAL_MONEY_ACK:
+            raise MT5ExecutionError(
+                "Real-money acknowledgement is missing. Set ATLAS_REAL_MONEY_ACK to the required acknowledgement value."
+            )
+        if account_type != "REAL":
+            raise MT5ExecutionError(
+                f"Real-money execution requires a REAL MT5 account. Connected account type is {account_type}."
+            )
+
         result = mt5.order_send(request)
         if result is None:
             raise MT5ExecutionError(f"MT5 order_send returned None: {mt5.last_error()}")

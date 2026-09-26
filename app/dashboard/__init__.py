@@ -9,7 +9,7 @@ router.include_router(api_router)
 
 __all__ = ["router", "mt5_state"]
 
-# Compatibility API for the read-only analysis demo. No orders or ledger writes.
+# Compatibility API for the live-demo analysis view. No orders are sent here.
 ATLAS_DEMO_SYMBOLS = ["XAUUSD", "GAS", "XAGUSD", "EURUSD", "XRPUSDT", "SOLUSDT"]
 
 
@@ -88,12 +88,13 @@ def atlas_demo_state(interval="15m", account_balance=10000.0):
     errors = sum(item["status"] == "ERROR" for item in results)
     return {
         "status": "DEMO_READY" if errors < len(results) else "DEMO_UNAVAILABLE",
-        "execution": "disabled",
+        "mode": "LIVE_DEMO",
+        "execution": "execution-gated",
         "results": results,
         "summary": {
             "analyzed": len(results),
             "no_trades": sum(item["status"] == "NO_TRADE" for item in results),
             "errors": errors,
         },
-        "disclaimer": "Read-only analysis, not executed demo trades or verified performance.",
+        "disclaimer": "Live demo analysis. Real-money execution requires the private execution gateway and approved MT5 account.",
     }

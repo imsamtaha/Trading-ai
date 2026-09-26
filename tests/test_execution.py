@@ -1,4 +1,5 @@
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.execution.mt5 import MT5Config, REAL_MONEY_ACK
 
 
 class FakeBroker:
@@ -46,3 +47,27 @@ def test_execution_gate_rejects_high_risk():
     )
     assert approved is False
     assert reason == "RISK_LEVEL_BLOCKED"
+
+
+def test_real_money_execution_requires_live_flag_and_ack(monkeypatch):
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "true")
+    monkeypatch.setenv("ATLAS_REAL_MONEY_EXECUTION", "true")
+    monkeypatch.setenv("ATLAS_REAL_MONEY_ACK", REAL_MONEY_ACK)
+
+    config = MT5Config.from_env()
+
+    assert config.dry_run is False
+    assert config.real_money_execution is True
+    assert config.real_money_ack == REAL_MONEY_ACK
+
+
+def test_real_money_execution_is_off_by_default(monkeypatch):
+    monkeypatch.delenv("ATLAS_LIVE_TRADING", raising=False)
+    monkeypatch.delenv("ATLAS_REAL_MONEY_EXECUTION", raising=False)
+    monkeypatch.delenv("ATLAS_REAL_MONEY_ACK", raising=False)
+
+    config = MT5Config.from_env()
+
+    assert config.dry_run is True
+    assert config.real_money_execution is False
+    assert config.real_money_ack == ""

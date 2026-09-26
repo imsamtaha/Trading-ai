@@ -184,12 +184,16 @@ class MT5CockpitAdapter:
             "status": "CONNECTED" if self.broker.connected else "OFFLINE",
             "mode": "mt5_read_only",
             "risk_profile": {
-                "name": "ATLAS_LOW_RISK_DEMO_VALIDATION",
+                "name": "ATLAS_MT5_EXECUTION_GATE",
                 "default_risk_percent": 0.5,
                 "max_risk_percent": 1.0,
                 "max_position_percent": 15.0,
                 "minimum_risk_reward": 1.5,
-                "real_execution": "disabled",
+                "real_execution": (
+                    "enabled"
+                    if account.get("real_money_execution_enabled", False)
+                    else "disabled"
+                ),
             },
             "asset_groups": ASSET_GROUPS,
             "account": {
@@ -217,5 +221,8 @@ class MT5CockpitAdapter:
                 "status": "connected",
                 "trade_allowed": bool(account.get("trade_allowed", False)),
                 "live_trading_enabled": not self.broker.config.dry_run,
+                "real_money_execution_enabled": bool(
+                    account.get("real_money_execution_enabled", False)
+                ),
             },
         }

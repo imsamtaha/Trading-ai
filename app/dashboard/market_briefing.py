@@ -27,6 +27,11 @@ WALL_STREET_WATCHLIST = (
 
 QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
 HEADLINES_URL = "https://finance.yahoo.com/rss/topstories"
+ARABIC_HEADLINE_FEEDS = (
+    ("https://alikhbariya.net/feeds/topics/economy.xml", "الإخبارية - اقتصاد"),
+    ("https://alikhbariya.net/feeds/topics/markets.xml", "الإخبارية - أسواق"),
+    ("https://alikhbariya.net/feeds/topics/business.xml", "الإخبارية - شركات وأعمال"),
+)
 
 
 def _enabled() -> bool:
@@ -86,10 +91,44 @@ class MarketBriefingService:
             )
         return board
 
-    def headlines(self, limit: int = 6) -> list[dict[str, str]]:
+    def headlines(self, limit: int = 6, language: str = "en") -> list[dict[str, str]]:
+        if language == "ar":
+            return self.arabic_headlines(limit=limit)
+
         response = self._get(HEADLINES_URL)
+        return self._parse_rss_items(
+            response.content,
+            limit=limit,
+            fallback_source="Yahoo Finance",
+        )
+
+    def arabic_headlines(self, limit: int = 6) -> list[dict[str, str]]:
+        stories: list[dict[str, str]] = []
+        per_feed_limit = max(1, min(20, limit))
+
+        for feed_url, source_label in ARABIC_HEADLINE_FEEDS:
+            response = self._get(feed_url)
+            stories.extend(
+                self._parse_rss_items(
+                    response.content,
+                    limit=per_feed_limit,
+                    fallback_source=source_label,
+                )
+            )
+            if len(stories) >= max(1, min(20, limit)):
+                break
+
+        return stories[: max(1, min(20, limit))]
+
+    def _parse_rss_items(
+        self,
+        content: bytes,
+        *,
+        limit: int,
+        fallback_source: str,
+    ) -> list[dict[str, str]]:
         try:
-            root = ElementTree.fromstring(response.content)
+            root = ElementTree.fromstring(content)
         except ElementTree.ParseError as exc:
             raise MarketBriefingError("Market headline feed returned invalid XML.") from exc
 
@@ -107,14 +146,15 @@ class MarketBriefingService:
                         "title": values["title"],
                         "url": values.get("link", ""),
                         "published_at": values.get("pubDate", ""),
-                        "source": "Yahoo Finance",
+                        "source": values.get("source") or fallback_source,
                     }
                 )
             if len(stories) >= max(1, min(20, limit)):
                 break
         return stories
 
-    def briefing(self) -> dict[str, Any]:
+    def briefing(self, language: str = "en") -> dict[str, Any]:
+        language = "ar" if language.lower().startswith("ar") else "en"
         if not _enabled():
             return {
                 "status": "DISABLED",
@@ -132,7 +172,7 @@ class MarketBriefingService:
             board = []
             errors.append("market_board: " + str(exc))
         try:
-            headlines = self.headlines()
+            headlines = self.headlines(language=language)
         except MarketBriefingError as exc:
             headlines = []
             errors.append("headlines: " + str(exc))
@@ -143,7 +183,12 @@ class MarketBriefingService:
             "market_board": board,
             "headlines": headlines,
             "errors": errors,
-            "source": "Yahoo Finance public market data and RSS",
+            "language": language,
+            "source": (
+                "Yahoo Finance public market data and Arabic RSS sources"
+                if language == "ar"
+                else "Yahoo Finance public market data and RSS"
+            ),
             "disclaimer": (
                 "Context only. Public prices and headlines are not ATLAS signals and "
                 "are never used by the execution gate."
@@ -154,5 +199,5 @@ class MarketBriefingService:
 _service = MarketBriefingService()
 
 
-def get_market_briefing() -> dict[str, Any]:
-    return _service.briefing()
+def get_market_briefing(language: str = "en") -> dict[str, Any]:
+    return _service.briefing(language=language)

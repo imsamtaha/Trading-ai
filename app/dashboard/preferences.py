@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+﻿from fastapi import APIRouter
 from fastapi.responses import Response
 
 router = APIRouter()
@@ -31,16 +31,27 @@ const translations={
  'Equity':'حقوق الحساب','Balance':'الرصيد','Floating P/L':'الربح والخسارة غير المحقّقين',
  'Open Positions':'الصفقات المفتوحة','Execution Gate':'حالة التنفيذ',
  'ATLAS Opportunity Matrix':'فرص الأسواق في أطلس','Verified Account':'الحساب المتحقّق منه',
+ 'Subscriptions':'الاشتراكات','Live Asset Viewer':'مراقبة الأصل مباشرة','Asset':'الأصل',
+ 'Live Demo Trading':'التداول التجريبي المباشر','Current Price':'السعر الحالي',
+ 'Buy Demo':'شراء تجريبي','Sell Demo':'بيع تجريبي','Close Demo Position':'إغلاق الصفقة التجريبية',
+ 'No demo position open.':'لا توجد صفقة تجريبية مفتوحة.','Entry':'سعر الدخول','Demo P/L':'الربح والخسارة التجريبية',
+ 'Live prices update from the connected FxPro MT5 demo feed.':'تتحدّث الأسعار مباشرة من حساب FxPro MT5 التجريبي المتصل.',
+ 'Demo only. These controls never submit an order to MT5 or FxPro.':'وضع تجريبي فقط. هذه الأزرار لا ترسل أي أمر إلى MT5 أو FxPro.',
+ 'Live demo telemetry · Demo market viewer · No broker order submission':'بيانات تجريبية مباشرة · مراقبة السوق · من دون إرسال أوامر للوسيط',
+ 'score':'النتيجة','confidence':'الثقة','opportunity':'الفرصة',
+ 'FOREX':'فوركس','METALS':'معادن','INDICES':'مؤشرات','ENERGY':'طاقة',
+ 'ATLAS VERIFIED ACCOUNT':'حساب أطلس المتحقق منه',
  'Wall Street Board · Context only':'لوحة وول ستريت · للسياق فقط',
  'Financial News · Context only':'الأخبار المالية · للسياق فقط',
  'Read-only telemetry. Trading involves risk.':'بيانات للقراءة فقط. التداول ينطوي على مخاطر.',
+ 'Live demo telemetry and execution status. Real-money execution requires an approved REAL account, explicit owner acknowledgement, and broker trade permission. Past or current results do not guarantee future performance.':'بيانات تجريبية مباشرة وحالة التنفيذ. التداول بأموال حقيقية يتطلب حساباً حقيقياً معتمداً وموافقة صريحة وصلاحية تداول من الوسيط. النتائج السابقة أو الحالية لا تضمن الأداء المستقبلي.',
  'Read-only account and strategy telemetry. Past or current results do not guarantee future performance.':'بيانات الحساب والاستراتيجية للقراءة فقط. النتائج السابقة أو الحالية لا تضمن الأداء المستقبلي.',
  'No markets available.':'لا توجد أسواق متاحة.','No open positions.':'لا توجد صفقات مفتوحة.',
  'Market data temporarily unavailable.':'بيانات السوق غير متاحة مؤقتاً.',
  'Financial headlines temporarily unavailable.':'الأخبار المالية غير متاحة مؤقتاً.',
  'Market board unavailable.':'لوحة السوق غير متاحة.','Headlines unavailable.':'الأخبار غير متاحة.',
  'PRIVATE':'خاص','DEMO':'تجريبي','REAL':'حقيقي','UNKNOWN':'غير معروف',
- 'ENABLED':'مفعّل','DISABLED':'معطّل','WAIT':'انتظار','BUY':'شراء','SELL':'بيع',
+ 'ENABLED':'مفعّل','DISABLED':'معطّل','WAIT':'انتظار','BUY':'شراء','SELL':'بيع','LONG':'شراء','SHORT':'بيع','OPEN':'مفتوح','CLOSED':'مغلق',
  'BULLISH':'صاعد','BEARISH':'هابط','NEUTRAL':'محايد','NO_TRADE':'لا صفقة',
  'Manual payment review':'مراجعة الدفع يدوياً',
  'Request your 3-day trial first. Contact support to confirm the start date and payment instructions. Monthly renewals are manual.':'اطلب تجربتك لمدة 3 أيام أولاً. تواصل مع الدعم لتأكيد تاريخ البدء وتعليمات الدفع. التجديد الشهري يدوي.',

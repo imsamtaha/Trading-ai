@@ -55,6 +55,8 @@ async def dashboard_only_guard(request: Request, call_next):
             "/health",
             "/ui/preferences.js",
             "/subscribe",
+            "/subscription/request",
+            "/subscription/mt5-request",
             "/dashboard",
             "/dashboard/",
             "/dashboard/atlas",

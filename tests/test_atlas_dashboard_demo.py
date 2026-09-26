@@ -43,7 +43,7 @@ def test_demo_state_is_resilient_to_symbol_errors(monkeypatch):
     state = dashboard_module.atlas_demo_state()
 
     assert state["status"] == "DEMO_READY"
-    assert state["execution"] == "disabled"
+    assert state["execution"] == "execution-gated"
     assert state["summary"]["analyzed"] == 2
     assert state["summary"]["no_trades"] == 1
     assert state["summary"]["errors"] == 1

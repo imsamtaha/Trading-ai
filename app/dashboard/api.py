@@ -12,7 +12,7 @@ except ImportError:  # pragma: no cover - Windows worker dependency
 from fastapi import APIRouter, HTTPException
 
 from app.dashboard.market_briefing import get_market_briefing
-from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
+from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, account_type_name
 from app.intelligence.confidence import SignalQualityEngine
 from app.risk.engine import RiskScoreEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
@@ -33,11 +33,7 @@ def _mask_login(login: object) -> str:
 
 
 def _account_type(raw_account: Any) -> str:
-    # MT5: 0=demo, 1=contest, 2=real.
-    return {0: "DEMO", 1: "CONTEST", 2: "REAL"}.get(
-        int(getattr(raw_account, "trade_mode", -1)),
-        "UNKNOWN",
-    )
+    return account_type_name(raw_account)
 
 
 def _public_account(account: dict[str, Any], raw_account: Any) -> dict[str, Any]:
@@ -183,8 +179,8 @@ def financial_market_state() -> dict[str, Any]:
 
 
 @router.get("/market-briefing")
-def market_briefing() -> dict[str, Any]:
-    return get_market_briefing()
+def market_briefing(language: str = "en") -> dict[str, Any]:
+    return get_market_briefing(language=language)
 
 
 @router.get("/atlas")
@@ -272,14 +268,11 @@ def atlas_dashboard_state() -> dict[str, Any]:
 
         financial_market = _market_intelligence.snapshot()
         account_type = _account_type(raw_account)
-        execution_enabled = (
-            _env_bool("ATLAS_LIVE_TRADING", False)
-            and bool(account.get("trade_allowed", False))
-        )
+        real_money_ready = bool(account.get("real_money_execution_enabled", False))
         return {
             "status": "ONLINE",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "mode": "LIVE_EXECUTION" if execution_enabled else "READ_ONLY",
+            "mode": "REAL_MONEY_EXECUTION" if real_money_ready else "LIVE_DEMO",
             "account": _public_account(account, raw_account),
             "verified_live_account": account_type == "REAL",
             "symbols": symbols,
@@ -292,11 +285,15 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "services": {
                 "mt5": "ONLINE",
                 "supabase": journal_status,
-                "execution_gate": "ENABLED" if execution_enabled else "DISABLED",
-                "subscriber_access": "READ_ONLY",
+                "execution_gate": "ENABLED" if real_money_ready else "DISABLED",
+                "subscriber_access": "DEMO_VIEW",
                 "financial_markets": financial_market["status"],
+                "real_money_execution": "ENABLED" if real_money_ready else "DISABLED",
             },
-            "disclaimer": "Read-only account and strategy telemetry. Past or current results do not guarantee future performance.",
+            "disclaimer": (
+                "Live demo telemetry and execution status. Real-money execution requires an approved REAL account, "
+                "explicit owner acknowledgement, and broker trade permission. Past or current results do not guarantee future performance."
+            ),
         }
     except MT5ExecutionError as exc:
         raise HTTPException(status_code=503, detail=str(exc))

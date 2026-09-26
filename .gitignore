@@ -5,6 +5,11 @@ venv/
 env/
 node_modules/
 .env
+agents_api_app/.env
+supabase.env
+supabase.env.txt
+OPEN AI API.txt
+*OPEN*AI*API*.txt
 *.db
 *.sqlite
 *.sqlite3

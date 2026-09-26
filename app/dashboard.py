@@ -158,8 +158,8 @@ def atlas_demo_state(interval: str = "1h", account_balance: float = 10_000.0):
 
     return {
         "status": "DEMO_READY",
-        "mode": "live_market_data_paper_trading_demo",
-        "execution": "disabled",
+        "mode": "live_market_data_demo",
+        "execution": "execution-gated",
         "interval": interval,
         "symbols": ATLAS_DEMO_SYMBOLS,
         "summary": {
@@ -208,7 +208,7 @@ DASHBOARD_HTML = r'''<!doctype html>
 </style>
 </head>
 <body><main>
-<div class="top"><div><div class="title">ATLAS ULTIMATE TRADING AI HUB</div><div class="sub">FxPro MT5 read-only cockpit · ATLAS scoring · paper/demo validation</div></div><div class="badge"><span id="systemStatus">CONNECTING</span></div></div>
+<div class="top"><div><div class="title">ATLAS ULTIMATE TRADING AI HUB</div><div class="sub">FxPro MT5 cockpit · ATLAS scoring · live demo validation</div></div><div class="badge"><span id="systemStatus">CONNECTING</span></div></div>
 <div class="grid stats">
 <div class="card"><div class="label">MT5</div><div class="big" id="mt5">—</div></div>
 <div class="card"><div class="label">Account</div><div class="big" id="account">—</div></div>
@@ -222,10 +222,10 @@ DASHBOARD_HTML = r'''<!doctype html>
 <section class="card"><div class="label">Broker Account</div><div id="broker"><div class="muted">Loading account…</div></div></section>
 </div>
 <div class="grid split" style="margin-top:12px">
-<section class="card"><div class="label">ATLAS Demo Decisions</div><div id="demo"><div class="muted">Loading demo analysis…</div></div></section>
+<section class="card"><div class="label">ATLAS Live Demo Decisions</div><div id="demo"><div class="muted">Loading demo analysis…</div></div></section>
 <section class="card"><div class="label">MT5 Positions</div><div id="mt5positions"><div class="muted">Loading positions…</div></div></section>
 </div>
-<div class="muted" style="margin-top:10px">Read-only broker telemetry. Real order execution is disabled.</div>
+<div class="muted" style="margin-top:10px">Live demo broker telemetry. Real-money orders require the private execution gateway and approved account setup.</div>
 </main>
 <script>
 const money=n=>n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});

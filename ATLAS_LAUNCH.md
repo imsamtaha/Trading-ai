@@ -31,7 +31,7 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 ATLAS_STRIPE_PRICE_READER=
 ATLAS_STRIPE_PRICE_TRADER=
-ATLAS_APP_URL=https://your-domain.example
+ATLAS_APP_URL=https://justai-atlas.online
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
@@ -41,7 +41,7 @@ application creates subscription Checkout Sessions with a three-day trial and
 does not force payment method types. Configure the Stripe webhook endpoint as:
 
 ```text
-https://your-domain.example/billing/stripe/webhook
+https://justai-atlas.online/billing/stripe/webhook
 ```
 
 Do not enable automatic tax until the business has the required tax
