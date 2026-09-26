@@ -14,3 +14,4 @@ OPEN AI API.txt
 *.sqlite
 *.sqlite3
 .DS_Store
+.worktrees/
