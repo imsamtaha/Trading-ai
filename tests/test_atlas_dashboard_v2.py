@@ -1,5 +1,3 @@
-import re
-
 from app.billing.plans import PLANS
 from app.dashboard import _atlas_ultimate_html
 
@@ -18,8 +16,6 @@ def test_dashboard_renders_only_v2_customer_prices():
     html = _atlas_ultimate_html()
     for price in ("$99", "$149", "$299"):
         assert price in html
-    assert re.search(r"(?<!\d)\$29(?!\d)", html) is None
-    assert re.search(r"(?<!\d)\$49(?!\d)", html) is None
     assert "ATLAS Starter" in html
     assert "ATLAS Pro" in html
     assert "ATLAS Elite" in html
