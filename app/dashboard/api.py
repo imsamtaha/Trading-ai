@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - Windows worker dependency
 from fastapi import APIRouter, HTTPException
 
 from app.dashboard.market_briefing import get_market_briefing
+from app.data.market import get_candles
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
@@ -21,6 +22,8 @@ from app.strategy.universe import build_universe
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 _market_intelligence = MarketIntelligenceFeed()
+_CHART_SYMBOLS = {"XAUUSD", "XAGUSD", "GAS", "EURUSD", "XRPUSDT", "SOLUSDT"}
+_CHART_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -121,6 +124,29 @@ def _monitor_symbol(
 def financial_market_state() -> dict[str, Any]:
     """Server-side Wall Street board and financial-news snapshot."""
     return _market_intelligence.snapshot()
+
+
+@router.get("/chart-data")
+def chart_data(symbol: str = "XAUUSD", interval: str = "15m", limit: int = 120) -> dict[str, Any]:
+    symbol = symbol.strip().upper()
+    interval = interval.strip().lower()
+    if symbol not in _CHART_SYMBOLS:
+        raise HTTPException(status_code=400, detail="Unsupported chart symbol.")
+    if interval not in _CHART_INTERVALS:
+        raise HTTPException(status_code=400, detail="Unsupported chart interval.")
+    if not 20 <= limit <= 300:
+        raise HTTPException(status_code=400, detail="Chart limit must be between 20 and 300.")
+    try:
+        payload = get_candles(symbol, interval, limit)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Chart data is temporarily unavailable.") from exc
+    return {
+        "symbol": payload.get("symbol", symbol),
+        "interval": payload.get("interval", interval),
+        "count": int(payload.get("count", 0)),
+        "candles": payload.get("candles", []),
+        "source": "ATLAS market data",
+    }
 
 
 @router.get("/market-briefing")
