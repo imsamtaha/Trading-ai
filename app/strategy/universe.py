@@ -49,6 +49,14 @@ CORE_CANONICAL = {
     "GER40": ("INDICES", 2),
     "DE40": ("INDICES", 2),
     "UK100": ("INDICES", 3),
+    "JP225": ("INDICES", 2),
+    "HK50": ("INDICES", 3),
+    "EU50": ("INDICES", 2),
+    "FRA40": ("INDICES", 3),
+    "US2000": ("INDICES", 3),
+    "AUDJPY": ("FOREX", 3),
+    "EURCAD": ("FOREX", 3),
+    "CADJPY": ("FOREX", 3),
     "BTCUSD": ("CRYPTO", 1),
     "BTCUSDT": ("CRYPTO", 1),
     "ETHUSD": ("CRYPTO", 1),
@@ -76,6 +84,10 @@ ALIASES = {
     "SPX500": "US500",
     "DAX40": "GER40",
     "DE40": "GER40",
+    "JAPAN225": "JP225",
+    "HONGKONG50": "HK50",
+    "EURO50": "EU50",
+    "FRANCE40": "FRA40",
 }
 
 

@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from fastapi.responses import Response
 
 router = APIRouter()
@@ -39,6 +39,8 @@ const translations={
  'Demo only. These controls never submit an order to MT5 or FxPro.':'وضع تجريبي فقط. هذه الأزرار لا ترسل أي أمر إلى MT5 أو FxPro.',
  'Live demo telemetry · Demo market viewer · No broker order submission':'بيانات تجريبية مباشرة · مراقبة السوق · من دون إرسال أوامر للوسيط',
  'score':'النتيجة','confidence':'الثقة','opportunity':'الفرصة',
+ 'AI Chart':'الرسم البياني بالذكاء الاصطناعي','AI Trend':'اتجاه الذكاء الاصطناعي','AI Momentum':'زخم الذكاء الاصطناعي',
+ 'AI Signal':'إشارة الذكاء الاصطناعي','AI Confidence':'ثقة الذكاء الاصطناعي','Timeframe':'الإطار الزمني','OBSERVE':'مراقبة',
  'FOREX':'فوركس','METALS':'معادن','INDICES':'مؤشرات','ENERGY':'طاقة',
  'ATLAS VERIFIED ACCOUNT':'حساب أطلس المتحقق منه',
  'Wall Street Board · Context only':'لوحة وول ستريت · للسياق فقط',
