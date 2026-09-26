@@ -31,7 +31,7 @@ const translations={
  'Equity':'حقوق الحساب','Balance':'الرصيد','Floating P/L':'الربح والخسارة غير المحقّقين',
  'Open Positions':'الصفقات المفتوحة','Execution Gate':'حالة التنفيذ',
  'ATLAS Opportunity Matrix':'فرص الأسواق في أطلس','Verified Account':'الحساب المتحقّق منه',
- 'Subscriptions':'الاشتراكات','Live Asset Viewer':'مراقبة الأصل مباشرة','Asset':'الأصل',
+ 'Subscriptions':'الاشتراكات','Continue with Google':'المتابعة باستخدام Google','Email code':'رمز البريد الإلكتروني','Private ATLAS Dashboard':'لوحة أطلس الخاصة','Live Asset Viewer':'مراقبة الأصل مباشرة','Asset':'الأصل',
  'Live Demo Trading':'التداول التجريبي المباشر','Current Price':'السعر الحالي',
  'Buy Demo':'شراء تجريبي','Sell Demo':'بيع تجريبي','Close Demo Position':'إغلاق الصفقة التجريبية',
  'No demo position open.':'لا توجد صفقة تجريبية مفتوحة.','Entry':'سعر الدخول','Demo P/L':'الربح والخسارة التجريبية',

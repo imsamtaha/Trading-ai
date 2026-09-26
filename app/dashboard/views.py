@@ -10,7 +10,6 @@ router = APIRouter(tags=["dashboard"])
 ATLAS_LOGO_B64 = Path(__file__).with_name("atlas_logo.b64").read_text(encoding="utf-8-sig").strip()
 
 
-@router.get("/dashboard", response_class=HTMLResponse)
 def dashboard_view() -> HTMLResponse:
     return HTMLResponse(DASHBOARD_HTML.replace(
         "</body>", '<script src="/ui/preferences.js"></script></body>'))

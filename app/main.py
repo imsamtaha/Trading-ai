@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -23,6 +23,7 @@ from app.dashboard import router as dashboard_router
 from app.subscription import router as subscription_router
 from app.billing import router as billing_router
 from app.dashboard.preferences import router as preferences_router
+from app.auth import router as auth_router
 
 
 app = FastAPI(
@@ -35,6 +36,7 @@ app.include_router(dashboard_router)
 app.include_router(subscription_router)
 app.include_router(billing_router)
 app.include_router(preferences_router)
+app.include_router(auth_router)
 
 
 @app.middleware("http")
@@ -47,31 +49,33 @@ async def dashboard_only_guard(request: Request, call_next):
     """
     import os
 
+    path = request.url.path
+    if path in {"/dashboard/atlas", "/dashboard/mt5-state", "/mt5/cockpit-state"}:
+        return JSONResponse(status_code=403, content={"detail": "Shared MT5 telemetry is disabled."})
+
     dashboard_only = os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true"
     if dashboard_only:
-        path = request.url.path
-        allowed = path.startswith("/billing/") or path in {
-            "/",
-            "/health",
-            "/ui/preferences.js",
-            "/subscribe",
-            "/subscription/request",
-            "/subscription/mt5-request",
-            "/dashboard",
-            "/dashboard/",
-            "/dashboard/atlas",
-            "/dashboard/mt5-state",
-            "/dashboard/market-briefing",
-            "/dashboard/markets",
-            "/mt5/cockpit-state",
-            "/docs",
-            "/openapi.json",
-        } or path.startswith("/billing/")
+        allowed = (
+            path.startswith("/billing/")
+            or path.startswith("/auth/")
+            or path.startswith("/api/")
+            or path in {
+                "/",
+                "/health",
+                "/login",
+                "/logout",
+                "/dashboard",
+                "/app/dashboard",
+                "/ui/preferences.js",
+                "/subscribe",
+                "/subscription/request",
+                "/subscription/mt5-request",
+                "/docs",
+                "/openapi.json",
+            }
+        )
         if not allowed:
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Dashboard-only mode is enabled."},
-            )
+            return JSONResponse(status_code=403, content={"detail": "Dashboard-only mode is enabled."})
     return await call_next(request)
 
 
@@ -95,18 +99,9 @@ def _redact_cockpit_state(state: dict) -> dict:
     return state
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {
-        "system": "ATLAS",
-        "status": "online",
-        "mode": "live_gateway_disabled_by_default",
-        "version": "1.2.0",
-        "subscribe": "/subscribe",
-        "dashboard": "/dashboard",
-        "mt5_cockpit": "/mt5/cockpit-state",
-        "market_briefing": "/dashboard/market-briefing",
-    }
+    return HTMLResponse("<!doctype html><html><body><main><h1>ATLAS</h1><p>Private trading intelligence workspace.</p><a href='/login'>Enter ATLAS</a></main></body></html>")
 
 
 @app.get("/health")
