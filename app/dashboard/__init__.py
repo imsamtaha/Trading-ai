@@ -30,22 +30,22 @@ def _stripe_button(plan: str) -> str:
 
 
 def _atlas_ultimate_html() -> str:
-    watch_stripe = _stripe_button("watch")
-    signals_stripe = _stripe_button("reader")
-    pro_stripe = _stripe_button("pro")
+    starter_stripe = _stripe_button("watch")
+    pro_stripe = _stripe_button("reader")
+    elite_stripe = _stripe_button("pro")
     fxpro_entry = fxpro_entry_card()
     plans = f'''
 <section id="plans" class="card atlas-plans" style="margin-top:18px">
   <div class="label">ATLAS ULTIMATE ACCESS</div>
   <h2 style="font-size:clamp(28px,4vw,48px);margin:8px 0 6px">Choose your intelligence level.</h2>
-  <p class="mini" style="max-width:820px;font-size:13px;line-height:1.6">Choose an ATLAS intelligence subscription for customer access. Stripe and Whish Pay are ATLAS subscription payment methods only; FxPro account funding remains separate. The current trading workspace is LIVE DEMO with real-time MT5 demo data and simulated ATLAS execution.</p>
+  <p class="mini" style="max-width:820px;font-size:13px;line-height:1.6">Choose a paid ATLAS intelligence plan for customer access. Whish Pay and available card checkout are subscription payment methods only; FxPro account funding remains separate. There is no free customer tier.</p>
   <div class="plans-grid">
-    <div class="card plan-card"><div class="label">Market Watch</div><div class="big">$29<span class="mini"> / month</span></div><p class="mini">Live financial news board · Market direction and bias · Market structure · Key levels · Strategy and setup context.</p>{watch_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/watch">Pay with Whish Pay</a></div>
-    <div class="card plan-card" style="border-color:#ff7a1a66"><div class="label">ATLAS Signals</div><div class="big">$49<span class="mini"> / month</span></div><p class="mini">Everything in Market Watch · Manual-execution signals · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.</p>{signals_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/reader">Pay with Whish Pay</a></div>
-    <div class="card plan-card"><div class="label">ATLAS Pro</div><div class="big">$99<span class="mini"> / month</span></div><p class="mini">Everything in Signals · Continuous multi-asset analysis · Opportunity matrix · Risk/position monitoring · Exit and stop alerts · Priority intelligence briefings.</p>{pro_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/pro">Pay with Whish Pay</a></div>
+    <div class="card plan-card"><div class="label">ATLAS Starter</div><div class="big">$99<span class="mini"> / month</span></div><p class="mini">Live market intelligence · AI chart workspace · Editable indicators · Setup context · ATLAS AI question assistant.</p>{starter_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/watch">Pay with Whish Pay</a></div>
+    <div class="card plan-card" style="border-color:#ff7a1a66"><div class="label">ATLAS Pro</div><div class="big">$149<span class="mini"> / month</span></div><p class="mini">Everything in Starter · Live setup and signal overlays · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.</p>{pro_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/reader">Pay with Whish Pay</a></div>
+    <div class="card plan-card"><div class="label">ATLAS Elite</div><div class="big">$299<span class="mini"> / month</span></div><p class="mini">Everything in Pro · Advanced multi-asset analysis · Risk/position monitoring · Exit and stop alerts · Priority intelligence · Advanced AI chart and assistant features.</p>{elite_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/pro">Pay with Whish Pay</a></div>
     <div class="card plan-card"><div class="label">Enterprise</div><div class="big">Custom</div><p class="mini">Manual application and review · Team access · Custom integrations and deployment planning · Commercial quote based on required services.</p><a class="btn ghost atlas-3d" href="mailto:info@justai-atlas.online?subject=ATLAS%20ULTIMATE%20Enterprise%20Application">Apply / Contact CEO</a></div>
   </div>
-  <div class="notice">ATLAS subscription billing is separate from FxPro. Trading funds are never collected by this checkout. The current customer workspace runs in LIVE DEMO mode with simulated ATLAS execution; real-money trading remains off and outcomes are not guaranteed.</div>
+  <div class="notice">ATLAS subscription billing is separate from FxPro. Trading funds are never collected by this checkout. The customer workspace is analysis/demo oriented; real-money trading remains off in the public dashboard and outcomes are not guaranteed.</div>
 </section>
 <style>
 .plans-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}}.plan-card{{display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}}.plan-card:before{{content:"";position:absolute;inset:-80% 45% auto -30%;height:220px;background:radial-gradient(circle,#ff7a1a1f,transparent 68%);pointer-events:none}}.atlas-tech-bg{{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:900px;overflow:hidden}}.atlas-tech-bg:before{{content:"";position:absolute;left:-15%;right:-15%;bottom:-36%;height:72%;transform:rotateX(64deg);transform-origin:center top;background-image:linear-gradient(#ff7a1a14 1px,transparent 1px),linear-gradient(90deg,#91a4bd12 1px,transparent 1px);background-size:58px 58px}}.atlas-tech-bg:after{{content:"";position:absolute;width:560px;height:560px;right:-180px;top:20%;border:1px solid #ff7a1a20;border-radius:50%;box-shadow:0 0 80px #ff7a1a12,inset 0 0 80px #91a4bd0b}}@media(max-width:1180px){{.plans-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.plans-grid{{grid-template-columns:1fr}}}}

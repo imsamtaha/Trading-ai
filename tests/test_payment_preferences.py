@@ -28,7 +28,7 @@ def test_whish_persists_pending_request_without_granting_access(tmp_path, monkey
     c = client()
     result = c.post("/billing/whish/pro/request", json={"email": "a@example.com"}).json()
     assert result["provider"] == "Whish Pay"
-    assert result["amount_usd"] == 99
+    assert result["amount_usd"] == 299
     assert result["status"] == "PENDING_REVIEW"
     assert result["access_granted"] is False
     assert result["automatic_renewal"] is False
