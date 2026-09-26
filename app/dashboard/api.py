@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 try:
@@ -60,8 +60,54 @@ def _public_account(account: dict[str, Any], raw_account: Any) -> dict[str, Any]
         "margin_level": round(margin_level, 2) if show_balance else None,
         "leverage": int(getattr(raw_account, "leverage", 0) or 0),
         "trade_allowed": bool(account.get("trade_allowed", False)),
+        "badge": f"{_account_type(raw_account)} · {str(account.get('server', ''))} · {_mask_login(account.get('login'))}",
     }
 
+
+
+def _pending_orders() -> list[dict[str, Any]]:
+    raw_orders = mt5.orders_get() if mt5 is not None else None
+    items: list[dict[str, Any]] = []
+    for order in raw_orders or ():
+        order_type = int(getattr(order, "type", -1))
+        direction = "BUY" if order_type == int(getattr(mt5, "ORDER_TYPE_BUY", 0)) else "SELL"
+        items.append({
+            "ticket": int(getattr(order, "ticket", 0) or 0),
+            "symbol": str(getattr(order, "symbol", "") or ""),
+            "direction": direction,
+            "volume": float(getattr(order, "volume_initial", 0.0) or 0.0),
+            "price_open": float(getattr(order, "price_open", 0.0) or 0.0),
+            "sl": float(getattr(order, "sl", 0.0) or 0.0),
+            "tp": float(getattr(order, "tp", 0.0) or 0.0),
+            "time": int(getattr(order, "time_setup", 0) or 0),
+        })
+    return items
+
+
+def _recent_trade_history(days: int = 7) -> list[dict[str, Any]]:
+    if mt5 is None:
+        return []
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=max(1, days))
+    raw_deals = mt5.history_deals_get(start, end) or ()
+    items: list[dict[str, Any]] = []
+    for deal in raw_deals:
+        entry = int(getattr(deal, "entry", -1))
+        if entry != int(getattr(mt5, "DEAL_ENTRY_OUT", 1)):
+            continue
+        deal_type = int(getattr(deal, "type", -1))
+        direction = "BUY" if deal_type == int(getattr(mt5, "DEAL_TYPE_BUY", 0)) else "SELL"
+        items.append({
+            "ticket": int(getattr(deal, "ticket", 0) or 0),
+            "position_id": int(getattr(deal, "position_id", 0) or 0),
+            "symbol": str(getattr(deal, "symbol", "") or ""),
+            "direction": direction,
+            "volume": float(getattr(deal, "volume", 0.0) or 0.0),
+            "price": float(getattr(deal, "price", 0.0) or 0.0),
+            "profit": float(getattr(deal, "profit", 0.0) or 0.0),
+            "time": int(getattr(deal, "time", 0) or 0),
+        })
+    return sorted(items, key=lambda item: item["time"], reverse=True)[:50]
 
 def _analysis_tools() -> tuple[dict[str, int], Any, Any]:
     """Load Windows-only MT5 analysis helpers only when the cockpit needs them."""
@@ -234,6 +280,9 @@ def atlas_dashboard_state() -> dict[str, Any]:
                         "error": str(exc),
                     }
                 )
+        pending_orders = _pending_orders()
+        recent_trades = _recent_trade_history(days=7)
+
         public_positions = [
             {
                 "symbol": p["symbol"],
@@ -277,6 +326,8 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "verified_live_account": account_type == "REAL",
             "symbols": symbols,
             "positions": public_positions,
+            "pending_orders": pending_orders,
+            "recent_trades": recent_trades,
             "open_positions": len(positions),
             "floating_position_pnl": round(sum(float(p.get("profit", 0.0) or 0.0) for p in positions), 2),
             "alerts": alerts,
