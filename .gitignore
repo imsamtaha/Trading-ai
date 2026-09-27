@@ -21,3 +21,5 @@ dist/
 .env.*
 !.env.example
 .pytest-tmp*/
+.next/
+web/.next/
