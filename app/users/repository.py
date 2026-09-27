@@ -107,31 +107,31 @@ class SupabaseUserRepository:
         return data[0] if isinstance(data, list) and data else row
 
     def get_or_create_profile(self, user_id: str, email: str | None = None) -> dict[str, Any]:
-        profile = self._select_one("profiles", user_id)
+        profile = self._select_one("atlas_user_profiles", user_id)
         if profile is None:
-            profile = self._upsert("profiles", {"user_id": user_id, "email": email})
-            self._upsert("user_settings", {"user_id": user_id, "language": "en", "theme": "dark"})
-            self._upsert("subscriptions", {"user_id": user_id, "plan": "FREE", "status": "ACTIVE"})
+            profile = self._upsert("atlas_user_profiles", {"user_id": user_id, "email": email})
+            self._upsert("atlas_user_settings", {"user_id": user_id, "language": "en", "theme": "dark"})
+            self._upsert("atlas_user_subscriptions", {"user_id": user_id, "plan": "FREE", "status": "ACTIVE"})
         return profile
 
     def get_user_settings(self, user_id: str) -> dict[str, Any]:
         self.get_or_create_profile(user_id)
-        return self._select_one("user_settings", user_id) or {"user_id": user_id, "language": "en", "theme": "dark"}
+        return self._select_one("atlas_user_settings", user_id) or {"user_id": user_id, "language": "en", "theme": "dark"}
 
     def update_user_settings(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         self.get_or_create_profile(user_id)
         allowed = {key: payload[key] for key in ("language", "theme") if key in payload}
-        return self._upsert("user_settings", {"user_id": user_id, **allowed})
+        return self._upsert("atlas_user_settings", {"user_id": user_id, **allowed})
 
     def get_subscription(self, user_id: str) -> dict[str, Any]:
         self.get_or_create_profile(user_id)
-        return self._select_one("subscriptions", user_id) or {"user_id": user_id, "plan": "FREE", "status": "ACTIVE"}
+        return self._select_one("atlas_user_subscriptions", user_id) or {"user_id": user_id, "plan": "FREE", "status": "ACTIVE"}
 
     def get_mt5_connection(self, user_id: str) -> dict[str, Any] | None:
-        return self._select_one("mt5_demo_connections", user_id)
+        return self._select_one("atlas_user_mt5_demo_connections", user_id)
 
     def set_mt5_connection(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._upsert("mt5_demo_connections", {"user_id": user_id, **payload})
+        return self._upsert("atlas_user_mt5_demo_connections", {"user_id": user_id, **payload})
 
     def clear_mt5_connection(self, user_id: str) -> None:
         response = requests.delete(
