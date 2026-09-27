@@ -2,7 +2,7 @@
 
 ## Current state
 
-The production Cloudflare Tunnel sends `justai-atlas.online` to `http://127.0.0.1:8011` in `C:\Users\KHAT W TELEPHONE\.cloudflared\config.yml`. That process is launched by `ATLAS_Backup/run-atlas-private.ps1` from `.worktrees/atlas-private-multiuser` (branch `feat/atlas-private-multiuser`). At verification on 2026-09-28, port 8011 was not listening after the device interruption, so the old site may be unavailable until its service is restored. No tunnel change has been made.
+The production Cloudflare Tunnel sends `justai-atlas.online` to `http://127.0.0.1:8011` in `C:\Users\KHAT W TELEPHONE\.cloudflared\config.yml`. That process is launched by `ATLAS_Backup/run-atlas-private.ps1` from `.worktrees/atlas-private-multiuser` (branch `feat/atlas-private-multiuser`). After the device interruption, the same private service script was restarted on port 8011. On 2026-09-28, local and public `/health` and `/login` returned 200. No tunnel change has been made.
 
 ## Proposed topology
 
@@ -10,7 +10,7 @@ Run Next.js on `127.0.0.1:3000` and FastAPI on `127.0.0.1:8011` on the same trus
 
 ## Current blocker
 
-The running private FastAPI process intentionally returns 403 for shared `/dashboard/atlas`. This must remain blocked. Its authenticated `/api/user/dashboard` returns 401 without a session and isolates user MT5 demo data. Authenticated `/api/user/chart-data` and `/api/user/market-briefing` are staged on `feat/atlas-private-multiuser` but are not in the running process until a reviewed restart. The private backend currently has no right-hand AI chat route, so the assistant remains unavailable. Daily P/L and risk utilization remain explicit placeholders where the private API has no verified values. A real Google callback and the production session cookie have not been exercised end to end.
+The running private FastAPI process intentionally returns 403 for shared `/dashboard/atlas`. This must remain blocked. Its authenticated `/api/user/dashboard` returns 401 without a session and isolates user MT5 demo data. Authenticated `/api/user/chart-data` and `/api/user/market-briefing` are running after the same private service restart; anonymous requests returned 401 locally and publicly. The private backend currently has no right-hand AI chat route, so the assistant remains unavailable. Daily P/L and risk utilization remain explicit placeholders where the private API has no verified values. A real Google callback and the production session cookie have not been exercised end to end.
 
 ## Gate before routing
 
