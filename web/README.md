@@ -24,4 +24,4 @@ npm run lint
 npm run start
 ```
 
-The `/login` page serves the existing Google/Supabase auth bundle from `web/assets/google-auth.js` through a same-origin Next route. The root OAuth callback redirects to `/login` with its query preserved. Its session and OAuth callback behavior stay in that bundle. Sign-in alone does not authorize trading. See `docs/deployment/atlas-webapp.md` for routing and rollback.
+The `/login` page reads the private backend's public `/auth/config` and uses Supabase for Google sign-in and email OTP. If `GOOGLE_CLIENT_ID` is set, it uses Google ID tokens; otherwise it uses Supabase Google OAuth with the existing `/?auth=callback` return. After Supabase returns an access token, `/auth/session` verifies it server-side and sets an HttpOnly cookie. Account telemetry is read only from authenticated `/api/user/dashboard`; chart and market briefing use authenticated `/api/user/...` routes. Sign-in alone does not authorize trading. See `docs/deployment/atlas-webapp.md` for routing and rollback.

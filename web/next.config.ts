@@ -4,13 +4,19 @@ if (!/^https?:\/\/[^/]+$/.test(origin)) throw new Error("ATLAS_BACKEND_ORIGIN mu
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   async redirects() {
-    return [{ source: "/", has: [{ type: "query" as const, key: "auth", value: "callback" }], destination: "/login", permanent: false }];
+    return [
+      { source: "/", has: [{ type: "query" as const, key: "auth", value: "callback" }], destination: "/login", permanent: false },
+      { source: "/app/dashboard", destination: "/dashboard", permanent: false },
+    ];
   },
   async rewrites() {
     return [
-      "/health", "/dashboard/atlas", "/dashboard/chart-data",
-      "/dashboard/market-briefing", "/agent/right-hand/chat",
-    ].map((path) => ({ source: `/backend${path}`, destination: `${origin}${path}` }));
+      "/health", "/api/user/dashboard", "/api/user/chart-data",
+      "/api/user/market-briefing", "/auth/config", "/auth/session",
+      "/auth/callback", "/logout",
+    ].map((path) => ({ source: `/backend${path}`, destination: `${origin}${path}` })).concat([
+      { source: "/auth/session", destination: `${origin}/auth/session` },
+    ]);
   },
 };
 export default nextConfig;

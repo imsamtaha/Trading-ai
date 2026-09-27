@@ -3,7 +3,9 @@ import { getMarketBriefing } from "@/lib/api/briefing";
 afterEach(() => vi.unstubAllGlobals());
 describe("market briefing", () => {
   it("maps backend headline titles without inventing data", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({headlines:[{title_en:"Rates update",url:"https://example.com/news"},{}]}),{status:200})));
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({headlines:[{title_en:"Rates update",url:"https://example.com/news"},{}]}),{status:200}));
+    vi.stubGlobal("fetch", fetcher);
     expect(await getMarketBriefing()).toEqual([{ title:"Rates update", url:"https://example.com/news" }]);
+    expect(fetcher.mock.calls[0][0]).toBe("/backend/api/user/market-briefing");
   });
 });

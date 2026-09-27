@@ -13,11 +13,12 @@ describe("live FastAPI adapter", () => {
     expect(state.markets[0].symbol).toBe("XAUUSD");
     expect(state.risk.overall).toBeNull();
   });
-  it("uses the real dashboard endpoint", async () => {
-    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({status:"ONLINE",account:{balance:21}}),{status:200}));
+  it("uses the authenticated user dashboard endpoint", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({mt5:{connected:true,account:{account_masked:"***1234",balance:21}}}),{status:200}));
     vi.stubGlobal("fetch", fetcher);
     expect((await getDashboardState()).account.balance).toBe(21);
-    expect(fetcher.mock.calls[0][0]).toBe("/backend/dashboard/atlas");
+    expect(fetcher.mock.calls[0][0]).toBe("/backend/api/user/dashboard");
+    expect(fetcher.mock.calls[0][1].credentials).toBe("same-origin");
   });
   it("sends the actual request key and rejects missing assistant answers", async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({message:"Context only"}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({result:{}}),{status:200}));
@@ -30,7 +31,7 @@ describe("live FastAPI adapter", () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({candles:[]}),{status:200}));
     vi.stubGlobal("fetch", fetcher);
     await getCandles("XAUUSD","15m");
-    expect(fetcher.mock.calls[0][0]).toBe("/backend/dashboard/chart-data?symbol=XAUUSD&interval=15m&limit=120");
+    expect(fetcher.mock.calls[0][0]).toBe("/backend/api/user/chart-data?symbol=XAUUSD&interval=15m&limit=120");
   });
   it("normalizes FastAPI open_time milliseconds into chart seconds", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({candles:[{open_time:1700000000000,open:1,high:2,low:1,close:2}]}),{status:200})));

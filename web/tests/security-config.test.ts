@@ -6,5 +6,11 @@ describe("browser-facing deployment config", () => {
     const example = readFileSync(resolve(process.cwd(), ".env.example"), "utf8");
     expect(example).toContain("ATLAS_BACKEND_ORIGIN=");
     expect(example).not.toMatch(/NEXT_PUBLIC_.*(?:SECRET|PASSWORD|TOKEN|KEY)/i);
+    const config = readFileSync(resolve(process.cwd(), "next.config.ts"), "utf8");
+    expect(config).toContain('"/api/user/dashboard"');
+    expect(config).toContain('"/api/user/chart-data"');
+    expect(config).toContain('"/api/user/market-briefing"');
+    expect(config).toContain('"/auth/session"');
+    expect(config).not.toContain('"/dashboard/atlas"');
   });
 });

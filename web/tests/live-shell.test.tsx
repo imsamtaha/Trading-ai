@@ -6,7 +6,7 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 describe("live dashboard availability", () => {
   it("shows degraded when health succeeds but account telemetry is absent", async () => {
     vi.stubGlobal("fetch", vi.fn((path: string) => Promise.resolve(json(
-      path.endsWith("/health") ? { status: "healthy" } : path.includes("chart-data") ? { candles: [] } : { status: "ONLINE" }
+      path.endsWith("/health") ? { status: "healthy" } : path.includes("chart-data") ? { candles: [] } : { mt5: { connected: false } }
     ))));
     render(<AtlasAppShell />);
     await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
@@ -16,7 +16,7 @@ describe("live dashboard availability", () => {
     let reads = 0;
     vi.stubGlobal("fetch", vi.fn((path: string) => {
       if (path.endsWith("/health")) return Promise.resolve(json({status:"healthy"}));
-      if (path.includes("/dashboard/atlas")) return Promise.resolve(++reads === 1 ? json({status:"ONLINE",account:{login:"***1234",balance:500}}) : json({detail:"down"},503));
+      if (path.includes("/api/user/dashboard")) return Promise.resolve(++reads === 1 ? json({mt5:{connected:true,account:{account_masked:"***1234",balance:500}}}) : json({detail:"down"},503));
       return Promise.resolve(json({candles:[],headlines:[]}));
     }));
     render(<AtlasAppShell refreshMs={1000} />);
@@ -25,7 +25,7 @@ describe("live dashboard availability", () => {
     expect(screen.queryByText("500.00")).not.toBeInTheDocument();
   });
   it("leaves checking when account request never resolves", async () => {
-    vi.stubGlobal("fetch", vi.fn((path: string) => path.includes("/dashboard/atlas") ? new Promise(() => {}) : Promise.resolve(json(path.endsWith("/health") ? {status:"healthy"} : {candles:[],headlines:[]}))));
+    vi.stubGlobal("fetch", vi.fn((path: string) => path.includes("/api/user/dashboard") ? new Promise(() => {}) : Promise.resolve(json(path.endsWith("/health") ? {status:"healthy"} : {candles:[],headlines:[]}))));
     render(<AtlasAppShell timeoutMs={30} />);
     await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
   });

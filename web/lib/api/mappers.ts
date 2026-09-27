@@ -19,6 +19,19 @@ export function mapDashboardState(input: unknown): DashboardViewModel {
     positions: mapPositions(root.positions), markets, signals, activity,
   };
 }
+export function mapPrivateDashboardState(input: unknown): DashboardViewModel {
+  const mt5 = obj(obj(input).mt5);
+  if (mt5.connected !== true) return mapDashboardState({ status: "OFFLINE" });
+  const account = obj(mt5.account);
+  const state = mapDashboardState({
+    status: "ONLINE",
+    account: { login: account.account_masked, account_type: account.account_type, balance: account.balance, equity: account.equity, floating_profit: mt5.floating_position_pnl },
+    positions: mt5.positions,
+    markets: mt5.symbols,
+  });
+  return state.account.id ? state : mapDashboardState({ status: "OFFLINE" });
+}
+
 export function mapPositions(input: unknown): Position[] {
   if (!Array.isArray(input)) return [];
   return input.map(obj).filter((p) => typeof p.symbol === "string").map((p) => ({ symbol: String(p.symbol), direction: str(p.direction) ?? undefined, size: num(p.size ?? p.volume), entry: num(p.entry ?? p.entry_price ?? p.price_open), current: num(p.current ?? p.current_price), pnl: num(p.pnl ?? p.profit), stopLoss: num(p.stop_loss ?? p.stopLoss ?? p.sl), takeProfit: num(p.take_profit ?? p.takeProfit ?? p.tp), status: str(p.status) ?? undefined }));

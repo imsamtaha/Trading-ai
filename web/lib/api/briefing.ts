@@ -2,7 +2,7 @@ import { atlasFetch } from "./client";
 import { apiPath } from "./config";
 export type Headline = { title: string; url: string | null };
 export async function getMarketBriefing(): Promise<Headline[]> {
-  const raw = await atlasFetch<{ headlines?: unknown }>(apiPath("/dashboard/market-briefing"), { cache: "no-store" });
+  const raw = await atlasFetch<{ headlines?: unknown }>(apiPath("/api/user/market-briefing"), { cache: "no-store", credentials: "same-origin" });
   if (!Array.isArray(raw?.headlines)) return [];
   return raw.headlines.flatMap((item: unknown) => {
     if (!item || typeof item !== "object") return [];
