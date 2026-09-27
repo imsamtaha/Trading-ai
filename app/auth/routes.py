@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
-from app.auth.supabase_auth import require_user, verify_access_token
+from app.auth.supabase_auth import require_user, verify_access_token, supabase_publishable_key
 
 router = APIRouter(tags=["auth"])
 
@@ -19,7 +19,7 @@ class SessionPayload(BaseModel):
 def _public_auth_config() -> dict[str, str]:
     return {
         "url": os.getenv("SUPABASE_URL", "").strip(),
-        "anon_key": os.getenv("SUPABASE_ANON_KEY", "").strip(),
+        "anon_key": supabase_publishable_key(),
     }
 
 

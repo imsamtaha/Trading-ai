@@ -6,6 +6,8 @@ from typing import Any
 
 import requests
 
+from app.auth.supabase_auth import current_access_token, supabase_publishable_key
+
 
 class UserRepositoryError(RuntimeError):
     pass
@@ -68,14 +70,14 @@ class MemoryUserRepository:
 class SupabaseUserRepository:
     def __init__(self) -> None:
         self.base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-        if not self.base_url or not self.service_role_key:
+        self.publishable_key = supabase_publishable_key()
+        if not self.base_url or not self.publishable_key:
             raise UserRepositoryError("Supabase user persistence is not configured.")
 
     def _headers(self, prefer: str = "return=representation") -> dict[str, str]:
         return {
-            "apikey": self.service_role_key,
-            "Authorization": f"Bearer {self.service_role_key}",
+            "apikey": self.publishable_key,
+            "Authorization": f"Bearer {current_access_token()}",
             "Content-Type": "application/json",
             "Prefer": prefer,
         }

@@ -55,3 +55,20 @@ def test_valid_token_resolves_expected_user(monkeypatch):
     assert user.user_id == "user-123"
     assert user.email == "user@example.com"
 
+
+
+def test_production_token_verification_uses_supabase_user_endpoint(monkeypatch):
+    import app.auth.supabase_auth as auth
+    monkeypatch.delenv("SUPABASE_JWT_SECRET", raising=False)
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_test_public_key")
+
+    class Response:
+        ok = True
+        def json(self):
+            return {"id": "user-live", "email": "live@example.com"}
+
+    monkeypatch.setattr(auth.requests, "get", lambda *args, **kwargs: Response())
+    user = auth.verify_access_token("live-access-token")
+    assert user.user_id == "user-live"
+    assert user.email == "live@example.com"
