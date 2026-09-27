@@ -140,3 +140,28 @@ class SupabaseUserRepository:
         )
         if not response.ok:
             raise UserRepositoryError("Supabase delete failed for mt5_demo_connections.")
+
+    def add_executive_event(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        row = {"user_id": user_id, **payload}
+        response = requests.post(
+            f"{self.base_url}/rest/v1/demo_executive_events",
+            headers=self._headers("return=representation"),
+            json=row,
+            timeout=10,
+        )
+        if not response.ok:
+            raise UserRepositoryError("Supabase insert failed for demo_executive_events.")
+        data = response.json()
+        return data[0] if isinstance(data, list) and data else row
+
+    def list_executive_events(self, user_id: str) -> list[dict[str, Any]]:
+        response = requests.get(
+            f"{self.base_url}/rest/v1/demo_executive_events",
+            headers=self._headers(),
+            params={"user_id": f"eq.{user_id}", "order": "created_at.desc", "limit": "100"},
+            timeout=10,
+        )
+        if not response.ok:
+            raise UserRepositoryError("Supabase read failed for demo_executive_events.")
+        data = response.json()
+        return data if isinstance(data, list) else []
