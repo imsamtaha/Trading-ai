@@ -12,6 +12,8 @@ from app.billing.plans import PLANS
 
 router = APIRouter(tags=["subscription"])
 
+LEGACY_PLAN_ALIASES = {"signals": "starter", "execution": "pro"}
+
 
 class AccessRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
@@ -35,8 +37,9 @@ def subscribe() -> HTMLResponse:
 @router.post("/subscription/request")
 def request_access(payload: AccessRequest) -> dict:
     plan = payload.plan.lower().strip()
-    if plan not in PLANS:
-        raise HTTPException(status_code=400, detail="Choose signals or execution.")
+    canonical_plan = LEGACY_PLAN_ALIASES.get(plan, plan)
+    if canonical_plan not in PLANS:
+        raise HTTPException(status_code=400, detail="Choose free, starter, pro, or elite.")
 
     email = payload.email.strip().lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
@@ -47,7 +50,7 @@ def request_access(payload: AccessRequest) -> dict:
         "name": payload.name.strip()[:120],
         "email": email,
         "plan": plan,
-        "amount_usd": PLANS[plan].monthly_price,
+        "amount_usd": PLANS[canonical_plan].monthly_price,
         "status": "PENDING_REVIEW",
         "payment_required_now": True,
         "access_granted": False,
@@ -135,18 +138,18 @@ a{color:#ff8a24}
 #result,#mt5-result{margin-top:12px;min-height:24px}
 @media(max-width:720px){.grid{grid-template-columns:1fr}}
 </style>
-<body><main><p style="color:#ff8a24;font-weight:900">ATLAS THE ULTIMATE</p><h1>Choose your Whish subscription</h1>
-<p>ATLAS now has two manual Whish subscription methods. The $99 plan sends signals. The $149 plan executes approved signals after account approval and safety-gate setup.</p>
-<section class="hero"><h2>Whish payment only</h2><p class="muted">Payment requests are reviewed manually. A request or receipt does not activate access until the owner approves it.</p>
-<a class="btn big" href="/billing/whish/signals">PAY $99 WITH WHISH - SIGNALS</a>
-<a class="btn big" href="/billing/whish/execution">PAY $149 WITH WHISH - EXECUTION</a></section>
-<div class="grid"><section class="card"><h2>ATLAS Signals</h2><div class="price">$99<small>/month</small></div><p class="muted">ATLAS sends trade signals with market context, risk notes, and dashboard access. You decide whether to place each trade.</p><a class="btn" href="/billing/whish/signals">Request $99 Whish payment</a></section>
-<section class="card"><h2>ATLAS Execution</h2><div class="price">$149<small>/month</small></div><p class="muted">ATLAS executes approved signals after MT5/account approval, safety-gate setup, and manual activation by the owner.</p><a class="btn" href="/billing/whish/execution">Request $149 Whish payment</a></section></div>
-<section class="form"><h2>Subscription request</h2><p class="muted">Choose one of the two Whish subscription methods. No Stripe prices are used here.</p>
+<body><main><p style="color:#ff8a24;font-weight:900">ATLAS THE ULTIMATE</p><h1>Choose your ATLAS plan</h1>
+<p>ATLAS accounts are private by default. Paid plans add analytics and demo-only simulation; no plan submits real-money broker orders.</p>
+<section class="hero"><a class="btn big" href="/login">FREE ACCOUNT - ENTER ATLAS</a><h2>Private ATLAS accounts</h2><p class="muted">Payment requests are reviewed manually. A request or receipt does not activate access until the owner approves it.</p>
+<a class="btn big" href="/billing/whish/starter">PAY $99 WITH WHISH - STARTER</a>
+<a class="btn big" href="/billing/whish/pro">PAY $149 WITH WHISH - PRO</a></section>
+<div class="grid"><section class="card"><h2>ATLAS Starter</h2><div class="price">$99<small>/month</small></div><p class="muted">Private MT5 Demo dashboard, AI context, alerts, and read-only account telemetry.</p><a class="btn" href="/billing/whish/starter">Request $99 Whish payment</a></section>
+<section class="card"><h2>ATLAS Pro</h2><div class="price">$149<small>/month</small></div><p class="muted">ATLAS adds private demo-only simulation and expanded analytics. No broker orders are submitted.</p><a class="btn" href="/billing/whish/pro">Request $149 Whish payment</a></section><section class="card"><h2>ATLAS Elite</h2><div class="price">$299<small>/month</small></div><p class="muted">Advanced monitoring, expanded history, and premium support. Demo/read-only broker boundary remains unchanged.</p><a class="btn" href="/billing/whish/elite">Request $299 Whish payment</a></section></div>
+<section class="form"><h2>Subscription request</h2><p class="muted">FREE accounts start at login. Paid upgrades use manual Whish review.</p>
 <form id="access-form">
 <label>Name</label><input name="name" autocomplete="name" required placeholder="Trader name">
 <label>Email</label><input name="email" type="email" autocomplete="email" required placeholder="trader@example.com">
-<label>Subscription</label><select name="plan"><option value="signals">ATLAS Signals - $99/month - sends signals</option><option value="execution">ATLAS Execution - $149/month - executes approved signals</option></select>
+<label>Subscription</label><select name="plan"><option value="starter">ATLAS Starter - $99/month</option><option value="pro">ATLAS Pro - $149/month</option><option value="elite">ATLAS Elite - $299/month</option></select>
 <button type="submit">Create subscription request</button></form><div id="result" role="status" aria-live="polite"></div>
 <p class="muted">Do not send your main FxPro trading password on this page. Execution setup must use the approved private onboarding path.</p></section>
 <section class="form" id="fxpro-mt5"><h2>FxPro / MT5 entrance</h2>

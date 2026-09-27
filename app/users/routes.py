@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
 from app.auth.supabase_auth import require_user
+from app.billing.plans import access_for_plan
 from app.users.repository import MemoryUserRepository, SupabaseUserRepository, UserRepositoryError
 
 router = APIRouter(tags=["users"])
@@ -61,5 +62,6 @@ def user_dashboard(request: Request) -> dict[str, Any]:
     return {
         "user": {"user_id": user.user_id, "email": user.email},
         "plan": str(subscription.get("plan", "FREE")).upper(),
+        "features": access_for_plan(subscription.get("plan", "FREE")),
         "mt5": mt5_service().get_dashboard_state(user.user_id),
     }

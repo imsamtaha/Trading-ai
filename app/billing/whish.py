@@ -14,6 +14,8 @@ from app.billing.plans import PLANS
 
 router = APIRouter(prefix="/billing/whish", tags=["billing"])
 
+LEGACY_PLAN_ALIASES = {"signals": "starter", "execution": "pro"}
+
 
 def settings():
     recipient = os.getenv("ATLAS_WHISH_RECIPIENT", "").strip()
@@ -32,7 +34,8 @@ class PaymentRequest(BaseModel):
 
 @router.post("/{plan_id}/request")
 def request_payment(plan_id: str, body: PaymentRequest):
-    if plan_id not in PLANS:
+    canonical_plan_id = LEGACY_PLAN_ALIASES.get(plan_id, plan_id)
+    if canonical_plan_id not in PLANS or canonical_plan_id == "free":
         raise HTTPException(404, "Unknown subscription plan.")
     config = settings()
     if not config["available"]:
@@ -40,7 +43,7 @@ def request_payment(plan_id: str, body: PaymentRequest):
     email = body.email.strip().lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(422, "Enter a valid email address.")
-    plan = PLANS[plan_id]
+    plan = PLANS[canonical_plan_id]
     reference = "ATLAS-" + secrets.token_hex(12).upper()
     path = Path(os.getenv("ATLAS_WHISH_DB", "data/whish_requests.sqlite3"))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -70,9 +73,10 @@ def request_payment(plan_id: str, body: PaymentRequest):
 
 @router.get("/{plan_id}", response_class=HTMLResponse)
 def payment_page(plan_id: str):
-    if plan_id not in PLANS:
+    canonical_plan_id = LEGACY_PLAN_ALIASES.get(plan_id, plan_id)
+    if canonical_plan_id not in PLANS or canonical_plan_id == "free":
         raise HTTPException(404, "Unknown subscription plan.")
-    plan = PLANS[plan_id]
+    plan = PLANS[canonical_plan_id]
     feature_items = "".join(f"<li>{feature}</li>" for feature in plan.features)
     config = settings()
     phone = escape(config["phone"])
@@ -110,7 +114,7 @@ a{color:#ff8a24}dt{margin-top:12px}dd{margin:4px 0;overflow-wrap:anywhere}.paybo
 <body><main><h1>Whish Money</h1><p>Manual payment review</p>
 <h2>__PLAN_NAME__ - $__PLAN_PRICE__/month</h2>
 <ul>__PLAN_FEATURES__</ul>
-<p>ATLAS Signals ($99) sends the signals to the trader. ATLAS Execution ($149) executes approved signals after account approval, safety-gate setup, and manual owner activation.</p>
+<p>ATLAS paid plans add private analytics and demo-only simulation. No plan submits real-money broker orders.</p>
 <section class="paybox"><h2>Send payment</h2>
 __WHISH_PHONE_BLOCK__
 __WHISH_QR_BLOCK__

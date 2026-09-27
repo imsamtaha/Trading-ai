@@ -41,16 +41,16 @@ def test_whish_persists_pending_request_without_granting_access(tmp_path, monkey
 def test_preferences_on_all_pages_and_whish_subscription_methods():
     assert b"/ui/preferences.js" in dashboard_view().body
     page = subscribe().body
-    assert b"ATLAS Signals" in page and b"$99" in page
-    assert b"ATLAS Execution" in page and b"$149" in page
-    assert b"sends trade signals" in page
-    assert b"executes approved signals" in page
-    assert b"/billing/whish/signals" in page and b"/billing/whish/execution" in page
-    assert b"/billing/whish/reader" not in page and b"/billing/whish/pro" not in page
+    assert b"FREE ACCOUNT" in page and b"/login" in page
+    assert b"ATLAS Starter" in page and b"$99" in page
+    assert b"ATLAS Pro" in page and b"$149" in page
+    assert b"ATLAS Elite" in page and b"$299" in page
+    assert b"No broker orders are submitted" in page
+    assert b"/billing/whish/starter" in page and b"/billing/whish/pro" in page and b"/billing/whish/elite" in page
     c = client()
-    whish_page = c.get("/billing/whish/execution").text
+    whish_page = c.get("/billing/whish/pro").text
     assert "$149/month" in whish_page
-    assert "executes approved signals" in whish_page
+    assert "No plan submits real-money broker orders" in whish_page
     assert "/ui/preferences.js" in whish_page
     script = c.get("/ui/preferences.js")
     assert script.status_code == 200
@@ -64,15 +64,15 @@ def test_subscription_request_records_selected_whish_plan(tmp_path, monkeypatch)
 
     result = c.post(
         "/subscription/request",
-        json={"name": "Test Trader", "email": "trader@example.com", "plan": "execution"},
+        json={"name": "Test Trader", "email": "trader@example.com", "plan": "pro"},
     )
 
     assert result.status_code == 200
     payload = result.json()
     assert payload["status"] == "PENDING_REVIEW"
-    assert payload["whish_url"] == "/billing/whish/execution"
+    assert payload["whish_url"] == "/billing/whish/pro"
     stored = requests_file.read_text(encoding="utf-8")
-    assert '"plan": "execution"' in stored
+    assert '"plan": "pro"' in stored
     assert '"amount_usd": 149' in stored
     assert '"payment_required_now": true' in stored
 
