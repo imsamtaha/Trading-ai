@@ -10,8 +10,8 @@ export function mapDashboardState(input: unknown): DashboardViewModel {
   const symbols = Array.isArray(root.symbols) ? root.symbols.map(obj) : [];
   const rawMarkets = Array.isArray(root.markets) ? root.markets.map(obj) : symbols;
   const markets = rawMarkets.map((m) => ({ symbol: str(m.symbol) ?? "", price: num(m.price), changePct: num(m.change_pct ?? m.changePct) })).filter((m) => m.symbol);
-  const signals = symbols.map((s) => ({ symbol: str(s.symbol) ?? "", direction: str(obj(s.decision).decision) ?? "UNKNOWN", confidence: num(obj(s.quality).execution_confidence), rationale: str(obj(s.decision).rationale), riskWarning: str(obj(s.quality).risk_warning), timestamp: str(root.timestamp) })).filter((s) => s.symbol && ["BUY","SELL"].includes(s.direction));
-  const activity = Array.isArray(root.alerts) ? root.alerts.map(obj).map((a) => ({ message: str(a.message) ?? "", timestamp: str(a.timestamp ?? root.timestamp) })).filter((a) => a.message) : [];
+  const signals = symbols.map((s) => ({ symbol: str(s.symbol) ?? "", direction: str(obj(s.decision).decision) ?? "UNKNOWN", confidence: num(obj(s.quality).execution_confidence), rationale: str(obj(s.decision).rationale), riskWarning: str(obj(s.quality).risk_warning), timestamp: str(s.timestamp) })).filter((s) => s.symbol && ["BUY","SELL"].includes(s.direction));
+  const activity = Array.isArray(root.alerts) ? root.alerts.map(obj).map((a) => ({ message: str(a.message) ?? "", timestamp: str(a.timestamp) })).filter((a) => a.message) : [];
   return {
     connection,
     account: { id: str(account.login ?? account.id), mode: str(account.account_type ?? account.mode ?? root.mode), balance: num(account.balance), equity: num(account.equity), floatingPnl: num(account.floating_profit ?? account.floating_pnl ?? account.floatingPnl), dailyPnl: num(account.daily_pnl ?? account.dailyPnl), marginFree: num(account.margin_free ?? account.marginFree) },

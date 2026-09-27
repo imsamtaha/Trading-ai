@@ -1,6 +1,10 @@
 import type { Candle } from "@/lib/api/types";
 
 export type TradeLevels = { entry?: number | null; stopLoss?: number | null; takeProfit?: number | null };
+export function formatOhlc(candle: Candle): string {
+  return `O ${candle.open} · H ${candle.high} · L ${candle.low} · C ${candle.close}`;
+}
+
 export type PriceLine = { title: "Entry" | "Stop" | "Target"; price: number };
 
 export function normalizeCandles(candles: Candle[]): Candle[] {

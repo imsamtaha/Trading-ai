@@ -134,3 +134,9 @@ a { color: inherit; text-decoration: none; }
 .atlas-login-note { font-size:.72rem!important; }
 @media(max-width:1100px) { .atlas-workspace-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .atlas-assistant { grid-column:1/-1; } }
 @media(max-width:760px) { .atlas-workspace-grid,.atlas-login { grid-template-columns:1fr; } .atlas-assistant { grid-column:auto; } .atlas-login-art { display:none; } .atlas-dashboard-header { flex-wrap:wrap; } .atlas-login { padding:18px; } .atlas-chart-toolbar select { max-width:100%; } }
+
+.atlas-login-card button[hidden] { display:none; }
+
+.atlas-chart-context { color:var(--atlas-orange); font-size:.82rem; margin:4px 0 10px; }
+.atlas-chart-levels { display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 12px; }
+.atlas-chart-levels span { border:1px solid var(--atlas-border); border-radius:8px; padding:6px 9px; color:var(--atlas-muted); font-size:.74rem; }

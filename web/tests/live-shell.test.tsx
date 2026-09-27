@@ -2,13 +2,31 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AtlasAppShell } from "@/app/atlas-app-shell";
 afterEach(() => vi.unstubAllGlobals());
+const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 describe("live dashboard availability", () => {
   it("shows degraded when health succeeds but account telemetry is absent", async () => {
-    vi.stubGlobal("fetch", vi.fn((path: string) => Promise.resolve(new Response(JSON.stringify(
+    vi.stubGlobal("fetch", vi.fn((path: string) => Promise.resolve(json(
       path.endsWith("/health") ? { status: "healthy" } : path.includes("chart-data") ? { candles: [] } : { status: "ONLINE" }
-    ), { status: 200 }))));
+    ))));
     render(<AtlasAppShell />);
     await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
     expect(screen.getByText("Backend offline")).toBeInTheDocument();
+  });
+  it("clears connected account data after a later failed refresh", async () => {
+    let reads = 0;
+    vi.stubGlobal("fetch", vi.fn((path: string) => {
+      if (path.endsWith("/health")) return Promise.resolve(json({status:"healthy"}));
+      if (path.includes("/dashboard/atlas")) return Promise.resolve(++reads === 1 ? json({status:"ONLINE",account:{login:"***1234",balance:500}}) : json({detail:"down"},503));
+      return Promise.resolve(json({candles:[],headlines:[]}));
+    }));
+    render(<AtlasAppShell refreshMs={1000} />);
+    await waitFor(() => expect(screen.getByText("500.00")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
+    expect(screen.queryByText("500.00")).not.toBeInTheDocument();
+  });
+  it("leaves checking when account request never resolves", async () => {
+    vi.stubGlobal("fetch", vi.fn((path: string) => path.includes("/dashboard/atlas") ? new Promise(() => {}) : Promise.resolve(json(path.endsWith("/health") ? {status:"healthy"} : {candles:[],headlines:[]}))));
+    render(<AtlasAppShell timeoutMs={30} />);
+    await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
   });
 });

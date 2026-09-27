@@ -15,6 +15,13 @@ describe("DashboardScreen", () => {
     expect(screen.getByRole("link", { name: "Rates update" })).toHaveAttribute("href", "https://example.com/news");
   });
 
+  it("shows chart levels only for the selected matching position", () => {
+    const { rerender } = render(<DashboardScreen state={DASHBOARD_FIXTURE} symbol="BTCUSDT" />);
+    expect(screen.getByText("Entry 66,420")).toBeInTheDocument();
+    rerender(<DashboardScreen state={DASHBOARD_FIXTURE} symbol="XAUUSD" />);
+    expect(screen.queryByText("Entry 66,420")).not.toBeInTheDocument();
+  });
+
   it("renders explicit offline placeholders", () => {
     render(<DashboardScreen state={{ ...DASHBOARD_FIXTURE, connection: "offline", account: { ...DASHBOARD_FIXTURE.account, balance: null } }} />);
     expect(screen.getByText("Backend offline")).toBeInTheDocument();

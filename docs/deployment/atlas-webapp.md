@@ -10,7 +10,7 @@ Run Next.js on `127.0.0.1:3000` and FastAPI on `127.0.0.1:8011` on the same trus
 
 ## Current blocker
 
-As verified locally on 2026-09-27, the running server at port 8011 returns 200 for `/health`, but 403 for `/dashboard/atlas` and `/dashboard/chart-data`. Next must show a degraded account state until this access boundary is understood and the intended account data policy is configured. Do not weaken FastAPI risk or execution access to clear the gate. Recheck these endpoints and a real Google callback before cutover.
+As verified locally on 2026-09-27 after the reported fix, the running server at port 8011 returns 200 for `/health`, but 403 for `/dashboard/atlas`, `/dashboard/chart-data`, `/dashboard/market-briefing`, and `/assets/google-auth.js`. Next shows a degraded account state until this access boundary is understood and the intended account data policy is configured. The dashboard response also lacks daily P/L and risk utilization fields, so those tiles remain explicit placeholders; do not infer risk from account balance or floating profit. Do not weaken FastAPI risk or execution access to clear the gate. Recheck these endpoints and a real Google callback before cutover.
 
 ## Gate before routing
 

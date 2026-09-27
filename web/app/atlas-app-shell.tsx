@@ -11,7 +11,7 @@ import { apiPath } from "@/lib/api/config";
 import { mapDashboardState } from "@/lib/api/mappers";
 import type { Candle, DashboardViewModel } from "@/lib/api/types";
 const unavailable = mapDashboardState({ status: "OFFLINE" });
-export function AtlasAppShell() {
+export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refreshMs?: number; timeoutMs?: number } = {}) {
   const [state, setState] = useState<DashboardViewModel>(unavailable);
   const [backend, setBackend] = useState<BackendState>("checking");
   const [symbol, setSymbol] = useState("XAUUSD");
@@ -22,16 +22,27 @@ export function AtlasAppShell() {
   const [chartStatus, setChartStatus] = useState("Loading market data…");
   useEffect(() => {
     let active = true;
-    Promise.allSettled([atlasFetch(apiPath("/health"), { cache: "no-store" }), getDashboardState()]).then(([health, dashboard]) => {
+    const controllers = new Set<AbortController>();
+    async function refresh() {
+      const controller = new AbortController();
+      controllers.add(controller);
+      const [health, dashboard] = await Promise.allSettled([
+        atlasFetch<{ status?: string }>(apiPath("/health"), { cache: "no-store", signal: controller.signal }, timeoutMs),
+        getDashboardState(controller.signal, timeoutMs),
+      ]);
+      controllers.delete(controller);
       if (!active) return;
-      if (dashboard.status === "fulfilled" && health.status === "fulfilled" && dashboard.value.connection === "connected" && dashboard.value.account.id) {
+      const healthy = health.status === "fulfilled" && health.value.status === "healthy";
+      if (dashboard.status === "fulfilled" && healthy && dashboard.value.connection === "connected" && dashboard.value.account.id) {
         setState(dashboard.value); setBackend("online");
       } else {
-        setState(unavailable); setBackend(health.status === "fulfilled" ? "degraded" : "offline");
+        setState(unavailable); setBackend(healthy ? "degraded" : "offline");
       }
-    });
-    return () => { active = false; };
-  }, []);
+    }
+    void refresh();
+    const interval = setInterval(() => { void refresh(); }, refreshMs);
+    return () => { active = false; clearInterval(interval); controllers.forEach((controller) => controller.abort()); };
+  }, [refreshMs, timeoutMs]);
   useEffect(() => {
     let active = true;
     getMarketBriefing().then((items) => { if (active) { setHeadlines(items); setBriefingAvailable(true); } })
@@ -40,12 +51,16 @@ export function AtlasAppShell() {
   }, []);
   useEffect(() => {
     let active = true;
+    async function refreshChart() {
+      try {
+        const series = await getCandles(symbol, timeframe);
+        if (active) { setCandles(series); setChartStatus(series.length ? "" : "Market data unavailable"); }
+      } catch { if (active) { setCandles([]); setChartStatus("Market data unavailable"); } }
+    }
     setCandles([]); setChartStatus("Loading market data…");
-    getCandles(symbol, timeframe).then((series) => {
-      if (!active) return;
-      setCandles(series); setChartStatus(series.length ? "" : "Market data unavailable");
-    }).catch(() => { if (active) { setCandles([]); setChartStatus("Market data unavailable"); } });
-    return () => { active = false; };
+    void refreshChart();
+    const interval = setInterval(() => { void refreshChart(); }, 60000);
+    return () => { active = false; clearInterval(interval); };
   }, [symbol, timeframe]);
   return <AtlasShell><section data-testid="atlas-app-shell">
     <BackendStatus status={backend} />
