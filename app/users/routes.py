@@ -49,3 +49,17 @@ def put_settings(payload: SettingsPayload, request: Request) -> dict[str, Any]:
     user = require_user(request)
     values = {key: value for key, value in payload.model_dump().items() if value is not None}
     return _repository().update_user_settings(user.user_id, values)
+
+
+@router.get("/api/user/dashboard")
+def user_dashboard(request: Request) -> dict[str, Any]:
+    user = require_user(request)
+    repo = _repository()
+    repo.get_or_create_profile(user.user_id, email=user.email)
+    subscription = repo.get_subscription(user.user_id)
+    from app.mt5_demo.routes import _service as mt5_service
+    return {
+        "user": {"user_id": user.user_id, "email": user.email},
+        "plan": str(subscription.get("plan", "FREE")).upper(),
+        "mt5": mt5_service().get_dashboard_state(user.user_id),
+    }

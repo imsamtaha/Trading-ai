@@ -87,7 +87,8 @@ def _private_dashboard_response(request: Request) -> HTMLResponse | RedirectResp
         require_user(request)
     except HTTPException:
         return RedirectResponse("/login", status_code=303)
-    return HTMLResponse("<!doctype html><html><body><h1>Private ATLAS Dashboard</h1><p>Your account data is private.</p></body></html>")
+    from app.dashboard.views import dashboard_view
+    return dashboard_view()
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

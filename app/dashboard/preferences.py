@@ -32,6 +32,7 @@ const translations={
  'Open Positions':'الصفقات المفتوحة','Execution Gate':'حالة التنفيذ',
  'ATLAS Opportunity Matrix':'فرص الأسواق في أطلس','Verified Account':'الحساب المتحقّق منه',
  'Subscriptions':'الاشتراكات','Continue with Google':'المتابعة باستخدام Google','Email code':'رمز البريد الإلكتروني','Private ATLAS Dashboard':'لوحة أطلس الخاصة','Live Asset Viewer':'مراقبة الأصل مباشرة','Asset':'الأصل',
+ 'MT5 Activity':'نشاط MT5','Pending':'معلّقة','History':'السجل','Logout':'تسجيل الخروج','READ ONLY':'للقراءة فقط','FREE':'مجاني',
  'Live Demo Trading':'التداول التجريبي المباشر','Current Price':'السعر الحالي',
  'Buy Demo':'شراء تجريبي','Sell Demo':'بيع تجريبي','Close Demo Position':'إغلاق الصفقة التجريبية',
  'No demo position open.':'لا توجد صفقة تجريبية مفتوحة.','Entry':'سعر الدخول','Demo P/L':'الربح والخسارة التجريبية',

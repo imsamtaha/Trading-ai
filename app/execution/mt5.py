@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -210,6 +211,51 @@ class MT5Broker:
             "profit": float(p.profit),
             "magic": int(p.magic),
         } for p in raw]
+
+    def pending_orders(self) -> list[dict[str, Any]]:
+        self.ensure_connected()
+        raw = mt5.orders_get()
+        if raw is None:
+            return []
+        items: list[dict[str, Any]] = []
+        for order in raw:
+            order_type = int(getattr(order, "type", -1))
+            direction = "BUY" if order_type in {int(getattr(mt5, "ORDER_TYPE_BUY", 0)), int(getattr(mt5, "ORDER_TYPE_BUY_LIMIT", 2)), int(getattr(mt5, "ORDER_TYPE_BUY_STOP", 4))} else "SELL"
+            items.append({
+                "ticket": int(getattr(order, "ticket", 0) or 0),
+                "symbol": str(getattr(order, "symbol", "") or ""),
+                "direction": direction,
+                "volume": float(getattr(order, "volume_initial", 0.0) or 0.0),
+                "price_open": float(getattr(order, "price_open", 0.0) or 0.0),
+                "sl": float(getattr(order, "sl", 0.0) or 0.0),
+                "tp": float(getattr(order, "tp", 0.0) or 0.0),
+                "time": int(getattr(order, "time_setup", 0) or 0),
+            })
+        return items
+
+    def recent_deals(self, days: int = 7) -> list[dict[str, Any]]:
+        self.ensure_connected()
+        end = datetime.now(UTC)
+        start = end - timedelta(days=max(1, days))
+        raw = mt5.history_deals_get(start, end) or ()
+        exit_code = int(getattr(mt5, "DEAL_ENTRY_OUT", 1))
+        items: list[dict[str, Any]] = []
+        for deal in raw:
+            if int(getattr(deal, "entry", -1)) != exit_code:
+                continue
+            deal_type = int(getattr(deal, "type", -1))
+            direction = "BUY" if deal_type == int(getattr(mt5, "DEAL_TYPE_BUY", 0)) else "SELL"
+            items.append({
+                "ticket": int(getattr(deal, "ticket", 0) or 0),
+                "position_id": int(getattr(deal, "position_id", 0) or 0),
+                "symbol": str(getattr(deal, "symbol", "") or ""),
+                "direction": direction,
+                "volume": float(getattr(deal, "volume", 0.0) or 0.0),
+                "price": float(getattr(deal, "price", 0.0) or 0.0),
+                "profit": float(getattr(deal, "profit", 0.0) or 0.0),
+                "time": int(getattr(deal, "time", 0) or 0),
+            })
+        return sorted(items, key=lambda item: item["time"], reverse=True)[:50]
 
     def _normalized_volume(self, symbol: str, volume: float) -> float:
         if volume <= 0:

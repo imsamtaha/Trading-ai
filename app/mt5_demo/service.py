@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import os
+import threading
 from copy import deepcopy
 from typing import Any, Callable
 
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
+from app.strategy.universe import build_universe
+
+_MT5_TERMINAL_LOCK = threading.RLock()
 
 
 class MT5DemoError(RuntimeError):
@@ -19,15 +23,14 @@ class MT5DemoService:
 
     @staticmethod
     def _default_broker_factory(credentials: dict[str, Any]) -> MT5Broker:
-        config = MT5Config(
+        return MT5Broker(MT5Config(
             terminal_path=os.getenv("MT5_TERMINAL_PATH"),
             login=int(credentials["login"]),
             password=str(credentials["password"]),
             server=str(credentials["server"]),
             dry_run=True,
             real_money_execution=False,
-        )
-        return MT5Broker(config)
+        ))
 
     @staticmethod
     def _mask_login(login: int | str) -> str:
@@ -37,10 +40,11 @@ class MT5DemoService:
     def connect_demo(self, user_id: str, credentials: dict[str, Any]) -> dict[str, Any]:
         broker = self.broker_factory(credentials)
         try:
-            account = broker.connect()
-            account_type = str(account.get("account_type", "UNKNOWN")).upper()
-            if account_type != "DEMO":
-                raise MT5DemoError("Only verified MT5 DEMO accounts are supported.")
+            with _MT5_TERMINAL_LOCK:
+                account = broker.connect()
+                account_type = str(account.get("account_type", "UNKNOWN")).upper()
+                if account_type != "DEMO":
+                    raise MT5DemoError("Only verified MT5 DEMO accounts are supported.")
             metadata = {
                 "account_masked": self._mask_login(account.get("login", credentials.get("login"))),
                 "account_type": "DEMO",
@@ -86,18 +90,85 @@ class MT5DemoService:
             }
         broker = self.broker_factory(credentials)
         try:
-            account = broker.connect()
-            account_type = str(account.get("account_type", "UNKNOWN")).upper()
-            if account_type != "DEMO":
-                self._sessions.pop(user_id, None)
-                raise MT5DemoError("MT5 account is no longer verified as DEMO.")
+            with _MT5_TERMINAL_LOCK:
+                account = broker.connect()
+                account_type = str(account.get("account_type", "UNKNOWN")).upper()
+                if account_type != "DEMO":
+                    self._sessions.pop(user_id, None)
+                    raise MT5DemoError("MT5 account is no longer verified as DEMO.")
+                return {
+                    "connected": True,
+                    "account_masked": self._mask_login(account.get("login", credentials["login"])),
+                    "account_type": "DEMO",
+                    "server": str(account.get("server", credentials["server"])),
+                    "broker": credentials.get("broker", "FxPro"),
+                }
+        finally:
+            try:
+                broker.disconnect()
+            except Exception:
+                pass
+
+    def get_dashboard_state(self, user_id: str) -> dict[str, Any]:
+        credentials = self._sessions.get(user_id)
+        if credentials is None:
             return {
-                "connected": True,
-                "account_masked": self._mask_login(account.get("login", credentials["login"])),
-                "account_type": "DEMO",
-                "server": str(account.get("server", credentials["server"])),
-                "broker": credentials.get("broker", "FxPro"),
+                "connected": False,
+                "account": None,
+                "positions": [],
+                "pending_orders": [],
+                "recent_trades": [],
+                "symbols": [],
+                "open_positions": 0,
+                "floating_position_pnl": 0.0,
             }
+        broker = self.broker_factory(credentials)
+        try:
+            with _MT5_TERMINAL_LOCK:
+                account = broker.connect()
+                if str(account.get("account_type", "UNKNOWN")).upper() != "DEMO":
+                    self._sessions.pop(user_id, None)
+                    raise MT5DemoError("MT5 account is no longer verified as DEMO.")
+                positions = list(broker.positions())
+                pending = list(broker.pending_orders()) if hasattr(broker, "pending_orders") else []
+                history = list(broker.recent_deals(7)) if hasattr(broker, "recent_deals") else []
+                symbols: list[dict[str, Any]] = []
+                if hasattr(broker, "symbols") and hasattr(broker, "quote"):
+                    for item in build_universe(broker.symbols(), top_n=12):
+                        try:
+                            quote = broker.quote(item.broker_symbol)
+                            price = quote.get("last") or quote.get("bid") or quote.get("ask") or 0.0
+                            symbols.append({
+                                "symbol": item.broker_symbol,
+                                "canonical_symbol": item.canonical_symbol,
+                                "asset_class": item.asset_class,
+                                "opportunity_score": item.opportunity_score,
+                                "price": float(price),
+                            })
+                        except Exception:
+                            continue
+                return {
+                    "connected": True,
+                    "account": {
+                        "account_masked": self._mask_login(account.get("login", credentials["login"])),
+                        "account_type": "DEMO",
+                        "server": str(account.get("server", credentials["server"])),
+                        "broker": credentials.get("broker", "FxPro"),
+                        "balance": float(account.get("balance", 0.0) or 0.0),
+                        "equity": float(account.get("equity", 0.0) or 0.0),
+                        "currency": str(account.get("currency", "")),
+                    },
+                    "positions": positions,
+                    "pending_orders": pending,
+                    "recent_trades": history,
+                    "symbols": symbols,
+                    "open_positions": len(positions),
+                    "floating_position_pnl": round(sum(float(p.get("profit", 0.0) or 0.0) for p in positions), 2),
+                }
+        except MT5DemoError:
+            raise
+        except Exception as exc:
+            raise MT5DemoError("Unable to read MT5 Demo dashboard state.") from exc
         finally:
             try:
                 broker.disconnect()
