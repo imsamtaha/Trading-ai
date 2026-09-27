@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.users.assistant import AssistantRateLimited, AssistantUnavailable, answer_assistant
 
 from app.auth.supabase_auth import require_user
 from app.data.market import get_candles
@@ -15,6 +17,10 @@ router = APIRouter(tags=["users"])
 _CHART_SYMBOLS = {"XAUUSD", "XAGUSD", "GAS", "EURUSD", "XRPUSDT", "SOLUSDT"}
 _CHART_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
 repository: Any | None = None
+
+
+class AssistantPayload(BaseModel):
+    message: str = Field(min_length=1, max_length=1000)
 
 
 class SettingsPayload(BaseModel):
@@ -54,6 +60,17 @@ def put_settings(payload: SettingsPayload, request: Request) -> dict[str, Any]:
     user = require_user(request)
     values = {key: value for key, value in payload.model_dump().items() if value is not None}
     return _repository().update_user_settings(user.user_id, values)
+
+
+@router.post("/api/user/assistant")
+def user_assistant(payload: AssistantPayload, request: Request) -> dict[str, str]:
+    user = require_user(request)
+    try:
+        return {"message": answer_assistant(user.user_id, payload.message)}
+    except AssistantRateLimited as exc:
+        raise HTTPException(status_code=429, detail="Assistant rate limit reached.") from exc
+    except AssistantUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/api/user/chart-data")
