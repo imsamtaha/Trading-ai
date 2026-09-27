@@ -42,3 +42,55 @@ a { color: inherit; text-decoration: none; }
   .atlas-mobile-nav__link { flex: 0 0 auto; padding: 9px 11px; border-radius: 11px; color: var(--atlas-muted); font-size: .72rem; white-space: nowrap; }
   .atlas-mobile-nav__link[aria-current="page"] { color: var(--atlas-text); background: var(--atlas-orange); }
 }
+
+.atlas-dashboard { display: grid; gap: 18px; }
+.atlas-dashboard-header { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.atlas-dashboard-header h1 { margin: 3px 0 0; font-size: clamp(2rem,4vw,4rem); letter-spacing: -.04em; }
+.atlas-live-pill { padding: 8px 12px; border: 1px solid var(--atlas-border); border-radius: 999px; color: var(--atlas-green); background: rgba(99,213,154,.08); font-size: .78rem; }
+.atlas-card { border: 1px solid var(--atlas-border); background: linear-gradient(145deg, rgba(21,26,34,.96), rgba(12,15,20,.96)); border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 18px 40px rgba(0,0,0,.18); }
+.atlas-card-label { color: var(--atlas-muted); text-transform: uppercase; letter-spacing: .16em; font-size: .66rem; }
+.atlas-account-grid { display: grid; grid-template-columns: 1.7fr repeat(3,1fr); gap: 12px; }
+.atlas-account-card { padding: 18px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+.atlas-account-card strong { display: block; margin-top: 5px; }
+.atlas-account-balance { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; }
+.atlas-account-balance strong { font-size: 2rem; }
+.atlas-account-balance small { color: var(--atlas-muted); }
+.atlas-connection { font-size: .72rem; padding: 6px 9px; border-radius: 999px; }
+.atlas-connection--connected { color: var(--atlas-green); background: rgba(99,213,154,.09); }
+.atlas-connection--offline { color: #ff8d78; background: rgba(255,105,90,.09); }
+.atlas-connection--unknown { color: var(--atlas-warning); background: rgba(242,163,74,.09); }
+.atlas-stat { padding: 18px; display: grid; gap: 10px; align-content: center; }
+.atlas-stat strong { font-size: 1.35rem; }
+.atlas-stat--positive strong, .is-positive { color: var(--atlas-green); }
+.atlas-stat--warning strong, .is-negative { color: var(--atlas-warning); }
+.atlas-market-strip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.atlas-market-tile { min-height: 112px; padding: 16px; display: grid; gap: 7px; position: relative; overflow: hidden; }
+.atlas-market-tile strong { font-size: 1.35rem; }
+.atlas-sparkline { position: absolute; right: 12px; bottom: 10px; color: rgba(255,116,23,.5); letter-spacing: -.15em; }
+.atlas-chart-placeholder { min-height: 360px; padding: 20px; border: 1px solid var(--atlas-border); border-radius: 20px; background: linear-gradient(180deg,rgba(17,21,28,.98),rgba(8,10,14,.98)); }
+.atlas-chart-placeholder h2, .atlas-section-heading h2 { margin: 5px 0 0; font-size: 1.1rem; }
+.atlas-chart-grid { height: 290px; margin-top: 18px; display: grid; place-items: center; color: var(--atlas-muted); border-radius: 14px; background-image: linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px); background-size: 42px 42px; }
+.atlas-lower-grid { display: grid; grid-template-columns: 1.4fr .8fr; gap: 12px; }
+.atlas-risk-panel, .atlas-activity-card { padding: 18px; }
+.atlas-section-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.atlas-risk-list { display: grid; gap: 13px; margin-top: 18px; }
+.atlas-risk-row { display: grid; grid-template-columns: 110px 1fr 44px; gap: 10px; align-items: center; font-size: .78rem; }
+.atlas-risk-track { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.06); }
+.atlas-risk-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--atlas-green),var(--atlas-orange)); }
+.atlas-warning { margin-top: 14px; color: var(--atlas-warning); font-size: .78rem; }
+.atlas-empty-line { margin-top: 20px; color: var(--atlas-muted); font-size: .84rem; }
+@media (max-width: 980px) {
+  .atlas-account-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .atlas-account-card { grid-column: span 2; }
+  .atlas-lower-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .atlas-dashboard-header { align-items: start; }
+  .atlas-dashboard-header h1 { font-size: 2rem; }
+  .atlas-account-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .atlas-market-strip { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 2px; }
+  .atlas-market-tile { min-width: 160px; }
+  .atlas-chart-placeholder { min-height: 310px; padding: 14px; }
+  .atlas-chart-grid { height: 240px; }
+  .atlas-risk-row { grid-template-columns: 92px 1fr 38px; }
+}

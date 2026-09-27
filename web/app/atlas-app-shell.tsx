@@ -1,12 +1,12 @@
 import { AtlasShell } from "@/components/layout/atlas-shell";
+import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
+import { DASHBOARD_FIXTURE } from "@/lib/api/fixtures";
 
 export function AtlasAppShell() {
   return (
     <AtlasShell>
-      <section data-testid="atlas-app-shell" className="atlas-dashboard-hero" id="dashboard">
-        <p className="eyebrow">JUST AI</p>
-        <h1 className="atlas-hero-title">Trading cockpit</h1>
-        <p className="atlas-hero-copy">Real insights. Smarter decisions. Better trading discipline.</p>
+      <section data-testid="atlas-app-shell">
+        <DashboardScreen state={DASHBOARD_FIXTURE} />
       </section>
     </AtlasShell>
   );
