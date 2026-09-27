@@ -20,11 +20,13 @@ describe("live FastAPI adapter", () => {
     expect(fetcher.mock.calls[0][0]).toBe("/backend/api/user/dashboard");
     expect(fetcher.mock.calls[0][1].credentials).toBe("same-origin");
   });
-  it("sends the actual request key and rejects missing assistant answers", async () => {
+  it("sends an authenticated private message and rejects missing assistant answers", async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({message:"Context only"}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({result:{}}),{status:200}));
     vi.stubGlobal("fetch", fetcher);
     expect((await sendAgentMessage({message:"Explain risk"})).message).toBe("Context only");
-    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({request:"Explain risk"});
+    expect(fetcher.mock.calls[0][0]).toBe("/backend/api/user/assistant");
+    expect(fetcher.mock.calls[0][1].credentials).toBe("same-origin");
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({message:"Explain risk"});
     await expect(sendAgentMessage({message:"Again"})).rejects.toThrow("answer");
   });
   it("reads chart data through backend allowlist", async () => {

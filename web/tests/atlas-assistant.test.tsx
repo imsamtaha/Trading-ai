@@ -3,6 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { AtlasAssistant } from "@/features/ai/atlas-assistant";
 
 describe("AtlasAssistant", () => {
+  it("describes educational scope and limits input", () => {
+    render(<AtlasAssistant sendMessage={vi.fn()} />);
+    expect(screen.getByText(/does not see your account or live prices/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask ATLAS")).toHaveAttribute("maxlength", "1000");
+  });
   it("submits a prompt and renders the response", async () => {
     const send = vi.fn().mockResolvedValue({ message: "Risk is within configured limits." });
     render(<AtlasAssistant sendMessage={send} />);

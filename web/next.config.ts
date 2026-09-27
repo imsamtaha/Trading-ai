@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       "/health", "/api/user/dashboard", "/api/user/chart-data",
-      "/api/user/market-briefing", "/auth/config", "/auth/session",
+      "/api/user/market-briefing", "/api/user/assistant", "/auth/config", "/auth/session",
       "/auth/callback", "/logout",
     ].map((path) => ({ source: `/backend${path}`, destination: `${origin}${path}` })).concat([
       { source: "/auth/session", destination: `${origin}/auth/session` },

@@ -10,6 +10,7 @@ describe("browser-facing deployment config", () => {
     expect(config).toContain('"/api/user/dashboard"');
     expect(config).toContain('"/api/user/chart-data"');
     expect(config).toContain('"/api/user/market-briefing"');
+    expect(config).toContain('"/api/user/assistant"');
     expect(config).toContain('"/auth/session"');
     expect(config).not.toContain('"/dashboard/atlas"');
   });
