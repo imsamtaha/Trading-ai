@@ -1,11 +1,13 @@
+import { AtlasShell } from "@/components/layout/atlas-shell";
+
 export function AtlasAppShell() {
   return (
-    <main data-testid="atlas-app-shell" className="atlas-app-shell">
-      <section className="brand-panel">
+    <AtlasShell>
+      <section data-testid="atlas-app-shell" className="atlas-dashboard-hero" id="dashboard">
         <p className="eyebrow">JUST AI</p>
-        <h1>ATLAS</h1>
-        <p className="subtitle">Trading Intelligence</p>
+        <h1 className="atlas-hero-title">Trading cockpit</h1>
+        <p className="atlas-hero-copy">Real insights. Smarter decisions. Better trading discipline.</p>
       </section>
-    </main>
+    </AtlasShell>
   );
 }
