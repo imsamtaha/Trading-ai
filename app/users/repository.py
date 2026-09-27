@@ -130,3 +130,13 @@ class SupabaseUserRepository:
 
     def set_mt5_connection(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._upsert("mt5_demo_connections", {"user_id": user_id, **payload})
+
+    def clear_mt5_connection(self, user_id: str) -> None:
+        response = requests.delete(
+            f"{self.base_url}/rest/v1/mt5_demo_connections",
+            headers=self._headers("return=minimal"),
+            params={"user_id": f"eq.{user_id}"},
+            timeout=10,
+        )
+        if not response.ok:
+            raise UserRepositoryError("Supabase delete failed for mt5_demo_connections.")
