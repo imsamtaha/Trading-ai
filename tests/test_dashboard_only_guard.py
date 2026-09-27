@@ -15,6 +15,7 @@ from app.execution.mt5 import MT5Config, MT5ExecutionError
 def client(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
+    monkeypatch.setenv("ATLAS_WHISH_ENABLED", "false")
     # A blocked route must never reach market providers or the execution service.
     monkeypatch.setattr(main, "_mt5_service", Mock(side_effect=AssertionError("Execution reached")))
     monkeypatch.setattr(main.MT5Broker, "connect", Mock(side_effect=AssertionError("MT5 reached")))

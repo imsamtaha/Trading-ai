@@ -11,5 +11,6 @@ describe("ATLAS navigation", () => {
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
     for (const label of labels) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Dashboard" })[0]).toHaveAttribute("aria-current", "page");
+    expect(screen.getAllByRole("link", { name: "Account" })[0]).toHaveAttribute("href", "/login");
   });
 });

@@ -13,5 +13,5 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "analytics", label: "Analytics", href: "#analytics" },
   { key: "news", label: "News", href: "#news" },
   { key: "ai", label: "ATLAS AI", href: "#ai" },
-  { key: "account", label: "Account", href: "#account" },
+  { key: "account", label: "Account", href: "/login" },
 ] as const;

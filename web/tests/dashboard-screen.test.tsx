@@ -5,16 +5,19 @@ import { DASHBOARD_FIXTURE } from "@/lib/api/fixtures";
 
 describe("DashboardScreen", () => {
   it("renders account and market telemetry", () => {
-    render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+    render(<DashboardScreen state={DASHBOARD_FIXTURE} briefingAvailable headlines={[{ title: "Rates update", url: "https://example.com/news" }]} />);
     expect(screen.getByText("10,000.00")).toBeInTheDocument();
     expect(screen.getByText("10,248.42")).toBeInTheDocument();
     expect(screen.getByText("EURUSD")).toBeInTheDocument();
-    expect(screen.getByText("XAUUSD")).toBeInTheDocument();
+    expect(screen.getAllByText("XAUUSD").length).toBeGreaterThan(0);
+    expect(document.getElementById("analytics")).toBeInTheDocument();
+    expect(document.getElementById("news")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rates update" })).toHaveAttribute("href", "https://example.com/news");
   });
 
   it("renders explicit offline placeholders", () => {
     render(<DashboardScreen state={{ ...DASHBOARD_FIXTURE, connection: "offline", account: { ...DASHBOARD_FIXTURE.account, balance: null } }} />);
     expect(screen.getByText("Backend offline")).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });
