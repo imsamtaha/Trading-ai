@@ -27,9 +27,9 @@ a { color: inherit; text-decoration: none; }
 .atlas-nav-link[aria-current="page"] { color: var(--atlas-text); background: rgba(255,116,23,.12); box-shadow: inset 3px 0 0 var(--atlas-orange); }
 .atlas-main { min-width: 0; padding: 26px; }
 .atlas-dashboard-hero { min-height: calc(100vh - 52px); border: 1px solid var(--atlas-border); border-radius: 24px; background: linear-gradient(145deg, rgba(23,28,36,.95), rgba(10,12,16,.96)); display: grid; align-content: center; justify-items: center; padding: 32px; text-align: center; overflow: hidden; }
-.atlas-wordmark { display: grid; gap: 4px; }
-.atlas-wordmark__name { font-size: clamp(2rem, 6vw, 4.8rem); font-weight: 800; letter-spacing: .1em; line-height: .95; }
-.atlas-wordmark__subtitle { color: var(--atlas-muted); text-transform: uppercase; letter-spacing: .22em; font-size: .72rem; }
+.atlas-wordmark { display: grid; }
+.atlas-wordmark img { display:block; width:min(100%,190px); height:auto; }
+.atlas-mobile-brand { display:none; }
 .eyebrow { color: var(--atlas-orange); letter-spacing: .28em; font-size: .72rem; margin: 0 0 14px; }
 .atlas-hero-copy { max-width: 520px; color: var(--atlas-muted); line-height: 1.6; }
 .atlas-mobile-nav { display: none; }
@@ -37,6 +37,8 @@ a { color: inherit; text-decoration: none; }
   .atlas-layout { display: block; padding-bottom: 76px; }
   .atlas-sidebar { display: none; }
   .atlas-main { padding: 14px; }
+  .atlas-mobile-brand { display:block; width:100px; margin:0 0 10px; }
+  .atlas-mobile-brand .atlas-wordmark img { width:100px; }
   .atlas-dashboard-hero { min-height: calc(100vh - 104px); border-radius: 20px; padding: 22px 16px; }
   .atlas-mobile-nav { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 20; display: flex; gap: 4px; overflow-x: auto; padding: 8px; border: 1px solid var(--atlas-border); border-radius: 18px; background: rgba(11,14,18,.96); backdrop-filter: blur(18px); }
   .atlas-mobile-nav__link { flex: 0 0 auto; padding: 9px 11px; border-radius: 11px; color: var(--atlas-muted); font-size: .72rem; white-space: nowrap; }
@@ -131,8 +133,8 @@ a { color: inherit; text-decoration: none; }
 .atlas-auth-required p { margin:0 0 8px; color:var(--atlas-muted); line-height:1.6; }
 .atlas-auth-required a { display:inline-block; }
 .atlas-login { min-height:100vh; display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:5vw; padding:clamp(22px,5vw,80px); background:radial-gradient(circle at 18% 40%,#ff741726,transparent 32%),var(--atlas-bg); }
-.atlas-login-art { display:grid; justify-items:center; gap:24px; letter-spacing:.3em; color:var(--atlas-muted); }
-.atlas-login-orbit { display:grid; place-items:center; width:min(50vw,330px); aspect-ratio:1; border:1px solid #ff741777; border-radius:50%; color:var(--atlas-orange); font-size:8rem; font-weight:900; box-shadow:0 0 70px #ff74172b,inset 0 0 70px #ff741721; }
+.atlas-login-art { display:grid; justify-items:center; }
+.atlas-login-art .atlas-wordmark img { width:min(38vw,420px); }
 .atlas-login-card { padding:clamp(24px,4vw,50px); max-width:520px; } .atlas-login-card h1 { font-size:clamp(2rem,4vw,3.4rem); margin:10px 0; }
 .atlas-login-card button { display:block; margin:22px 0 8px; } .atlas-login-card a { color:var(--atlas-orange); }
 .atlas-login-note { font-size:.72rem!important; }
@@ -142,7 +144,7 @@ a { color: inherit; text-decoration: none; }
 .atlas-email-login button { justify-self:start; margin:4px 0 0; }
 .atlas-secondary-button { border:1px solid var(--atlas-border); border-radius:10px; background:transparent; color:var(--atlas-text); padding:10px 15px; cursor:pointer; }
 @media(max-width:1100px) { .atlas-workspace-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .atlas-assistant { grid-column:1/-1; } }
-@media(max-width:760px) { .atlas-workspace-grid,.atlas-login { grid-template-columns:1fr; } .atlas-assistant { grid-column:auto; } .atlas-login-art { display:none; } .atlas-dashboard-header { flex-wrap:wrap; } .atlas-login { padding:18px; } .atlas-chart-toolbar select { max-width:100%; } }
+@media(max-width:760px) { .atlas-workspace-grid,.atlas-login { grid-template-columns:1fr; } .atlas-assistant { grid-column:auto; } .atlas-login-art .atlas-wordmark img { width:min(45vw,180px); } .atlas-dashboard-header { flex-wrap:wrap; } .atlas-login { padding:18px; } .atlas-chart-toolbar select { max-width:100%; } }
 
 .atlas-login-card button[hidden] { display:none; }
 

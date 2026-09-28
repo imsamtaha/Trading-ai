@@ -1,8 +1,9 @@
+import Image from "next/image";
+
 export function AtlasWordmark() {
   return (
-    <div className="atlas-wordmark" aria-label="ATLAS Trading Intelligence">
-      <span className="atlas-wordmark__name">ATLAS</span>
-      <span className="atlas-wordmark__subtitle">Trading Intelligence</span>
+    <div className="atlas-wordmark">
+      <Image src="/atlas-logo.webp" alt="ATLAS" width={1254} height={1254} unoptimized priority />
     </div>
   );
 }
