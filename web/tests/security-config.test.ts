@@ -12,6 +12,7 @@ describe("browser-facing deployment config", () => {
     expect(config).toContain('"/api/user/market-briefing"');
     expect(config).toContain('"/api/user/assistant"');
     expect(config).toContain('"/auth/session"');
+    expect(config).toContain('source: "/health"');
     expect(config).not.toContain('"/dashboard/atlas"');
   });
 });

@@ -1,25 +1,25 @@
-# ATLAS frontend deployment and rollback
+# ATLAS web deployment and rollback
 
-## Current state
+## Live topology (2026-09-28)
 
-The production Cloudflare Tunnel sends `justai-atlas.online` to `http://127.0.0.1:8011` in `C:\Users\KHAT W TELEPHONE\.cloudflared\config.yml`. That process is launched by `ATLAS_Backup/run-atlas-private.ps1` from `.worktrees/atlas-private-multiuser` (branch `feat/atlas-private-multiuser`). After the device interruption, the same private service script was restarted on port 8011. On 2026-09-28, local and public `/health` and `/login` returned 200. No tunnel change has been made.
+The Cloudflare Tunnel still forwards `justai-atlas.online` to `http://127.0.0.1:8011`. Its active connectors run with token files and are managed remotely. The local `C:\Users\KHAT W TELEPHONE\.cloudflared\config.yml` was not changed and is not the active ingress control.
 
-## Proposed topology
+Next.js serves `127.0.0.1:8011` from `.worktrees/atlas-webapp-option-a/web`. Exact `/backend/*` rewrites in the production build forward health, private dashboard/chart/briefing/assistant, and auth routes to FastAPI on `127.0.0.1:8012`. FastAPI runs from `.worktrees/atlas-private-multiuser` with `ATLAS_LIVE_TRADING=false`, `ATLAS_DASHBOARD_ONLY=true`, and `MT5_REQUIRE_DEMO=true`. The existing Cloudflare tunnel and trading execution code are unchanged.
 
-Run Next.js on `127.0.0.1:3000` and FastAPI on `127.0.0.1:8011` on the same trusted machine. Next serves `/`, `/dashboard`, and `/login`. Its server-side rewrite forwards exact health, private user dashboard/chart/briefing/assistant, and auth paths to FastAPI. The browser never receives the backend origin or any private key. Trading/risk execution routes are not called by this frontend. The redesigned `/login` uses the private backend's Supabase public config. With `GOOGLE_CLIENT_ID` it uses Google ID tokens; without it, Supabase Google OAuth returns through the existing `/?auth=callback` redirect. Email OTP uses the same callback. The browser exchanges the resulting access token for an HttpOnly `atlas_session` cookie. Test both Google and email callback with a non-trading account before routing cutover.
+## Start and verify
 
-## Current blocker
+Backend runner: `C:\Users\KHAT W TELEPHONE\ATLAS_Backup\run-atlas-private-api.ps1` (port 8012). Frontend runner: `web/run-production.ps1` (port 8011). These currently run as user processes; after a Windows restart, start the backend first, then the frontend, and check both health endpoints. Do not start the old port 8011 FastAPI runner while Next occupies that port.
 
-The running private FastAPI process intentionally returns 403 for shared `/dashboard/atlas`. This must remain blocked. Its authenticated `/api/user/dashboard` returns 401 without a session and isolates user MT5 demo data. Authenticated `/api/user/chart-data` and `/api/user/market-briefing` are running after the same private service restart; anonymous requests returned 401 locally and publicly. The private branch now contains an authenticated, read-only `/api/user/assistant` route (commit `875ad76`), and Next forwards only `/backend/api/user/assistant` to it. The running port 8011 process has not been restarted with that commit, so its assistant route still returns 404. The assistant sends only the user's message to OpenAI with `store=false`, 300 output tokens, a 15-second provider timeout, and six requests per user per minute. It does not receive account state or submit trades. Daily P/L and risk utilization remain explicit placeholders where the private API has no verified values. A real Google callback and the production session cookie have not been exercised end to end.
+Build Next with `ATLAS_BACKEND_ORIGIN=http://127.0.0.1:8012` set in the build process. The build manifest must route `/backend/api/user/assistant` and `/backend/auth/session` to port 8012. Run `npm test -- --run`, `npm run lint`, `npm run build`, and backend `python -m pytest -q` before rebuilding or restarting.
+Public smoke checks: `/login`, `/dashboard`, `/health`, and `/backend/health` return 200; `/backend/api/user/dashboard`, `/backend/api/user/chart-data`, `/backend/api/user/market-briefing`, and a valid anonymous POST to `/backend/api/user/assistant` return 401. Direct `/api/user/dashboard` and `/dashboard/atlas` return 404 from Next. The `/?auth=callback&code=...` redirect preserves the code at `/login`.
 
-## Gate before routing
-
-From the worktree root, run `python -m pytest -q`. From `web/`, run `npm ci`, `npm test -- --run`, `npm run build`, and `npm run lint`. Inspect `.next/static` for private secret values. Start `npm run start -- --hostname 127.0.0.1 --port 3000` with `ATLAS_BACKEND_ORIGIN=http://127.0.0.1:8011` set in the server process. After restarting the private backend under a separate deployment gate, check `http://127.0.0.1:3000/login`, `/dashboard`, `/backend/health`, and that `/backend/api/user/dashboard` and `/backend/api/user/assistant` return 401 anonymously. Verify user A cannot see user B's dashboard, then confirm the secure callback/session after real Google and email sign-in on HTTPS. Verify chart/briefing and phone width. Keep the shared MT5 telemetry route at 403.
-
-## Proposed cutover (approval required)
-
-Back up `config.yml` to a dated file. In the existing `justai-atlas.online` ingress entry, replace only `service: http://127.0.0.1:8011` with `service: http://127.0.0.1:3000`. Validate the tunnel config and restart only the tunnel service. Keep FastAPI on port 8011; no DNS, risk, broker, or execution changes are required. Smoke test HTTPS login, callback, dashboard, chart and API connectivity. Preserve the existing ingress fallback and other hostnames.
+The Google provider is enabled in Supabase and the live login renders its Google button. A complete Google sign-in, secure `atlas_session` cookie, and signed-in dashboard still require a real account test. Do not claim that final step is verified until it is observed.
 
 ## Rollback
 
-Restore the backed-up `config.yml` (or revert that single service value to `http://127.0.0.1:8011`), validate config, restart only the tunnel service, and confirm `https://justai-atlas.online/health` and legacy root. Keep Next stopped or isolated after rollback. Account, MT5 and risk state remain in FastAPI. Do not alter the broker connection during cutover or rollback.
+1. Stop the Node/Next process listening on `127.0.0.1:8011` (identify it by port and command line); leave FastAPI on 8012 running.
+2. Run the original `C:\Users\KHAT W TELEPHONE\ATLAS_Backup\run-atlas-private.ps1` to restore FastAPI on port 8011.
+3. Check `https://justai-atlas.online/health` and the legacy `/login`. The Cloudflare tunnel needs no change.
+4. Stop the spare FastAPI process on port 8012 after the restored service is healthy.
+
+The private backend worktree contains pre-existing uncommitted changes to its demo dashboard and repository. Preserve those files during rollback; no destructive checkout or broker state change is needed.

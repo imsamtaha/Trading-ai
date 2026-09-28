@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       "/auth/callback", "/logout",
     ].map((path) => ({ source: `/backend${path}`, destination: `${origin}${path}` })).concat([
       { source: "/auth/session", destination: `${origin}/auth/session` },
+      { source: "/health", destination: `${origin}/health` },
     ]);
   },
 };
