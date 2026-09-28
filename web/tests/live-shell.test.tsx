@@ -4,6 +4,17 @@ import { AtlasAppShell } from "@/app/atlas-app-shell";
 afterEach(() => vi.unstubAllGlobals());
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 describe("live dashboard availability", () => {
+  it("prompts for sign-in when the private dashboard rejects an anonymous session", async () => {
+    vi.stubGlobal("fetch", vi.fn((path: string) => Promise.resolve(json(
+      path.endsWith("/health") ? { status: "healthy" } : { detail: "Not authenticated" },
+      path.endsWith("/health") ? 200 : 401,
+    ))));
+    render(<AtlasAppShell />);
+    expect(await screen.findByText("Sign in to view your ATLAS dashboard")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to sign in" })).toHaveAttribute("href", "/login");
+    expect(screen.queryByText("Backend degraded")).not.toBeInTheDocument();
+    expect(screen.queryByText("Backend offline")).not.toBeInTheDocument();
+  });
   it("shows degraded when health succeeds but account telemetry is absent", async () => {
     vi.stubGlobal("fetch", vi.fn((path: string) => Promise.resolve(json(
       path.endsWith("/health") ? { status: "healthy" } : path.includes("chart-data") ? { candles: [] } : { mt5: { connected: false } }

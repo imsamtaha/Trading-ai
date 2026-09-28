@@ -3,6 +3,7 @@ const origin = process.env.ATLAS_BACKEND_ORIGIN ?? "http://127.0.0.1:8011";
 if (!/^https?:\/\/[^/]+$/.test(origin)) throw new Error("ATLAS_BACKEND_ORIGIN must be an origin without a path");
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  distDir: process.env.ATLAS_BUILD_DIR || ".next",
   async redirects() {
     return [
       { source: "/", has: [{ type: "query" as const, key: "auth", value: "callback" }], destination: "/login", permanent: false },
