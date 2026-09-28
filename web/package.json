@@ -1,7 +1,6 @@
 {
   "name": "atlas-web-app",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
