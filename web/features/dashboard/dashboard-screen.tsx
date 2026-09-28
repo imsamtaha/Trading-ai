@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { DashboardViewModel } from "@/lib/api/types";
 import type { Candle } from "@/lib/api/types";
 import { AccountCard } from "./account-card";
@@ -20,7 +21,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
   const chartPosition = connected ? state.positions.find((p) => p.symbol === symbol) : undefined;
   const chartSignal = connected ? signals.find((s) => s.symbol === symbol) : undefined;
   return <div className="atlas-dashboard" id="dashboard">
-    <header className="atlas-dashboard-header"><div><span className="eyebrow">ATLAS INTELLIGENCE</span><h1>Trading Intelligence</h1></div><div className="atlas-live-pill">{connected ? "Live data" : "Data unavailable"}</div></header>
+    <header className="atlas-dashboard-header"><div className="atlas-brand-headline"><h1 className="atlas-ultimate-title"><Image src="/atlas-the-ultimate.webp" alt="ATLAS THE ULTIMATE" width={2172} height={724} unoptimized priority /></h1><span className="atlas-brand-subtitle">Trading Intelligence</span></div><div className="atlas-live-pill">{connected ? "Live data" : "Data unavailable"}</div></header>
     <section className="atlas-account-grid"><AccountCard account={state.account} connection={state.connection} /><StatCard label="Equity" value={money(state.account.equity)} /><StatCard label="Floating P/L" value={money(state.account.floatingPnl)} tone={(state.account.floatingPnl ?? 0) >= 0 ? "positive" : "warning"} /><StatCard label="Daily P/L" value={money(state.account.dailyPnl)} tone={(state.account.dailyPnl ?? 0) >= 0 ? "positive" : "warning"} /></section>
     <section className="atlas-market-strip" id="markets">{state.markets.map((market) => <MarketTile key={market.symbol} {...market} />)}</section>
     <MarketWorkspace candles={candles} symbol={symbol} timeframe={timeframe} onChange={onMarketChange} signal={chartSignal} levels={{ entry: chartPosition?.entry, stopLoss: chartPosition?.stopLoss, takeProfit: chartPosition?.takeProfit }} />
