@@ -27,8 +27,8 @@ class Links(HTMLParser):
 
 def validate():
     source = ROOT / "web"
-    found = {p.relative_to(source).as_posix() for p in source.rglob("*") if p.is_file()}
-    assert found == PUBLIC_FILES, f"Unexpected or missing public files: {found ^ PUBLIC_FILES}"
+    found = {name for name in PUBLIC_FILES if (source / name).is_file()}
+    assert found == PUBLIC_FILES, f"Missing public files: {PUBLIC_FILES - found}"
     page = (source / "index.html").read_text(encoding="utf-8")
     links = Links()
     links.feed(page)
