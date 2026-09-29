@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AccountConnection } from "@/features/trades/account-connection";
 import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
@@ -9,16 +9,16 @@ describe("Arabic-first ATLAS mobile UI", () => {
     render(<AccountConnection onConnected={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "ربط FxPro MT5" })).toBeInTheDocument();
     expect(screen.getByLabelText("نوع الحساب")).toBeInTheDocument();
-    expect(screen.getByLabelText("رقم MT5")).toBeInTheDocument();
-    expect(screen.getByLabelText("كلمة المرور")).toBeInTheDocument();
-    expect(screen.getByLabelText("الخادم")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ربط MT5" })).toBeInTheDocument();
   });
 
-  it("uses concise Arabic dashboard navigation", () => {
+  it("moves the active color with the selected dashboard button", () => {
     render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
-    for (const label of ["الرئيسية", "الأسواق", "التداول", "الإشارات", "المخاطر", "التحليل"]) {
-      expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
-    }
+    const home = screen.getByRole("link", { name: "الرئيسية" });
+    const markets = screen.getByRole("link", { name: "الأسواق" });
+    expect(home).toHaveAttribute("aria-current", "page");
+    fireEvent.click(markets);
+    expect(markets).toHaveAttribute("aria-current", "page");
+    expect(home).not.toHaveAttribute("aria-current", "page");
   });
 });

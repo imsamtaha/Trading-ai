@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Image from "next/image";
 import type { Candle, DashboardViewModel } from "@/lib/api/types";
 import { MarketTile } from "@/features/markets/market-tile";
@@ -21,6 +23,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
   positionsAvailable?: boolean; signalsAvailable?: boolean; activityAvailable?: boolean; assistantAvailable?: boolean; intelligenceAvailable?: boolean; language?: Language; onMarketChange?: (symbol: string, timeframe: string) => void;
 }) {
   const ar = language === "ar";
+  const [activeNav, setActiveNav] = useState("dashboard");
   const connected = state.connection === "connected";
   const chartPosition = connected ? state.positions.find((p) => p.symbol === symbol) : undefined;
   const chartSignal = connected ? signals.find((s) => s.symbol === symbol) : undefined;
@@ -42,7 +45,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
       <MiniCard label={ar ? "الرصيد" : "Balance"} value={money(state.account.balance)} /><MiniCard label={ar ? "القيمة" : "Equity"} value={money(state.account.equity)} /><MiniCard label="P/L" value={money(state.account.floatingPnl)} tone={(state.account.floatingPnl ?? 0) >= 0 ? "green" : "gold"} /><MiniCard label={ar ? "الصفقات" : "Pos"} value={String(state.positions.length)} /><MiniCard label={ar ? "المحرك" : "Engine"} value={intelligenceAvailable ? "SIM" : "LOCKED"} />
     </section>
     <nav className="atlas-bottom-actions atlas-bottom-actions--six" aria-label={ar ? "التنقل الرئيسي" : "Dashboard actions"}>
-      <a href="#dashboard" aria-label={ar ? "الرئيسية" : "Home"}>{ar ? "الرئيسية" : "Home"}</a><a href="#markets" aria-label={ar ? "الأسواق" : "Markets"}>{ar ? "الأسواق" : "Markets"}</a><a href="#account-connection" aria-label={ar ? "التداول" : "Trade"}>{ar ? "التداول" : "Trade"}</a><a href="#signals" aria-label={ar ? "الإشارات" : "Signals"}>{ar ? "الإشارات" : "Signals"}</a><a href="#risk" aria-label={ar ? "المخاطر" : "Risk"}>{ar ? "المخاطر" : "Risk"}</a><a href="#analytics" aria-label={ar ? "التحليل" : "Analytics"}>{ar ? "التحليل" : "Analytics"}</a>
+      <a href="#dashboard" aria-label={ar ? "الرئيسية" : "Home"} aria-current={activeNav === "dashboard" ? "page" : undefined} onClick={() => setActiveNav("dashboard")}>{ar ? "الرئيسية" : "Home"}</a><a href="#markets" aria-label={ar ? "الأسواق" : "Markets"} aria-current={activeNav === "markets" ? "page" : undefined} onClick={() => setActiveNav("markets")}>{ar ? "الأسواق" : "Markets"}</a><a href="#trade" aria-label={ar ? "التداول" : "Trade"} aria-current={activeNav === "trade" ? "page" : undefined} onClick={() => setActiveNav("trade")}>{ar ? "التداول" : "Trade"}</a><a href="#signals" aria-label={ar ? "الإشارات" : "Signals"} aria-current={activeNav === "signals" ? "page" : undefined} onClick={() => setActiveNav("signals")}>{ar ? "الإشارات" : "Signals"}</a><a href="#risk" aria-label={ar ? "المخاطر" : "Risk"} aria-current={activeNav === "risk" ? "page" : undefined} onClick={() => setActiveNav("risk")}>{ar ? "المخاطر" : "Risk"}</a><a href="#analytics" aria-label={ar ? "التحليل" : "Analytics"} aria-current={activeNav === "analytics" ? "page" : undefined} onClick={() => setActiveNav("analytics")}>{ar ? "التحليل" : "Analytics"}</a>
     </nav>
     <section className="atlas-market-strip atlas-secondary-zone" id="markets">{state.markets.map((market) => <MarketTile key={market.symbol} {...market} />)}</section>
     <section className="atlas-workspace-grid atlas-secondary-zone"><PositionsPanel positions={state.positions} available={positionsAvailable ?? connected} /><SignalsPanel signals={signals} available={signalsAvailable ?? connected} />{assistantAvailable && <AtlasAssistant sendMessage={sendAgentMessage} />}</section>

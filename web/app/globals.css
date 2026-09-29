@@ -281,3 +281,10 @@ a { color: inherit; text-decoration: none; }
   .atlas-mock-brand h1{font-size:2rem}
   .atlas-mock-brand small{font-size:.62rem}
 }
+
+.atlas-bottom-actions a[aria-current="page"]{background:var(--atlas-orange);border-color:var(--atlas-orange);color:#111318;box-shadow:0 8px 24px rgba(255,116,23,.22)}
+
+.atlas-bottom-actions--six a{transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease}
+.atlas-bottom-actions--six a:active{transform:scale(.97)}
+html{scroll-behavior:smooth}
+#markets,#trade,#signals,#risk,#analytics{scroll-margin-top:18px}
