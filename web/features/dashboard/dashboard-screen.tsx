@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import Image from "next/image";
 import type { Candle, DashboardViewModel } from "@/lib/api/types";
@@ -33,7 +33,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
   return <div className="atlas-dashboard atlas-dashboard--mockup" id="dashboard" dir={ar ? "rtl" : "ltr"}>
     <header className="atlas-mock-topbar" data-testid="atlas-dashboard-topbar">
       <div className="atlas-mock-brand"><Image src="/atlas-logo.webp" alt="ATLAS" width={84} height={84} unoptimized /><div><h1>ATLAS</h1><small className="atlas-brand-subtitle">Trading Intelligence</small></div></div>
-      <div className="atlas-mock-status"><span>{state.account.mode ?? (ar ? "زائر" : "Guest")}</span><span className={connected ? "is-connected" : ""}>{connected ? (ar ? "متصل" : "Connected") : (ar ? "MT5 غير متصل" : "MT5 disconnected")}</span>{state.connection === "offline" && <span className="sr-only">Backend offline</span>}</div>
+      <div className="atlas-mock-status"><span>{state.userRole === "OWNER" ? "OWNER" : state.account.mode ?? (ar ? "زائر" : "Guest")}</span><span className={connected ? "is-connected" : ""}>{connected ? (ar ? "متصل" : "Connected") : (ar ? "MT5 غير متصل" : "MT5 disconnected")}</span>{state.connection === "offline" && <span className="sr-only">Backend offline</span>}</div>
     </header>
     {intelligenceAvailable && <section className="atlas-insight-grid" data-testid="atlas-insight-grid">
       <MiniCard label={ar ? "الاتجاه" : "Trend"} value={signal === "BUY" ? (ar ? "صاعد" : "BULLISH") : signal === "SELL" ? (ar ? "هابط" : "BEARISH") : (ar ? "محايد" : "NEUTRAL")} />

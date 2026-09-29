@@ -1,4 +1,4 @@
-﻿import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
 import { DASHBOARD_FIXTURE } from "@/lib/api/fixtures";
@@ -46,4 +46,21 @@ it("styles dashboard headings as orange 3D blocks and paragraphs yellow", () => 
   expect(css).toContain(".atlas-dashboard .atlas-card h2");
   expect(css).toContain(".atlas-dashboard .atlas-card p");
   expect(css).toContain("color: #ffd84d");
+});
+
+it("shows OWNER in the account status when the signed-in role is owner", () => {
+  render(<DashboardScreen state={{ ...DASHBOARD_FIXTURE, userRole: "OWNER", account: { ...DASHBOARD_FIXTURE.account, mode: null } }} />);
+  expect(screen.getByText("OWNER")).toBeInTheDocument();
+  expect(screen.queryByText("زائر")).not.toBeInTheDocument();
+});
+
+it("styles headings as dark 3D boxes with black edge and orange text", () => {
+  const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+  expect(css).toContain("background: linear-gradient(145deg, #2a2a2a");
+  expect(css).toContain("border: 1px solid #050505");
+  expect(css).toContain("color: var(--atlas-orange)");
+  const badgeCss = css.slice(css.indexOf(".atlas-agent-badge"), css.indexOf(".atlas-sector-title"));
+  expect(badgeCss).toContain("border: 1px solid #050505");
+  expect(badgeCss).toContain("background: linear-gradient(145deg, #242424");
+  expect(badgeCss).toContain("color: var(--atlas-orange)");
 });

@@ -21,7 +21,7 @@ export function mapDashboardState(input: unknown): DashboardViewModel {
 }
 export function mapPrivateDashboardState(input: unknown): DashboardViewModel {
   const root = obj(input), mt5 = obj(root.mt5), user = obj(root.user), features = obj(root.features);
-  const identity = { userEmail: str(user.email), entitlements: { tradingIntelligence: features.trading_intelligence === true } };
+  const identity = { userEmail: str(user.email), userRole: str(user.role)?.toUpperCase() ?? null, entitlements: { tradingIntelligence: features.trading_intelligence === true } };
   if (mt5.connected !== true) return { ...mapDashboardState({ status: "OFFLINE" }), ...identity };
   const account = obj(mt5.account);
   const state = mapDashboardState({

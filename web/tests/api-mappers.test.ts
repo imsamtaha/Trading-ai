@@ -30,3 +30,13 @@ describe("ATLAS API mappers", () => {
     expect(candles).toEqual([{ time: 1, open: 10, high: 12, low: 9, close: 11 }]);
   });
 });
+
+// OWNER role regression coverage
+it("preserves owner role from the private dashboard payload", () => {
+  const state = mapPrivateDashboardState({
+    user: { email: "owner@example.com", role: "OWNER" },
+    features: { trading_intelligence: true },
+    mt5: { connected: false },
+  });
+  expect(state.userRole).toBe("OWNER");
+});
