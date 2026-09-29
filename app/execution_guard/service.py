@@ -97,3 +97,39 @@ class ExecutionGuardService:
         self.repository.save_trade_draft(user_id, draft.model_dump(mode="json"))
         self._record(user_id, decision.decision_id, "WAITING_CONFIRMATION", draft_id=draft_id)
         return GuardResult(decision_id=decision.decision_id, status="WAITING_CONFIRMATION", draft_id=draft_id)
+
+    def confirm(self, user_id: str, draft_id: str) -> dict[str, Any]:
+        draft = self.repository.get_trade_draft(user_id, draft_id)
+        if not draft:
+            raise ValueError("Trade draft not found for this user.")
+        if draft.get("status") != "WAITING_CONFIRMATION":
+            raise ValueError("Trade draft is no longer confirmable.")
+        expires_at = datetime.fromisoformat(str(draft["expires_at"]).replace("Z", "+00:00"))
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if self.clock() >= expires_at:
+            self.repository.mark_trade_draft(user_id, draft_id, "EXPIRED")
+            raise ValueError("Trade draft has expired.")
+        dashboard = self.mt5_service.get_dashboard_state(user_id)
+        account = dashboard.get("account") or {}
+        if not dashboard.get("connected") or str(account.get("account_type", "")).upper() != "REAL":
+            raise ValueError("Connected MT5 account is not the required REAL account.")
+        if str(account.get("account_masked", "")) != str(draft.get("account_masked", "")):
+            raise ValueError("MT5 account changed before confirmation.")
+        self.repository.mark_trade_draft(user_id, draft_id, "SUBMITTING")
+        order = {
+            "request_id": draft_id, "account_type": "REAL", "symbol": draft["symbol"],
+            "direction": draft["direction"], "volume": draft["volume"],
+            "stop_loss": draft["stop_loss"], "take_profit": draft["take_profit"], "confirmed": True,
+        }
+        try:
+            result = self.mt5_service.place_manual_order(user_id, order)
+            if result.get("status") != "FILLED":
+                raise RuntimeError("Broker did not confirm a fill.")
+            self.repository.mark_trade_draft(user_id, draft_id, "CONSUMED")
+            self._record(user_id, draft["decision_id"], "EXECUTED", draft_id=draft_id)
+            return result
+        except Exception:
+            self.repository.mark_trade_draft(user_id, draft_id, "UNKNOWN")
+            self._record(user_id, draft["decision_id"], "UNKNOWN", "Broker outcome unknown; inspect MT5 history.", draft_id)
+            raise
