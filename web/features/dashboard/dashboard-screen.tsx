@@ -12,6 +12,7 @@ import { AtlasAssistant } from "@/features/ai/atlas-assistant";
 import { sendAgentMessage } from "@/lib/api/agent";
 import type { Headline } from "@/lib/api/briefing";
 import { AgentBadge } from "@/components/system/agent-badge";
+import { ExecutionAgentPanel } from "@/features/execution/execution-agent-panel";
 
 type Language = "ar" | "en";
 const money = (v: number | null) => v == null ? "PRIVATE" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -56,6 +57,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
     <section className="atlas-market-strip atlas-secondary-zone" id="markets">{state.markets.map((market) => <MarketTile key={market.symbol} {...market} />)}</section>
     <section className="atlas-workspace-grid atlas-workspace-grid--two atlas-secondary-zone"><PositionsPanel positions={state.positions} available={positionsAvailable ?? connected} /><SignalsPanel signals={signals} available={signalsAvailable ?? connected} /></section>
     <section className="atlas-lower-grid atlas-secondary-zone"><div><RiskPanel risk={state.risk} /></div><ActivityPanel events={activity} available={activityAvailable ?? connected} /></section>
+    <ExecutionAgentPanel />
     <section className="atlas-lower-grid atlas-secondary-zone"><div className="atlas-card atlas-activity-card" id="analytics"><span className="atlas-card-label">{ar ? "التحليل" : "Analytics"}</span><h2>{ar ? "الأداء" : "Performance"} <AgentBadge /></h2><p className="atlas-empty-line">{ar ? "التحليلات الموثقة غير متاحة" : "Verified analytics unavailable"}</p></div><div className="atlas-card atlas-activity-card atlas-feature-3d" id="news"><span className="atlas-card-label">{ar ? "الأخبار" : "News"}</span><h2>{ar ? "موجز السوق" : "Market briefing"} <AgentBadge /></h2>{!briefingAvailable ? <p className="atlas-empty-line">{ar ? "موجز السوق غير متاح" : "Market briefing unavailable"}</p> : headlines.length === 0 ? <p className="atlas-empty-line">{ar ? "لا توجد أخبار حديثة" : "No recent headlines"}</p> : <ul className="atlas-activity-list">{headlines.map((item, i) => <li key={i}>{item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title}</a> : item.title}</li>)}</ul>}</div></section>
   </div>;
 }

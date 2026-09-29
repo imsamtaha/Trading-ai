@@ -34,8 +34,8 @@ describe("DashboardScreen", () => {
 
 it("labels each dashboard sector with an AGENT badge", () => {
   render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
-  expect(screen.getAllByText("AGENT")).toHaveLength(8);
-  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي"]) {
+  expect(screen.getAllByText("AGENT")).toHaveLength(9);
+  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي", "EXECUTION AGENT"]) {
     const heading = screen.getByText(title);
     expect(heading.closest("section,div")?.textContent).toContain("AGENT");
   }
