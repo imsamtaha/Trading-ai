@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+﻿import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
 import { DASHBOARD_FIXTURE } from "@/lib/api/fixtures";
@@ -31,3 +31,13 @@ describe("DashboardScreen", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });
+
+it("labels each dashboard sector with an AGENT badge", () => {
+  render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+  expect(screen.getAllByText("AGENT")).toHaveLength(8);
+  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي"]) {
+    const heading = screen.getByText(title);
+    expect(heading.closest("section,div")?.textContent).toContain("AGENT");
+  }
+});
+

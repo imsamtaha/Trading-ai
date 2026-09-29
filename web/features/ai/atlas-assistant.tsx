@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useState } from "react";
 import type { AgentChatResponse } from "@/lib/api/types";
+import { AgentBadge } from "@/components/system/agent-badge";
 
 export function AtlasAssistant({ sendMessage }: { sendMessage: (input: { message: string }) => Promise<AgentChatResponse> }) {
   const [prompt, setPrompt] = useState("");
@@ -16,7 +17,7 @@ export function AtlasAssistant({ sendMessage }: { sendMessage: (input: { message
   }
   return (
     <section className="atlas-card atlas-assistant atlas-feature-3d" id="ai">
-      <div className="atlas-assistant-head"><Image className="atlas-assistant-logo" src="/atlas-logo.webp" alt="ATLAS AI" width={72} height={72} unoptimized /><div><span className="atlas-card-label">ATLAS AI</span><h2>المساعد الذكي</h2></div></div>
+      <div className="atlas-assistant-head"><Image className="atlas-assistant-logo" src="/atlas-logo.webp" alt="ATLAS AI" width={72} height={72} unoptimized /><div><span className="atlas-card-label">ATLAS AI</span><h2>المساعد الذكي <AgentBadge /></h2></div></div>
       <p className="atlas-assistant-copy">اسأل ATLAS AI عن الأسواق والمخاطر. لا يرى حسابك أو الأسعار الحية، ولا تشارك بيانات الدخول.</p>
       {answer && <div className="atlas-assistant-answer">{answer}</div>}
       {state === "error" && <div className="atlas-warning">المساعد غير متاح</div>}
@@ -25,3 +26,5 @@ export function AtlasAssistant({ sendMessage }: { sendMessage: (input: { message
     </section>
   );
 }
+
+
