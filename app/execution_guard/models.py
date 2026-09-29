@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Literal
@@ -63,3 +63,4 @@ class ExecutionEvent(BaseModel):
     reason: str | None = None
     draft_id: str | None = None
     broker_ticket: int | None = None
+
