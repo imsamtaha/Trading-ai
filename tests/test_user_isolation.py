@@ -66,6 +66,8 @@ def test_supabase_repository_uses_user_token_for_rls(monkeypatch):
     secret = "test-secret-0123456789-0123456789-ab"
     monkeypatch.setenv("SUPABASE_JWT_SECRET", secret)
     monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.delenv("SUPABASE_PUBLISHABLE_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_ANON_KEY", raising=False)
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_test_public_key")
     token_value = jwt.encode({"sub": "user-a", "aud": "authenticated", "exp": 4102444800}, secret, algorithm="HS256")
     request = Request({"type": "http", "method": "GET", "path": "/", "headers": [(b"authorization", f"Bearer {token_value}".encode())]})
