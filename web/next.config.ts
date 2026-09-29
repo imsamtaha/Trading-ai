@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
       "/api/me", "/api/user/market-briefing", "/api/user/assistant",
       "/api/mt5-demo/connect", "/api/mt5-demo/connect-real", "/api/mt5-demo/state", "/api/mt5-demo/disconnect",
       "/api/mt5-demo/trading-state", "/api/mt5-demo/activate-trading", "/api/mt5-demo/order",
+      "/api/execution-guard/status", "/api/execution-guard/events",
       "/billing/methods", "/billing/plans", "/billing/whish/starter/request",
       "/billing/whish/pro/request", "/billing/whish/elite/request",
       "/auth/config", "/auth/session",
