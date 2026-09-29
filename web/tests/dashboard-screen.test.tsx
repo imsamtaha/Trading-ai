@@ -41,3 +41,9 @@ it("labels each dashboard sector with an AGENT badge", () => {
   }
 });
 
+it("styles dashboard headings as orange 3D blocks and paragraphs yellow", () => {
+  const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+  expect(css).toContain(".atlas-dashboard .atlas-card h2");
+  expect(css).toContain(".atlas-dashboard .atlas-card p");
+  expect(css).toContain("color: #ffd84d");
+});

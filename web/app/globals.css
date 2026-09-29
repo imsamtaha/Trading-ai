@@ -333,3 +333,25 @@ html{scroll-behavior:smooth}
   margin-bottom: .65rem;
   font-weight: 800;
 }
+
+/* ATLAS premium title treatment: orange 3D headings, yellow descriptive copy */
+.atlas-dashboard .atlas-card h2,
+.atlas-dashboard .atlas-market-workspace h2,
+.atlas-dashboard .atlas-assistant h2 {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: .42rem .72rem;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: .62rem;
+  background: linear-gradient(145deg, #ff9b35 0%, #ff7417 48%, #d84f00 100%);
+  color: #fff8ed;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -2px 0 rgba(120,40,0,.28), 0 7px 15px rgba(255,116,23,.25), 0 2px 0 #9f3c00;
+  text-shadow: 0 1px 0 rgba(95,31,0,.55);
+  letter-spacing: .02em;
+}
+.atlas-dashboard .atlas-card p,
+.atlas-dashboard .atlas-empty-line,
+.atlas-dashboard .atlas-assistant-copy {
+  color: #ffd84d;
+}
