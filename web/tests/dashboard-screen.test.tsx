@@ -6,7 +6,7 @@ import { DASHBOARD_FIXTURE } from "@/lib/api/fixtures";
 describe("DashboardScreen", () => {
   it("renders account and market telemetry", () => {
     render(<DashboardScreen state={DASHBOARD_FIXTURE} briefingAvailable headlines={[{ title: "Rates update", url: "https://example.com/news" }]} />);
-    expect(screen.getByRole("heading", { level: 1, name: "ATLAS THE ULTIMATE" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ATLAS" })).toBeInTheDocument();
     expect(screen.getByText("Trading Intelligence")).toHaveClass("atlas-brand-subtitle");
     expect(screen.queryByText(/ATLAS intelligence/i)).not.toBeInTheDocument();
     expect(screen.getByText("10,000.00")).toBeInTheDocument();

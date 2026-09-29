@@ -19,3 +19,15 @@ describe("MarketWorkspace", () => {
     expect(onChange).toHaveBeenCalledWith("XAUUSD", "15m");
   });
 });
+
+
+describe("AI chart controls", () => {
+  it("lets traders toggle common indicators", () => {
+    render(<MarketWorkspace candles={[]} symbol="XAUUSD" timeframe="1h" />);
+    expect(screen.getByRole("button", { name: "EMA 20" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SMA 50" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "RSI 14" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "EMA 20" }));
+    expect(screen.getByRole("button", { name: "EMA 20" })).toHaveAttribute("aria-pressed", "true");
+  });
+});

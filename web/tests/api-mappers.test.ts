@@ -19,6 +19,10 @@ describe("ATLAS API mappers", () => {
     expect(state.positions).toHaveLength(1);
     expect(state.risk.overall).toBeNull();
     expect(mapPrivateDashboardState({ mt5: { connected: false, account: { balance: 99 } } }).account.balance).toBeNull();
+    const unconnected = mapPrivateDashboardState({ user: { email: "trader@example.com" }, features: { trading_intelligence: false }, mt5: { connected: false } });
+    expect(unconnected.userEmail).toBe("trader@example.com");
+    expect(unconnected.entitlements?.tradingIntelligence).toBe(false);
+    expect(mapPrivateDashboardState({ features: { trading_intelligence: true }, mt5: { connected: false } }).entitlements?.tradingIntelligence).toBe(true);
   });
 
   it("filters malformed candle points", () => {

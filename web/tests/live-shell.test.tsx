@@ -10,18 +10,20 @@ describe("live dashboard availability", () => {
       path.endsWith("/health") ? 200 : 401,
     ))));
     render(<AtlasAppShell />);
-    expect(await screen.findByText("Sign in to view your ATLAS dashboard")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to sign in" })).toHaveAttribute("href", "/login");
-    expect(screen.queryByText("Backend degraded")).not.toBeInTheDocument();
-    expect(screen.queryByText("Backend offline")).not.toBeInTheDocument();
+    expect(await screen.findByText("استكشف أطلس")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "تسجيل الدخول" })).toHaveAttribute("href", "/login");
+    expect(screen.queryByText("الخادم غير مستقر")).not.toBeInTheDocument();
+    expect(screen.queryByText("الخادم غير متصل")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("atlas-insight-grid")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Ask ATLAS")).not.toBeInTheDocument();
   });
-  it("shows degraded when health succeeds but account telemetry is absent", async () => {
+  it("shows a healthy backend and MT5 connection form for signed-in users", async () => {
     vi.stubGlobal("fetch", vi.fn((path: string) => Promise.resolve(json(
       path.endsWith("/health") ? { status: "healthy" } : path.includes("chart-data") ? { candles: [] } : { mt5: { connected: false } }
     ))));
     render(<AtlasAppShell />);
-    await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
-    expect(screen.getByText("Backend offline")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("الخادم متصل")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "ربط MT5" })).toBeInTheDocument();
   });
   it("clears connected account data after a later failed refresh", async () => {
     let reads = 0;
@@ -32,12 +34,12 @@ describe("live dashboard availability", () => {
     }));
     render(<AtlasAppShell refreshMs={1000} />);
     await waitFor(() => expect(screen.getByText("500.00")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("الخادم غير مستقر")).toBeInTheDocument());
     expect(screen.queryByText("500.00")).not.toBeInTheDocument();
   });
   it("leaves checking when account request never resolves", async () => {
     vi.stubGlobal("fetch", vi.fn((path: string) => path.includes("/api/user/dashboard") ? new Promise(() => {}) : Promise.resolve(json(path.endsWith("/health") ? {status:"healthy"} : {candles:[],headlines:[]}))));
     render(<AtlasAppShell timeoutMs={30} />);
-    await waitFor(() => expect(screen.getByText("Backend degraded")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("الخادم غير مستقر")).toBeInTheDocument());
   });
 });

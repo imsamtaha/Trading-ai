@@ -20,8 +20,9 @@ export function mapDashboardState(input: unknown): DashboardViewModel {
   };
 }
 export function mapPrivateDashboardState(input: unknown): DashboardViewModel {
-  const mt5 = obj(obj(input).mt5);
-  if (mt5.connected !== true) return mapDashboardState({ status: "OFFLINE" });
+  const root = obj(input), mt5 = obj(root.mt5), user = obj(root.user), features = obj(root.features);
+  const identity = { userEmail: str(user.email), entitlements: { tradingIntelligence: features.trading_intelligence === true } };
+  if (mt5.connected !== true) return { ...mapDashboardState({ status: "OFFLINE" }), ...identity };
   const account = obj(mt5.account);
   const state = mapDashboardState({
     status: "ONLINE",
@@ -29,7 +30,7 @@ export function mapPrivateDashboardState(input: unknown): DashboardViewModel {
     positions: mt5.positions,
     markets: mt5.symbols,
   });
-  return state.account.id ? state : mapDashboardState({ status: "OFFLINE" });
+  return { ...(state.account.id ? state : mapDashboardState({ status: "OFFLINE" })), ...identity };
 }
 
 export function mapPositions(input: unknown): Position[] {
