@@ -19,3 +19,19 @@ create table if not exists public.execution_guard_drafts (
   unique (user_id, decision_id)
 );
 
+alter table public.execution_guard_events enable row level security;
+alter table public.execution_guard_drafts enable row level security;
+
+drop policy if exists execution_guard_events_user_policy on public.execution_guard_events;
+create policy execution_guard_events_user_policy
+on public.execution_guard_events
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists execution_guard_drafts_user_policy on public.execution_guard_drafts;
+create policy execution_guard_drafts_user_policy
+on public.execution_guard_drafts
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
