@@ -1,4 +1,5 @@
 from app.billing.plans import PLANS
+from app.dashboard import atlas_ultimate_view
 
 
 def test_signals_plan_is_99_and_manual_execution_only():
@@ -31,3 +32,14 @@ def test_elite_plan_price_remains_299():
     plan = PLANS["pro"]
     assert plan.name == "ATLAS Elite"
     assert plan.monthly_price == 299
+
+
+def test_public_pricing_cards_match_signals_and_council_offers():
+    page = atlas_ultimate_view().body.decode("utf-8")
+    assert "ATLAS Signals & Setups" in page
+    assert "$99" in page
+    assert "Telegram" in page and "Email" in page
+    assert "Manual execution by the customer" in page
+    assert "ATLAS Council" in page
+    assert "$149" in page
+    assert "Human confirmation before execution" in page
