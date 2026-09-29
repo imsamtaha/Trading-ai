@@ -116,20 +116,12 @@ class ExecutionGuardService:
             raise ValueError("Connected MT5 account is not the required REAL account.")
         if str(account.get("account_masked", "")) != str(draft.get("account_masked", "")):
             raise ValueError("MT5 account changed before confirmation.")
-        self.repository.mark_trade_draft(user_id, draft_id, "SUBMITTING")
-        order = {
-            "request_id": draft_id, "account_type": "REAL", "symbol": draft["symbol"],
-            "direction": draft["direction"], "volume": draft["volume"],
-            "stop_loss": draft["stop_loss"], "take_profit": draft["take_profit"], "confirmed": True,
-        }
-        try:
-            result = self.mt5_service.place_manual_order(user_id, order)
-            if result.get("status") != "FILLED":
-                raise RuntimeError("Broker did not confirm a fill.")
-            self.repository.mark_trade_draft(user_id, draft_id, "CONSUMED")
-            self._record(user_id, draft["decision_id"], "EXECUTED", draft_id=draft_id)
-            return result
-        except Exception:
-            self.repository.mark_trade_draft(user_id, draft_id, "UNKNOWN")
-            self._record(user_id, draft["decision_id"], "UNKNOWN", "Broker outcome unknown; inspect MT5 history.", draft_id)
-            raise
+        raise ValueError("Live broker execution is disabled for this deployment.")
+
+    def status(self, user_id: str) -> dict[str, Any]:
+        events = self._events(user_id)
+        latest = events[-1] if events else None
+        return {"status": (latest or {}).get("status", "READY"), "last_event": latest}
+
+    def events(self, user_id: str) -> list[dict[str, Any]]:
+        return self._events(user_id)
