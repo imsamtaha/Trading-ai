@@ -1,16 +1,28 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AtlasShell } from "@/components/layout/atlas-shell";
 
-const labels = ["Dashboard", "Markets", "Trade", "Signals", "Risk", "Analytics", "News", "ATLAS AI", "Account"];
+const desktopLabels = ["Dashboard", "Markets", "Trade", "Signals", "Risk", "Analytics", "News", "ATLAS AI", "Account"];
+const mobileLabels = ["Dashboard", "Markets", "Trade", "ATLAS AI"];
 
 describe("ATLAS navigation", () => {
-  it("renders desktop and mobile destinations with dashboard active", () => {
+  it("keeps desktop destinations and uses four mobile actions", () => {
     render(<AtlasShell><div>content</div></AtlasShell>);
     expect(screen.getByTestId("desktop-sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
-    for (const label of labels) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "Dashboard" })[0]).toHaveAttribute("aria-current", "page");
-    expect(screen.getAllByRole("link", { name: "Account" })[0]).toHaveAttribute("href", "/login");
+    const mobile = screen.getByTestId("mobile-nav");
+    for (const label of desktopLabels) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    expect(mobile.querySelectorAll("a")).toHaveLength(4);
+    for (const label of mobileLabels) expect(mobile).toHaveTextContent(label);
+  });
+
+  it("moves the mobile active color to the pressed section", () => {
+    render(<AtlasShell><div>content</div></AtlasShell>);
+    const mobile = screen.getByTestId("mobile-nav");
+    const dashboard = mobile.querySelector('a[href="#dashboard"]')!;
+    const ai = mobile.querySelector('a[href="#ai"]')!;
+    expect(dashboard).toHaveAttribute("aria-current", "page");
+    fireEvent.click(ai);
+    expect(ai).toHaveAttribute("aria-current", "page");
+    expect(dashboard).not.toHaveAttribute("aria-current", "page");
   });
 });
