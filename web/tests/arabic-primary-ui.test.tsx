@@ -12,13 +12,17 @@ describe("Arabic-first ATLAS mobile UI", () => {
     expect(screen.getByRole("button", { name: "ربط MT5" })).toBeInTheDocument();
   });
 
-  it("moves the active color with the selected dashboard button", () => {
-    render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+  it("keeps four primary dashboard actions and moves the active color", () => {
+    const { container } = render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+    const nav = screen.getByRole("navigation", { name: "التنقل الرئيسي" });
+    expect(nav.querySelectorAll("a")).toHaveLength(4);
+    for (const label of ["الرئيسية", "الأسواق", "التداول", "ATLAS AI"]) expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+    expect(container.querySelector('#ai img[alt="ATLAS AI"]')).toBeInTheDocument();
     const home = screen.getByRole("link", { name: "الرئيسية" });
-    const markets = screen.getByRole("link", { name: "الأسواق" });
+    const atlasAi = screen.getByRole("link", { name: "ATLAS AI" });
     expect(home).toHaveAttribute("aria-current", "page");
-    fireEvent.click(markets);
-    expect(markets).toHaveAttribute("aria-current", "page");
+    fireEvent.click(atlasAi);
+    expect(atlasAi).toHaveAttribute("aria-current", "page");
     expect(home).not.toHaveAttribute("aria-current", "page");
   });
 });

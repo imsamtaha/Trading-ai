@@ -1,8 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import type { AgentChatResponse } from "@/lib/api/types";
-import { AtlasRobotMark } from "./atlas-robot-mark";
 
 export function AtlasAssistant({ sendMessage }: { sendMessage: (input: { message: string }) => Promise<AgentChatResponse> }) {
   const [prompt, setPrompt] = useState("");
@@ -16,12 +16,12 @@ export function AtlasAssistant({ sendMessage }: { sendMessage: (input: { message
   }
   return (
     <section className="atlas-card atlas-assistant" id="ai">
-      <div className="atlas-assistant-head"><AtlasRobotMark /><div><span className="atlas-card-label">ATLAS AI</span><h2>Right Hand</h2></div></div>
-      <p className="atlas-assistant-copy">Ask educational questions about trading and risk. ATLAS AI does not see your account or live prices. Avoid sharing credentials.</p>
+      <div className="atlas-assistant-head"><Image className="atlas-assistant-logo" src="/atlas-logo.webp" alt="ATLAS AI" width={72} height={72} unoptimized /><div><span className="atlas-card-label">ATLAS AI</span><h2>المساعد الذكي</h2></div></div>
+      <p className="atlas-assistant-copy">اسأل ATLAS AI عن الأسواق والمخاطر. لا يرى حسابك أو الأسعار الحية، ولا تشارك بيانات الدخول.</p>
       {answer && <div className="atlas-assistant-answer">{answer}</div>}
-      {state === "error" && <div className="atlas-warning">Assistant unavailable</div>}
-      <label className="atlas-assistant-input"><span>Ask ATLAS</span><input aria-label="Ask ATLAS" maxLength={1000} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Explain this setup…" /></label>
-      <button className="atlas-primary-button" type="button" onClick={submit} disabled={state === "sending"}>{state === "sending" ? "Sending…" : "Send"}</button>
+      {state === "error" && <div className="atlas-warning">المساعد غير متاح</div>}
+      <label className="atlas-assistant-input"><span>اسأل ATLAS</span><input aria-label="اسأل ATLAS" maxLength={1000} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="اسأل عن السوق أو المخاطر…" /></label>
+      <button className="atlas-primary-button" type="button" onClick={submit} disabled={state === "sending"}>{state === "sending" ? "جارٍ الإرسال…" : "إرسال"}</button>
     </section>
   );
 }
