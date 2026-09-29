@@ -24,7 +24,7 @@ export function ManualTrading() {
       .catch(() => { if (mounted) setMessage("Trading state unavailable."); });
     return () => { mounted = false; };
   }, []);
-  if (!state?.connected) return message ? <p role="status">{message}</p> : null;
+  if (!state?.connected) return <section id="trade" className="atlas-card atlas-manual-trading atlas-feature-3d"><h2>FxPro MT5 trading</h2><p role={message ? "status" : undefined}>{message || "Connect MT5 to open the trading workspace."}</p></section>
   const mode = state.account_type === "REAL" ? "Live" : "Demo";
   async function activate() {
     if (!state || state.account_type !== "REAL") return;
@@ -51,7 +51,7 @@ export function ManualTrading() {
     } catch { setMessage("Order not confirmed. Check your MT5 account and order history before trying again."); }
     finally { setReviewing(false); setBusy(false); }
   }
-  return <section className="atlas-card atlas-manual-trading">
+  return <section id="trade" className="atlas-card atlas-manual-trading atlas-feature-3d">
     <h2>FxPro MT5 manual trading</h2>
     <p>{mode} account {state.account_masked} · {state.active ? "Trading available" : "Trading inactive"}</p>
     {!state.server_enabled && <p>Order submission is disabled on this server.</p>}

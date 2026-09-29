@@ -8,7 +8,7 @@ const rows = [
 
 export function RiskPanel({ risk }: { risk: RiskViewModel }) {
   return (
-    <section className="atlas-card atlas-risk-panel" id="risk">
+    <section className="atlas-card atlas-risk-panel atlas-feature-3d" id="risk">
       <div className="atlas-section-heading"><div><span className="atlas-card-label">Capital protection</span><h2>Risk Controls</h2></div><strong>{risk.protectionState ?? "Unknown"}</strong></div>
       <div className="atlas-risk-list">
         {rows.map(([label, key]) => <div className="atlas-risk-row" key={key}><span>{label}</span><div className="atlas-risk-track"><i style={{ width: `${Math.max(0, Math.min(100, risk[key] ?? 0))}%` }} /></div><strong>{pct(risk[key])}</strong></div>)}

@@ -15,7 +15,7 @@ export function AtlasAssistant({ sendMessage }: { sendMessage: (input: { message
     catch { setState("error"); }
   }
   return (
-    <section className="atlas-card atlas-assistant" id="ai">
+    <section className="atlas-card atlas-assistant atlas-feature-3d" id="ai">
       <div className="atlas-assistant-head"><Image className="atlas-assistant-logo" src="/atlas-logo.webp" alt="ATLAS AI" width={72} height={72} unoptimized /><div><span className="atlas-card-label">ATLAS AI</span><h2>المساعد الذكي</h2></div></div>
       <p className="atlas-assistant-copy">اسأل ATLAS AI عن الأسواق والمخاطر. لا يرى حسابك أو الأسعار الحية، ولا تشارك بيانات الدخول.</p>
       {answer && <div className="atlas-assistant-answer">{answer}</div>}

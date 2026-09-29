@@ -299,3 +299,15 @@ html{scroll-behavior:smooth}
 .atlas-bottom-actions--four a:active{transform:scale(.97)}
 #ai{scroll-margin-top:18px}
 @media(max-width:760px){.atlas-ai-featured .atlas-assistant{padding:16px}.atlas-assistant-logo{width:56px;height:56px}.atlas-workspace-grid--two{grid-template-columns:1fr}.atlas-bottom-actions--four{position:sticky;bottom:76px;z-index:12;grid-template-columns:repeat(4,1fr);padding:7px;backdrop-filter:blur(16px)}.atlas-bottom-actions--four a{min-height:48px;font-size:.75rem;white-space:nowrap}}
+/* Five-section ATLAS navigation + 3D feature cards */
+.atlas-bottom-actions--five{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.atlas-bottom-actions--five a{min-width:0;padding:9px 6px;text-align:center;font-size:.8rem;transition:transform .18s ease,background .22s ease,color .22s ease,border-color .22s ease,box-shadow .22s ease}
+.atlas-bottom-actions--five a:active,.atlas-mobile-nav__link:active{transform:translateY(2px) scale(.97)}
+.atlas-feature-3d{position:relative;overflow:hidden;border-color:rgba(255,116,23,.28);background:linear-gradient(145deg,rgba(28,33,42,.98),rgba(8,11,16,.99));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -10px 28px rgba(0,0,0,.22),0 18px 34px rgba(0,0,0,.34),0 4px 0 rgba(255,116,23,.12);transform:perspective(900px) translateZ(0)}
+.atlas-feature-3d::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,rgba(255,255,255,.06),transparent 28%,transparent 72%,rgba(255,116,23,.07));border-radius:inherit}
+.atlas-feature-3d:target{border-color:rgba(255,116,23,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 22px 42px rgba(0,0,0,.42),0 0 30px rgba(255,116,23,.16)}
+#trade,#signals,#risk,#news,#ai{scroll-margin-top:22px}
+.atlas-mobile-nav--five{justify-content:space-between;overflow:visible}
+.atlas-mobile-nav--five .atlas-mobile-nav__link{flex:1 1 0;min-width:0;text-align:center;border:1px solid rgba(255,116,23,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.035);transition:transform .18s ease,background .22s ease,color .22s ease,box-shadow .22s ease}
+.atlas-mobile-nav--five .atlas-mobile-nav__link[aria-current="page"]{background:linear-gradient(145deg,#ff8b31,#ff7417);color:#111318;border-color:#ff8b31;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 20px rgba(255,116,23,.28)}
+@media(max-width:760px){.atlas-bottom-actions--five{display:none}.atlas-mobile-nav--five{left:6px;right:6px;bottom:6px;gap:5px;padding:7px}.atlas-mobile-nav--five .atlas-mobile-nav__link{padding:10px 4px;font-size:.68rem}.atlas-feature-3d{border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 -8px 22px rgba(0,0,0,.2),0 14px 28px rgba(0,0,0,.36),0 3px 0 rgba(255,116,23,.12)}}

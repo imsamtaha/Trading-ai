@@ -12,17 +12,17 @@ describe("Arabic-first ATLAS mobile UI", () => {
     expect(screen.getByRole("button", { name: "ربط MT5" })).toBeInTheDocument();
   });
 
-  it("keeps four primary dashboard actions and moves the active color", () => {
+  it("keeps five primary dashboard actions and moves the active color", () => {
     const { container } = render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
     const nav = screen.getByRole("navigation", { name: "التنقل الرئيسي" });
-    expect(nav.querySelectorAll("a")).toHaveLength(4);
-    for (const label of ["الرئيسية", "الأسواق", "التداول", "ATLAS AI"]) expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+    expect(nav.querySelectorAll("a")).toHaveLength(5);
+    for (const label of ["التداول", "الإشارات", "المخاطر", "الأخبار", "ATLAS AI"]) expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     expect(container.querySelector('#ai img[alt="ATLAS AI"]')).toBeInTheDocument();
-    const home = screen.getByRole("link", { name: "الرئيسية" });
+    const trade = screen.getByRole("link", { name: "التداول" });
     const atlasAi = screen.getByRole("link", { name: "ATLAS AI" });
-    expect(home).toHaveAttribute("aria-current", "page");
+    expect(trade).toHaveAttribute("aria-current", "page");
     fireEvent.click(atlasAi);
     expect(atlasAi).toHaveAttribute("aria-current", "page");
-    expect(home).not.toHaveAttribute("aria-current", "page");
+    expect(trade).not.toHaveAttribute("aria-current", "page");
   });
 });

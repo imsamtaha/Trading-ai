@@ -43,3 +43,11 @@ it("shows an unavailable state when trading status cannot be read", async () => 
   render(<ManualTrading />);
   expect(await screen.findByRole("status")).toHaveTextContent("Trading state unavailable");
 });
+
+it("keeps the trading section visible when MT5 is disconnected", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ connected: false, active: false, account_type: null }), { status: 200 })));
+  const { container } = render(<ManualTrading />);
+  await waitFor(() => expect(container.querySelector("#trade")).toBeInTheDocument());
+  expect(container.querySelector("#trade")).toHaveClass("atlas-feature-3d");
+  expect(screen.getByText(/Connect MT5/i)).toBeInTheDocument();
+});
