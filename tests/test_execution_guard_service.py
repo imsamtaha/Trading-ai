@@ -52,16 +52,20 @@ def test_blocks_wait_low_confidence_stale_and_invalid_levels():
     assert mt5.orders == []
 
 
-def test_demo_executes_once_when_enabled_and_real_creates_draft_only():
+def test_demo_guard_approves_without_broker_execution_and_real_creates_draft_only():
     from app.execution_guard.service import ExecutionGuardService
     repo = Repo()
     demo = MT5("DEMO", demo_enabled=True)
     result = ExecutionGuardService(repo, demo).evaluate("alice", decision())
-    assert result.status == "EXECUTED"
-    assert len(demo.orders) == 1
+    assert result.status == "APPROVED"
+    assert result.execution_request is not None
+    assert result.execution_request.account_type == "DEMO"
+    assert result.execution_request.symbol == "EURUSD"
+    assert demo.orders == []
+
     duplicate = ExecutionGuardService(repo, demo).evaluate("alice", decision())
     assert duplicate.status == "BLOCKED"
-    assert len(demo.orders) == 1
+    assert demo.orders == []
 
     real = MT5("REAL", demo_enabled=True)
     draft_result = ExecutionGuardService(Repo(), real).evaluate("alice", decision(decision_id="decision-real"))

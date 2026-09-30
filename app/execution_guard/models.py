@@ -1,11 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 DecisionDirection = Literal["BUY", "SELL", "WAIT"]
-GuardStatus = Literal["READY", "BLOCKED", "EXECUTED", "WAITING_CONFIRMATION", "UNKNOWN"]
+GuardStatus = Literal["READY", "APPROVED", "BLOCKED", "EXECUTED", "WAITING_CONFIRMATION", "UNKNOWN"]
 
 
 class CouncilDecision(BaseModel):
@@ -28,11 +28,23 @@ class CouncilDecision(BaseModel):
         return self
 
 
+class ExecutionRequest(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    request_id: str
+    account_type: Literal["DEMO"]
+    symbol: str
+    direction: Literal["BUY", "SELL"]
+    volume: float = Field(gt=0, allow_inf_nan=False)
+    stop_loss: float = Field(gt=0, allow_inf_nan=False)
+    take_profit: float = Field(gt=0, allow_inf_nan=False)
+
+
 class GuardResult(BaseModel):
     model_config = ConfigDict(frozen=True)
     decision_id: str
     status: GuardStatus
     reason: str | None = None
+    execution_request: ExecutionRequest | None = None
 
 
 class TradeDraft(BaseModel):
@@ -61,6 +73,4 @@ class ExecutionEvent(BaseModel):
     status: GuardStatus
     created_at: datetime
     reason: str | None = None
-    draft_id: str | None = None
     broker_ticket: int | None = None
-

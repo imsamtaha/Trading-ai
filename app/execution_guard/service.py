@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Callable
 from uuid import uuid4
 
-from .models import CouncilDecision, GuardResult, TradeDraft
+from .models import CouncilDecision, ExecutionRequest, GuardResult, TradeDraft
 
 
 class ExecutionGuardService:
@@ -74,16 +74,13 @@ class ExecutionGuardService:
             state = self.mt5_service.manual_trading_state(user_id)
             if not state.get("active"):
                 return self._block(user_id, decision, "Demo execution is disabled.")
-            result = self.mt5_service.place_manual_order(user_id, {
-                "request_id": decision.decision_id, "account_type": "DEMO", "symbol": decision.symbol,
-                "direction": decision.direction, "volume": decision.volume,
-                "stop_loss": decision.stop_loss, "take_profit": decision.take_profit, "confirmed": True,
-            })
-            if result.get("status") != "FILLED":
-                return self._block(user_id, decision, "Broker did not confirm a demo fill.")
-            self._record(user_id, decision.decision_id, "EXECUTED")
-            return GuardResult(decision_id=decision.decision_id, status="EXECUTED")
-
+            request = ExecutionRequest(
+                request_id=decision.decision_id, account_type="DEMO", symbol=decision.symbol,
+                direction=decision.direction, volume=decision.volume,
+                stop_loss=decision.stop_loss, take_profit=decision.take_profit,
+            )
+            self._record(user_id, decision.decision_id, "APPROVED")
+            return GuardResult(decision_id=decision.decision_id, status="APPROVED", execution_request=request)
         draft_id = f"draft-{uuid4().hex[:16]}"
         draft = TradeDraft(
             draft_id=draft_id, user_id=user_id, decision_id=decision.decision_id,
