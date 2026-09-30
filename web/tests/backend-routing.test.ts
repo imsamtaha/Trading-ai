@@ -15,6 +15,7 @@ describe("ATLAS backend routing", () => {
       "/backend/api/mt5-demo/connect-real", "/backend/api/mt5-demo/state", "/backend/api/mt5-demo/disconnect",
       "/backend/api/mt5-demo/trading-state", "/backend/api/mt5-demo/activate-trading", "/backend/api/mt5-demo/order",
       "/backend/api/execution-guard/status", "/backend/api/execution-guard/events",
+      "/backend/api/runtime/status", "/backend/api/runtime/demo-execution", "/backend/api/runtime/restart",
       "/backend/api/me", "/backend/billing/methods", "/backend/billing/plans", "/backend/billing/whish/starter/request", "/backend/billing/whish/admin/:path*"]) {
       expect(afterFiles.some((rule) => rule.source === source || rule.source === "/backend/billing/whish/:path*")).toBe(true);
     }

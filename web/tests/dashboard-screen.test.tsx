@@ -55,6 +55,12 @@ it("shows OWNER in the account status when the signed-in role is owner", () => {
   expect(screen.queryByText("زائر")).not.toBeInTheDocument();
 });
 
+it("left-aligns the three lower feature title blocks to match Recent Activity", () => {
+  render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+  for (const title of ["EXECUTION AGENT", "الأداء", "موجز السوق"]) {
+    expect(screen.getByRole("heading", { name: new RegExp(title, "i") })).toHaveClass("atlas-card-title-left");
+  }
+});
 it("styles headings as dark 3D boxes with black edge and orange text", () => {
   const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
   expect(css).toContain("background: linear-gradient(145deg, #2a2a2a");
