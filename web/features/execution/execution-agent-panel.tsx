@@ -27,9 +27,8 @@ export function ExecutionAgentPanel() {
   }, []);
 
   return <section className="atlas-card atlas-feature-3d atlas-execution-agent" id="execution-agent">
-    <span className="atlas-card-label">Execution Guard</span>
     <h2>EXECUTION AGENT <AgentBadge /></h2>
-    {unavailable ? <p className="atlas-empty-line">Execution Guard unavailable</p> : <>
+    {!unavailable && <>
       <p>Guard status: <strong>{status}</strong></p>
       <p>Demo decisions may auto-execute only after guard checks. Live decisions remain draft-only.</p>
       {events.length > 0 ? <ul className="atlas-activity-list">
