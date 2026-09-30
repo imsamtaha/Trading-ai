@@ -1,5 +1,7 @@
-import { requestJson } from "./client";
-import { mapDashboardState, mapPositions } from "./mappers";
-import type { DashboardViewModel, Position } from "./types";
-export async function getDashboardState(): Promise<DashboardViewModel> { return mapDashboardState(await requestJson<unknown>("/dashboard/mt5-state")); }
-export async function getPositions(): Promise<Position[]> { return mapPositions(await requestJson<unknown>("/mt5/positions")); }
+import { atlasFetch } from "./client";
+import { apiPath } from "./config";
+import { mapPrivateDashboardState } from "./mappers";
+import type { DashboardViewModel } from "./types";
+export async function getDashboardState(signal?: AbortSignal, timeoutMs?: number): Promise<DashboardViewModel> {
+  return mapPrivateDashboardState(await atlasFetch<unknown>(apiPath("/api/user/dashboard"), { cache: "no-store", credentials: "same-origin", signal }, timeoutMs));
+}

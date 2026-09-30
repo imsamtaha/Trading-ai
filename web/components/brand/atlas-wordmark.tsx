@@ -1,10 +1,9 @@
-import type { ReactElement } from "react";
+import Image from "next/image";
 
-export function AtlasWordmark(): ReactElement {
+export function AtlasWordmark() {
   return (
-    <a className="atlas-wordmark" href="/" aria-label="ATLAS Trading Intelligence home">
-      <span className="atlas-wordmark__name">ATLAS</span>
-      <span className="atlas-wordmark__descriptor">Trading Intelligence</span>
-    </a>
+    <div className="atlas-wordmark">
+      <Image src="/atlas-logo.webp" alt="ATLAS" width={1254} height={1254} unoptimized priority />
+    </div>
   );
 }

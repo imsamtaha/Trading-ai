@@ -1,7 +1,13 @@
-import type { ReactElement } from "react";
-import type { AccountViewModel } from "../../lib/api/types";
-import { StatCard } from "./stat-card";
-const money = (value: number | null, currency: string | null) => value === null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: currency ?? "USD", maximumFractionDigits: 2 }).format(value);
-export function AccountCard({ account }: { account: AccountViewModel }): ReactElement {
-  return <div className="atlas-metric-grid"><StatCard label="Balance" value={money(account.balance, account.currency)} /><StatCard label="Equity" value={money(account.equity, account.currency)} /><StatCard label="Floating P/L" value={money(account.floatingPnl, account.currency)} /></div>;
+import type { AccountViewModel, ConnectionState } from "@/lib/api/types";
+
+const money = (v: number | null) => v == null ? "—" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function AccountCard({ account, connection }: { account: AccountViewModel; connection: ConnectionState }) {
+  return (
+    <article className="atlas-card atlas-account-card" id="account">
+      <div><span className="atlas-card-label">FxPro / MT5</span><strong>{account.mode ?? "Unknown mode"}</strong></div>
+      <div className={`atlas-connection atlas-connection--${connection}`}>{connection === "connected" ? "Connected" : connection === "offline" ? "Backend offline" : "Connection unknown"}</div>
+      <div className="atlas-account-balance"><span>Balance</span><strong>{money(account.balance)}</strong><small>USD</small></div>
+    </article>
+  );
 }

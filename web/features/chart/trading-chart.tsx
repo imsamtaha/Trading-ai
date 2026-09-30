@@ -1,22 +1,28 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactElement } from "react";
-import { createChart, CandlestickSeries, createSeriesMarkers } from "lightweight-charts";
-import type { Candle } from "../../lib/api/types";
-import { toChartCandles, toPriceLines, toSignalMarkers, type ChartMarkerInput, type ChartPriceLevel } from "./chart-overlays";
-const EMPTY_SIGNALS: ChartMarkerInput[] = [];
-const EMPTY_LEVELS: ChartPriceLevel = {};
-export function TradingChart({ candles, symbol, timeframe, signals = EMPTY_SIGNALS, levels = EMPTY_LEVELS }: { candles: Candle[]; symbol: string; timeframe: string; signals?: ChartMarkerInput[]; levels?: ChartPriceLevel }): ReactElement {
-  const mount = useRef<HTMLDivElement>(null); const [ohlc, setOhlc] = useState<Candle | null>(null); const points = useMemo(() => toChartCandles(candles), [candles]);
+
+import { useEffect, useRef } from "react";
+import { CandlestickSeries, ColorType, LineSeries, createChart, type CandlestickData, type LineData, type UTCTimestamp } from "lightweight-charts";
+import type { Candle } from "@/lib/api/types";
+import { normalizeCandles, toPriceLines, type TradeLevels } from "./chart-overlays";
+import { ema, sma, type IndicatorId } from "./indicators";
+
+export function TradingChart({ candles, levels = {}, indicators = [], onOhlcChange }: { candles: Candle[]; levels?: TradeLevels; indicators?: IndicatorId[]; onOhlcChange?: (candle: Candle | null) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!mount.current || !points.length) return;
-    const chart = createChart(mount.current, { autoSize: true, layout: { background: { color: "#151719" }, textColor: "#a3a49f" }, grid: { vertLines: { color: "#242629" }, horzLines: { color: "#242629" } }, rightPriceScale: { borderColor: "#343638" }, timeScale: { borderColor: "#343638", timeVisible: true }, crosshair: { mode: 0 } });
-    const series = chart.addSeries(CandlestickSeries, { upColor: "#74c69d", downColor: "#ed7272", borderVisible: false, wickUpColor: "#74c69d", wickDownColor: "#ed7272" });
-    series.setData(points.map(p => ({ time: p.time as never, open: p.open, high: p.high, low: p.low, close: p.close })));
-    createSeriesMarkers(series, toSignalMarkers(signals));
-    for (const level of toPriceLines(levels)) series.createPriceLine({ price: level.price, title: level.title, color: level.title === "Stop loss" ? "#ed7272" : level.title === "Take profit" ? "#74c69d" : "#f28a23", lineWidth: 1, lineStyle: 2, axisLabelVisible: true });
-    chart.subscribeCrosshairMove(param => { const item = param.seriesData.get(series) as { open: number; high: number; low: number; close: number } | undefined; if (item) setOhlc({ ...points[0], open: item.open, high: item.high, low: item.low, close: item.close }); });
-    chart.timeScale().fitContent(); return () => chart.remove();
-  }, [points, symbol, timeframe, signals, levels]);
-  return <div className="atlas-chart-frame"><div className="atlas-chart-readout">{symbol} · {timeframe} {ohlc && <span>O {ohlc.open} H {ohlc.high} L {ohlc.low} C {ohlc.close}</span>}</div>{points.length ? <div className="atlas-chart-canvas" ref={mount} aria-label={`${symbol} ${timeframe} candlestick chart`} /> : <div className="atlas-chart-empty">Market data is unavailable for {symbol} at {timeframe}.</div>}</div>;
+    if (!ref.current || candles.length === 0) return;
+    const normalized = normalizeCandles(candles);
+    const chart = createChart(ref.current, { autoSize: true, layout: { background: { type: ColorType.Solid, color: "#0b0e13" }, textColor: "#8d96a5" }, grid: { vertLines: { color: "#1c222b" }, horzLines: { color: "#1c222b" } } });
+    const series = chart.addSeries(CandlestickSeries, { upColor: "#ff7417", downColor: "#5b6471", borderVisible: false, wickUpColor: "#ff9b58", wickDownColor: "#7a8491" });
+    const data: CandlestickData[] = normalized.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close }));
+    series.setData(data);
+    const addLine = (values: (number | null)[], color: string) => { const line = chart.addSeries(LineSeries, { color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false }); line.setData(values.flatMap((value, i) => value == null ? [] : [{ time: normalized[i].time as UTCTimestamp, value } as LineData])); };
+    if (indicators.includes("ema20")) addLine(ema(normalized, 20), "#ffb067");
+    if (indicators.includes("sma50")) addLine(sma(normalized, 50), "#f1eee8");
+    const crosshair = (param: { seriesData: Map<unknown, unknown> }) => { const bar = param.seriesData.get(series) as CandlestickData | undefined; onOhlcChange?.(bar && "open" in bar ? { time: Number(bar.time), open: bar.open, high: bar.high, low: bar.low, close: bar.close } : null); };
+    chart.subscribeCrosshairMove(crosshair);
+    for (const line of toPriceLines(levels)) series.createPriceLine({ price: line.price, title: line.title, color: line.title === "Stop" ? "#f2a34a" : "#ff7417", lineWidth: 1, axisLabelVisible: true });
+    chart.timeScale().fitContent();
+    return () => { chart.unsubscribeCrosshairMove(crosshair); chart.remove(); };
+  }, [candles, levels, indicators, onOhlcChange]);
+  return <div ref={ref} className="atlas-chart-canvas" aria-label="ATLAS trading chart" />;
 }

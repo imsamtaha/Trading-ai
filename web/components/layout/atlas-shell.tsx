@@ -1,30 +1,14 @@
-import type { ReactElement, ReactNode } from "react";
-import { AtlasWordmark } from "../brand/atlas-wordmark";
-import { MobileNav } from "./mobile-nav";
+import type { ReactNode } from "react";
 import { Sidebar } from "./sidebar";
-import type { Destination } from "../../lib/navigation";
-import { LiveBackendStatus } from "../system/backend-status";
+import { MobileNav } from "./mobile-nav";
+import { AtlasWordmark } from "@/components/brand/atlas-wordmark";
 
-export function AtlasAppShell({
-  children,
-  active = "dashboard",
-}: {
-  children?: ReactNode;
-  active?: Destination;
-}): ReactElement {
+export function AtlasShell({ children }: { children: ReactNode }) {
   return (
-    <div className="atlas-shell" data-testid="atlas-app-shell">
-      <Sidebar active={active} />
-      <div className="atlas-shell__workspace">
-        <header className="atlas-topbar">
-          <div className="atlas-topbar__brand">
-            <AtlasWordmark />
-          </div>
-          <div className="atlas-topbar__status"><LiveBackendStatus /></div>
-        </header>
-        <main className="atlas-main">{children}</main>
-      </div>
-      <MobileNav active={active} />
+    <div className="atlas-layout">
+      <Sidebar />
+      <main className="atlas-main"><div className="atlas-mobile-brand"><AtlasWordmark /></div>{children}</main>
+      <MobileNav />
     </div>
   );
 }

@@ -1,11 +1,8 @@
-export type ConnectionState = "online" | "offline" | "unknown";
-export interface Position { symbol: string; direction: string | null; volume: number | null; priceOpen: number | null; stopLoss: number | null; takeProfit: number | null; profit: number | null }
-export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number | null }
-export interface AccountViewModel { currency: string | null; balance: number | null; equity: number | null; floatingPnl: number | null }
-export interface RiskViewModel { level: string | null; dailyLossUsage: number | null; drawdown: number | null; exposure: number | null; positionSizeUtilization: number | null; aggregateOpenRisk: number | null; warnings: string[]; protection: string | null }
-export interface MarketTile { label: string; category: string | null; price: number | null; changePercent: number | null; marketState: string | null }
-export interface DashboardSignal { symbol: string; type: string; message: string }
-export interface DashboardViewModel { signals: DashboardSignal[]; markets: MarketTile[]; connection: ConnectionState; mode: string | null; account: AccountViewModel; positions: Position[]; openPositions: number | null; floatingPnl: number | null; risk: RiskViewModel | null; timestamp: string | null }
-export interface AgentChatRequest { request: string; interval?: string; multi_timeframe?: boolean; account_balance?: number; risk_percent?: number }
-export interface AgentChatResponse { [key: string]: unknown }
-export interface BackendDashboardDto { [key: string]: unknown; account?: Record<string, unknown> | null; positions?: unknown; risk?: Record<string, unknown> | null }
+export type ConnectionState = "connected" | "offline" | "unknown";
+export type Candle = { time: number; open: number; high: number; low: number; close: number };
+export type Position = { symbol: string; direction?: string; size?: number | null; entry?: number | null; current?: number | null; pnl?: number | null; stopLoss?: number | null; takeProfit?: number | null; status?: string };
+export type RiskViewModel = { overall: number | null; dailyLoss: number | null; drawdown: number | null; exposure: number | null; positionSize: number | null; aggregateOpenRisk: number | null; protectionState: string | null; warnings: string[] };
+export type AccountViewModel = { id: string | null; mode: string | null; balance: number | null; equity: number | null; floatingPnl: number | null; dailyPnl: number | null; marginFree: number | null };
+export type DashboardViewModel = { userEmail?: string | null; userRole?: string | null; entitlements?: { tradingIntelligence: boolean }; connection: ConnectionState; account: AccountViewModel; risk: RiskViewModel; positions: Position[]; markets: Array<{ symbol: string; price: number | null; changePct: number | null }>; signals?: Array<{ symbol: string; direction: string; confidence?: number | null; rationale?: string | null; riskWarning?: string | null; timestamp?: string | null }>; activity?: Array<{ message: string; timestamp?: string | null }> };
+export type AgentChatRequest = { message: string; context?: Record<string, unknown> };
+export type AgentChatResponse = { message: string };

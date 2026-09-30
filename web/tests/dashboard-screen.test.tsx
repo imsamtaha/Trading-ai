@@ -1,21 +1,67 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { DashboardScreen } from "../features/dashboard/dashboard-screen";
-import { mapDashboardState } from "../lib/api/mappers";
+import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
+import { DASHBOARD_FIXTURE } from "@/lib/api/fixtures";
 
 describe("DashboardScreen", () => {
-  it("renders account mode, metrics, markets, and risk status", () => {
-    render(<DashboardScreen state={mapDashboardState({ status: "ONLINE", mode: "READ_ONLY", account: { balance: 1000, equity: 990, currency: "USD", floating_profit: -10 }, floating_position_pnl: -10, risk: { level: "LOW" }, financial_market: { market_board: [{ label: "Gold", price: 2300, change_percent: 0.5, market_state: "OPEN" }] } })} />);
-    expect(screen.getByText("READ_ONLY")).toBeInTheDocument();
-    expect(screen.getByText("$1,000.00")).toBeInTheDocument();
-    expect(screen.getByText("$990.00")).toBeInTheDocument();
-    expect(screen.getByText("-$10.00")).toBeInTheDocument();
-    expect(screen.getByText("LOW")).toBeInTheDocument();
-    expect(screen.getByText("Gold")).toBeInTheDocument();
+  it("renders account and market telemetry", () => {
+    render(<DashboardScreen state={DASHBOARD_FIXTURE} briefingAvailable headlines={[{ title: "Rates update", url: "https://example.com/news" }]} />);
+    expect(screen.getByRole("heading", { level: 1, name: "ATLAS" })).toBeInTheDocument();
+    expect(screen.getByText("Trading Intelligence")).toHaveClass("atlas-brand-subtitle");
+    expect(screen.queryByText(/ATLAS intelligence/i)).not.toBeInTheDocument();
+    expect(screen.getByText("10,000.00")).toBeInTheDocument();
+    expect(screen.getByText("10,248.42")).toBeInTheDocument();
+    expect(screen.getByText("EURUSD")).toBeInTheDocument();
+    expect(screen.getAllByText("XAUUSD").length).toBeGreaterThan(0);
+    expect(document.getElementById("analytics")).toBeInTheDocument();
+    expect(document.getElementById("news")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rates update" })).toHaveAttribute("href", "https://example.com/news");
   });
-  it("shows explicit offline and unknown value placeholders", () => {
-    render(<DashboardScreen state={mapDashboardState({ status: "OFFLINE" })} />);
-    expect(screen.getByText(/Backend is offline/i)).toBeInTheDocument();
-    expect(screen.getAllByText("—").length).toBeGreaterThan(2);
+
+  it("shows chart levels only for the selected matching position", () => {
+    const { rerender } = render(<DashboardScreen state={DASHBOARD_FIXTURE} symbol="BTCUSDT" />);
+    expect(screen.getByText("Entry 66,420")).toBeInTheDocument();
+    rerender(<DashboardScreen state={DASHBOARD_FIXTURE} symbol="XAUUSD" />);
+    expect(screen.queryByText("Entry 66,420")).not.toBeInTheDocument();
   });
+
+  it("renders explicit offline placeholders", () => {
+    render(<DashboardScreen state={{ ...DASHBOARD_FIXTURE, connection: "offline", account: { ...DASHBOARD_FIXTURE.account, balance: null } }} />);
+    expect(screen.getByText("Backend offline")).toBeInTheDocument();
+    expect(screen.getByText("Positions unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Signals unavailable")).toBeInTheDocument();
+  });
+});
+
+it("labels each dashboard sector with an AGENT badge", () => {
+  render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+  expect(screen.getAllByText("AGENT")).toHaveLength(9);
+  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي", "EXECUTION AGENT"]) {
+    const heading = screen.getByText(title);
+    expect(heading.closest("section,div")?.textContent).toContain("AGENT");
+  }
+});
+
+it("styles dashboard headings as orange 3D blocks and paragraphs yellow", () => {
+  const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+  expect(css).toContain(".atlas-dashboard .atlas-card h2");
+  expect(css).toContain(".atlas-dashboard .atlas-card p");
+  expect(css).toContain("color: #ffd84d");
+});
+
+it("shows OWNER in the account status when the signed-in role is owner", () => {
+  render(<DashboardScreen state={{ ...DASHBOARD_FIXTURE, userRole: "OWNER", account: { ...DASHBOARD_FIXTURE.account, mode: null } }} />);
+  expect(screen.getByText("OWNER")).toBeInTheDocument();
+  expect(screen.queryByText("زائر")).not.toBeInTheDocument();
+});
+
+it("styles headings as dark 3D boxes with black edge and orange text", () => {
+  const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+  expect(css).toContain("background: linear-gradient(145deg, #2a2a2a");
+  expect(css).toContain("border: 1px solid #050505");
+  expect(css).toContain("color: var(--atlas-orange)");
+  const badgeCss = css.slice(css.indexOf(".atlas-agent-badge"), css.indexOf(".atlas-sector-title"));
+  expect(badgeCss).toContain("border: 1px solid #050505");
+  expect(badgeCss).toContain("background: linear-gradient(145deg, #242424");
+  expect(badgeCss).toContain("color: var(--atlas-orange)");
 });

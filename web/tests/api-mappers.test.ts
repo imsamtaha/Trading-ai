@@ -1,25 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { mapCandles, mapDashboardState, mapPositions } from "../lib/api/mappers";
+import { mapCandles, mapDashboardState, mapPrivateDashboardState } from "@/lib/api/mappers";
 
-describe("backend response mapping", () => {
-  it("maps a complete account and dashboard snapshot", () => {
-    const result = mapDashboardState({ status: "ONLINE", mode: "READ_ONLY", account: { currency: "USD", balance: 12000, equity: 12100, floating_profit: 100 }, open_positions: 2, floating_position_pnl: 100, positions: [{ symbol: "EURUSD", direction: "BUY", volume: 0.1, profit: 100 }], risk: { level: "LOW" } });
-    expect(result.connection).toBe("online");
-    expect(result.mode).toBe("READ_ONLY");
-    expect(result.account).toEqual(expect.objectContaining({ currency: "USD", balance: 12000, equity: 12100, floatingPnl: 100 }));
-    expect(result.positions).toHaveLength(1);
+describe("ATLAS API mappers", () => {
+  it("maps missing account and risk fields safely", () => {
+    const state = mapDashboardState({ account: { balance: 10000 }, positions: [] });
+    expect(state.account.balance).toBe(10000);
+    expect(state.account.equity).toBeNull();
+    expect(state.account.floatingPnl).toBeNull();
+    expect(state.connection).toBe("unknown");
+    expect(state.risk.overall).toBeNull();
+    expect(state.positions).toEqual([]);
   });
-  it("keeps absent equity, P/L, and risk values null", () => {
-    const result = mapDashboardState({ status: "ONLINE", account: { balance: 100 } });
-    expect(result.account.equity).toBeNull();
-    expect(result.account.floatingPnl).toBeNull();
-    expect(result.risk).toBeNull();
+
+  it("maps only signed-in user scoped MT5 data", () => {
+    const state = mapPrivateDashboardState({ plan: "FREE", mt5: { connected: true, account: { account_masked: "***4321", account_type: "DEMO", balance: 200, equity: 205 }, floating_position_pnl: 5, positions: [{ symbol: "EURUSD", profit: 5 }], symbols: [{ symbol: "EURUSD", price: 1.2 }] } });
+    expect(state.connection).toBe("connected");
+    expect(state.account).toMatchObject({ id: "***4321", mode: "DEMO", balance: 200, floatingPnl: 5 });
+    expect(state.positions).toHaveLength(1);
+    expect(state.risk.overall).toBeNull();
+    expect(mapPrivateDashboardState({ mt5: { connected: false, account: { balance: 99 } } }).account.balance).toBeNull();
+    const unconnected = mapPrivateDashboardState({ user: { email: "trader@example.com" }, features: { trading_intelligence: false }, mt5: { connected: false } });
+    expect(unconnected.userEmail).toBe("trader@example.com");
+    expect(unconnected.entitlements?.tradingIntelligence).toBe(false);
+    expect(mapPrivateDashboardState({ features: { trading_intelligence: true }, mt5: { connected: false } }).entitlements?.tradingIntelligence).toBe(true);
   });
-  it("uses unknown connection for missing state and accepts empty positions", () => {
-    expect(mapDashboardState({}).connection).toBe("unknown");
-    expect(mapPositions({ positions: [] })).toEqual([]);
+
+  it("filters malformed candle points", () => {
+    const candles = mapCandles([{ time: 1, open: 10, high: 12, low: 9, close: 11 }, { time: "bad", open: 1 }]);
+    expect(candles).toEqual([{ time: 1, open: 10, high: 12, low: 9, close: 11 }]);
   });
-  it("skips malformed candle entries", () => {
-    expect(mapCandles({ candles: [{ open_time: "2026-01-01T00:00:00Z", open: 1, high: 2, low: 0.5, close: 1.5, volume: 5 }, { open_time: "bad", close: 1 }, null] })).toHaveLength(1);
+});
+
+// OWNER role regression coverage
+it("preserves owner role from the private dashboard payload", () => {
+  const state = mapPrivateDashboardState({
+    user: { email: "owner@example.com", role: "OWNER" },
+    features: { trading_intelligence: true },
+    mt5: { connected: false },
   });
+  expect(state.userRole).toBe("OWNER");
 });

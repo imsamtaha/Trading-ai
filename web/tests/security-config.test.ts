@@ -1,9 +1,18 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-describe("browser configuration security contract", () => {
-  it("publishes only the non-secret backend origin setting", () => {
-    const example = readFileSync(".env.example", "utf8");
-    expect(example).toContain("NEXT_PUBLIC_ATLAS_API_BASE_URL");
-    expect(example).not.toMatch(/OPENAI_API_KEY|MT5_PASSWORD|ATLAS_LIVE_AUTH|EXECUTION_TOKEN|AUTHORIZATION/i);
+describe("browser-facing deployment config", () => {
+  it("uses only public backend routing in the example", () => {
+    const example = readFileSync(resolve(process.cwd(), ".env.example"), "utf8");
+    expect(example).toContain("ATLAS_BACKEND_ORIGIN=");
+    expect(example).not.toMatch(/NEXT_PUBLIC_.*(?:SECRET|PASSWORD|TOKEN|KEY)/i);
+    const config = readFileSync(resolve(process.cwd(), "next.config.ts"), "utf8");
+    expect(config).toContain('"/api/user/dashboard"');
+    expect(config).toContain('"/api/user/chart-data"');
+    expect(config).toContain('"/api/user/market-briefing"');
+    expect(config).toContain('"/api/user/assistant"');
+    expect(config).toContain('"/auth/session"');
+    expect(config).toContain('source: "/health"');
+    expect(config).not.toContain('"/dashboard/atlas"');
   });
 });

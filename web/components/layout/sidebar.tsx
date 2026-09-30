@@ -1,27 +1,22 @@
-import type { ReactElement } from "react";
-import { AtlasWordmark } from "../brand/atlas-wordmark";
-import { NAV_ITEMS, type Destination } from "../../lib/navigation";
+import { NAV_ITEMS } from "@/lib/navigation";
+import { AtlasWordmark } from "@/components/brand/atlas-wordmark";
 
-export function Sidebar({ active }: { active: Destination }): ReactElement {
+export function Sidebar() {
   return (
     <aside className="atlas-sidebar" data-testid="desktop-sidebar">
       <AtlasWordmark />
       <nav aria-label="Primary navigation" className="atlas-sidebar__nav">
         {NAV_ITEMS.map((item) => (
           <a
-            className="atlas-nav-link"
+            key={item.key}
             href={item.href}
-            key={item.id}
-            aria-current={active === item.id ? "page" : undefined}
+            className="atlas-nav-link"
+            aria-current={item.key === "dashboard" ? "page" : undefined}
           >
-            <span className="atlas-nav-link__mark" aria-hidden="true">
-              {item.label.slice(0, 1)}
-            </span>
-            <span>{item.label}</span>
+            {item.label}
           </a>
         ))}
       </nav>
-      <p className="atlas-sidebar__footer">Personal workspace</p>
     </aside>
   );
 }
