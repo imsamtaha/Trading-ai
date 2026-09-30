@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -29,6 +30,7 @@ class MT5Config:
     magic: int = 260830
     deviation: int = 20
     dry_run: bool = True
+    demo_order_execution: bool = False
     real_money_execution: bool = False
     real_money_ack: str = ""
 
@@ -43,6 +45,7 @@ class MT5Config:
             magic=int(os.getenv("MT5_MAGIC", "260830")),
             deviation=int(os.getenv("MT5_DEVIATION", "20")),
             dry_run=os.getenv("ATLAS_LIVE_TRADING", "false").lower() != "true",
+            demo_order_execution=os.getenv("ATLAS_DEMO_ORDER_EXECUTION", "false").lower() == "true",
             real_money_execution=os.getenv("ATLAS_REAL_MONEY_EXECUTION", "false").lower() == "true",
             real_money_ack=os.getenv("ATLAS_REAL_MONEY_ACK", ""),
         )
@@ -266,11 +269,12 @@ class MT5Broker:
         step = float(info.volume_step)
         if step <= 0 or maximum < minimum:
             raise MT5ExecutionError(f"Invalid volume constraints for {symbol}")
-        volume = min(max(volume, minimum), maximum)
-        steps = int(volume / step)
-        normalized = steps * step
-        if normalized < minimum:
-            normalized = minimum
+        if volume < minimum or volume > maximum:
+            raise MT5ExecutionError(f"Order volume outside broker limits for {symbol}.")
+        steps = round((volume - minimum) / step)
+        normalized = minimum + steps * step
+        if abs(normalized - volume) > 1e-8:
+            raise MT5ExecutionError(f"Order volume must match broker step for {symbol}.")
         return round(normalized, 8)
 
     def _filling_type(self, info: Any) -> int:
@@ -281,7 +285,7 @@ class MT5Broker:
                 return int(candidate)
         return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
 
-    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS") -> dict[str, Any]:
+    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, expected_account_type: str | None = None, expected_login: int | None = None) -> dict[str, Any]:
         self.ensure_connected()
         direction = direction.upper()
         if direction not in {"LONG", "SHORT", "BUY", "SELL"}:
@@ -323,17 +327,27 @@ class MT5Broker:
         if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
         account_type = account_type_name(account)
-        if not self.config.real_money_execution:
-            raise MT5ExecutionError("Real-money execution is disabled. Set ATLAS_REAL_MONEY_EXECUTION=true only after account approval.")
-        if self.config.real_money_ack != REAL_MONEY_ACK:
-            raise MT5ExecutionError(
-                "Real-money acknowledgement is missing. Set ATLAS_REAL_MONEY_ACK to the required acknowledgement value."
-            )
-        if account_type != "REAL":
-            raise MT5ExecutionError(
-                f"Real-money execution requires a REAL MT5 account. Connected account type is {account_type}."
-            )
-
+        if expected_account_type and account_type != expected_account_type:
+            raise MT5ExecutionError("MT5 account mode changed before order submission.")
+        if expected_login is not None and int(account.login) != int(expected_login):
+            raise MT5ExecutionError("MT5 account login changed before order submission.")
+        if account_type == "DEMO":
+            if not self.config.demo_order_execution:
+                raise MT5ExecutionError("Demo broker order execution is disabled.")
+        elif account_type == "REAL":
+            if not self.config.real_money_execution or self.config.real_money_ack != REAL_MONEY_ACK:
+                raise MT5ExecutionError("Real-money execution is disabled.")
+        else:
+            raise MT5ExecutionError("Unsupported MT5 account mode.")
+        projected = mt5.order_calc_profit(request["type"], symbol, volume, price, stop_loss)
+        equity = float(getattr(account, "equity", 0.0) or 0.0)
+        if projected is None or not math.isfinite(float(projected)) or equity <= 0:
+            raise MT5ExecutionError("Unable to calculate stop-loss risk.")
+        if projected >= 0 or abs(float(projected)) > equity * 0.01:
+            raise MT5ExecutionError("Order stop-loss risk exceeds 1% of account equity.")
+        check = mt5.order_check(request)
+        if check is None or check.retcode != 0:
+            raise MT5ExecutionError("MT5 order check rejected the request.")
         result = mt5.order_send(request)
         if result is None:
             raise MT5ExecutionError(f"MT5 order_send returned None: {mt5.last_error()}")
@@ -371,6 +385,18 @@ class MT5Broker:
         }
         if self.config.dry_run:
             return {"status": "DRY_RUN_CLOSE", "ticket": ticket, "symbol": position.symbol, "price": price}
+        account = mt5.account_info()
+        if account is None or not bool(account.trade_allowed):
+            raise MT5ExecutionError("MT5 account does not allow trading.")
+        account_type = account_type_name(account)
+        if account_type == "DEMO" and not self.config.demo_order_execution:
+            raise MT5ExecutionError("Demo broker order execution is disabled.")
+        if account_type == "REAL" and (
+            not self.config.real_money_execution or self.config.real_money_ack != REAL_MONEY_ACK
+        ):
+            raise MT5ExecutionError("Real-money execution is disabled.")
+        if account_type not in {"DEMO", "REAL"}:
+            raise MT5ExecutionError("Unsupported MT5 account mode.")
         result = mt5.order_send(request)
         if result is None or result.retcode != mt5.TRADE_RETCODE_DONE:
             detail = mt5.last_error() if result is None else f"{result.retcode}: {result.comment}"

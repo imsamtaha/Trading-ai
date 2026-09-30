@@ -5,7 +5,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.auth.supabase_auth import require_user
-from app.demo_executive.service import DemoExecutiveAccessError, DemoExecutiveError, DemoExecutiveService
+from app.billing.entitlements import paid_access
+from app.demo_executive.service import DemoExecutiveError, DemoExecutiveService
 from app.mt5_demo.routes import _service as mt5_service
 from app.users.routes import _repository as user_repository
 
@@ -29,10 +30,10 @@ def status(request: Request) -> dict[str, Any]:
 @router.post("/start")
 def start(request: Request) -> dict[str, Any]:
     user = require_user(request)
+    if not paid_access(user_repository().get_subscription(user.user_id)):
+        raise HTTPException(status_code=403, detail="An active ATLAS subscription is required.")
     try:
         return _service().start(user.user_id)
-    except DemoExecutiveAccessError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except DemoExecutiveError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

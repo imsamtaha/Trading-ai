@@ -24,6 +24,13 @@ def test_private_chart_validates_inputs_after_auth(monkeypatch):
 def test_private_briefing_returns_read_only_snapshot(monkeypatch):
     from app.auth.supabase_auth import AuthenticatedUser
     import app.users.routes as routes
+    from datetime import datetime, timedelta, timezone
+    from app.users.repository import MemoryUserRepository
+    repo = MemoryUserRepository()
+    repo.get_or_create_profile("user-a")
+    repo.subscriptions["user-a"] = {"plan": "STARTER", "status": "ACTIVE", "billing_reference": "ATLAS-PAID",
+                                    "expires_at": (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()}
+    monkeypatch.setattr(routes, "repository", repo)
     monkeypatch.setattr(routes, "require_user", lambda request: AuthenticatedUser("user-a"))
     monkeypatch.setattr(routes, "get_market_briefing", lambda: {"headlines": [], "market_board": []})
     assert TestClient(app).get("/api/user/market-briefing").json()["headlines"] == []

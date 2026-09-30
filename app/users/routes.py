@@ -12,13 +12,13 @@ from app.auth.supabase_auth import require_user
 from app.data.market import get_candles
 from app.dashboard.market_briefing import get_market_briefing
 from app.billing.plans import access_for_plan
+from app.billing.entitlements import paid_access
 from app.users.repository import MemoryUserRepository, SupabaseUserRepository, UserRepositoryError
 
 router = APIRouter(tags=["users"])
 _CHART_SYMBOLS = {"XAUUSD", "XAGUSD", "GAS", "EURUSD", "XRPUSDT", "SOLUSDT"}
 _CHART_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
 repository: Any | None = None
-
 
 def _is_owner(user) -> bool:
     configured = os.getenv("ATLAS_OWNER_EMAIL", "").strip().lower()
@@ -71,12 +71,27 @@ def put_settings(payload: SettingsPayload, request: Request) -> dict[str, Any]:
 @router.post("/api/user/assistant")
 def user_assistant(payload: AssistantPayload, request: Request) -> dict[str, str]:
     user = require_user(request)
+    if not (_is_owner(user) or paid_access(_repository().get_subscription(user.user_id))):
+        raise HTTPException(status_code=403, detail="An active ATLAS subscription is required.")
     try:
         return {"message": answer_assistant(user.user_id, payload.message)}
     except AssistantRateLimited as exc:
         raise HTTPException(status_code=429, detail="Assistant rate limit reached.") from exc
     except AssistantUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/api/market-preview")
+def market_preview(symbol: str = "XAUUSD", interval: str = "1h", limit: int = 120) -> dict[str, Any]:
+    symbol, interval = symbol.strip().upper(), interval.strip().lower()
+    if symbol not in _CHART_SYMBOLS or interval not in _CHART_INTERVALS or not 20 <= limit <= 300:
+        raise HTTPException(status_code=400, detail="Unsupported chart parameters.")
+    try:
+        payload = get_candles(symbol, interval, limit)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Market data is temporarily unavailable.") from exc
+    return {"symbol": symbol, "interval": interval, "count": int(payload.get("count", 0)),
+            "candles": payload.get("candles", []), "source": "ATLAS market data"}
 
 
 @router.get("/api/user/chart-data")
@@ -95,7 +110,9 @@ def user_chart_data(request: Request, symbol: str = "XAUUSD", interval: str = "1
 
 @router.get("/api/user/market-briefing")
 def user_market_briefing(request: Request) -> dict[str, Any]:
-    require_user(request)
+    user = require_user(request)
+    if not (_is_owner(user) or paid_access(_repository().get_subscription(user.user_id))):
+        raise HTTPException(status_code=403, detail="An active ATLAS subscription is required.")
     return get_market_briefing()
 
 
@@ -107,12 +124,23 @@ def user_dashboard(request: Request) -> dict[str, Any]:
     subscription = repo.get_subscription(user.user_id)
     owner = _is_owner(user)
     from app.mt5_demo.routes import _service as mt5_service
+    from app.mt5_demo.service import MT5DemoError
     from app.execution_guard.routes import _service as execution_guard_service
-    plan_features = access_for_plan("elite" if owner else subscription.get("plan", "FREE"))
+    mt5 = mt5_service()
+    session_getter = getattr(mt5, "session_credentials", None)
+    current_attacher = getattr(mt5, "attach_current_demo", None)
+    if owner and callable(session_getter) and callable(current_attacher) and session_getter(user.user_id) is None:
+        try:
+            current_attacher(user.user_id)
+        except MT5DemoError:
+            pass
     return {
         "user": {"user_id": user.user_id, "email": user.email, "role": "OWNER" if owner else "CUSTOMER"},
         "plan": "OWNER" if owner else str(subscription.get("plan", "FREE")).upper(),
-        "features": {**plan_features, "trading_intelligence": owner or bool(plan_features.get("demo_executive")), "execution_guard": owner or bool(plan_features.get("demo_executive"))},
-        "mt5": mt5_service().get_dashboard_state(user.user_id),
+        "features": {**access_for_plan("elite" if owner else subscription.get("plan", "FREE")),
+                     "trading_intelligence": owner or paid_access(subscription),
+                     "demo_executive": owner or paid_access(subscription),
+                     "execution_guard": owner or paid_access(subscription)},
+        "mt5": mt5.get_dashboard_state(user.user_id),
         "execution_guard": execution_guard_service().status(user.user_id),
     }

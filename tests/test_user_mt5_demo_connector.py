@@ -28,6 +28,9 @@ class FakeBroker:
     def disconnect(self):
         self.connected = False
 
+    def positions(self):
+        return []
+
 
 def make_factory(types):
     def factory(credentials):
@@ -71,3 +74,35 @@ def test_sessions_are_isolated_between_users():
     service.disconnect_demo("user-a")
     assert service.get_demo_state("user-a")["connected"] is False
     assert service.get_demo_state("user-b")["connected"] is True
+
+
+
+def test_real_connection_is_read_only_and_requires_explicit_real_mode():
+    from app.mt5_demo.service import MT5DemoError, MT5DemoService
+    from app.users.repository import MemoryUserRepository
+    repo = MemoryUserRepository()
+    service = MT5DemoService(repo, broker_factory=make_factory({12345678: "REAL", 11112222: "DEMO"}))
+    with pytest.raises(MT5DemoError):
+        service.connect_account("user-a", {"login": 11112222, "password": "x", "server": "FxPro"}, "REAL")
+    result = service.connect_account("user-a", {"login": 12345678, "password": "x", "server": "FxPro"}, "REAL")
+    assert result["account_type"] == "REAL"
+    assert result["real_money_execution_enabled"] is False
+    assert "password" not in repo.get_mt5_connection("user-a")
+    assert service.get_dashboard_state("user-a")["account"]["account_type"] == "REAL"
+
+
+
+def test_real_route_requires_login_and_keeps_execution_disabled(monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.mt5_demo import routes
+    from app.auth.supabase_auth import AuthenticatedUser
+    from app.users.repository import MemoryUserRepository
+    service = routes.MT5DemoService(MemoryUserRepository(), broker_factory=make_factory({12345678: "REAL"}))
+    monkeypatch.setattr(routes, "service", service)
+    client = TestClient(app)
+    assert client.post("/api/mt5-demo/connect-real", json={"login": 12345678, "password": "x", "server": "FxPro"}).status_code == 401
+    monkeypatch.setattr(routes, "require_user", lambda request: AuthenticatedUser("user-a", "a@example.com"))
+    response = client.post("/api/mt5-demo/connect-real", json={"login": 12345678, "password": "x", "server": "FxPro"})
+    assert response.status_code == 200
+    assert response.json()["real_money_execution_enabled"] is False

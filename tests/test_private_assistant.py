@@ -11,6 +11,13 @@ def test_assistant_accepts_only_bounded_message_and_user_identity(monkeypatch):
     import app.users.routes as routes
     from app.auth.supabase_auth import AuthenticatedUser
 
+    from datetime import datetime, timedelta, timezone
+    from app.users.repository import MemoryUserRepository
+    repo = MemoryUserRepository()
+    repo.get_or_create_profile("user-a")
+    repo.subscriptions["user-a"] = {"plan": "STARTER", "status": "ACTIVE", "billing_reference": "ATLAS-PAID",
+                                    "expires_at": (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()}
+    monkeypatch.setattr(routes, "repository", repo)
     monkeypatch.setattr(routes, "require_user", lambda request: AuthenticatedUser("user-a"))
     monkeypatch.setattr(routes, "answer_assistant", lambda user_id, message: f"{user_id}: {message}")
     client = TestClient(app)

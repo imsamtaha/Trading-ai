@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+import os
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -11,6 +12,22 @@ from app.users.routes import _repository as user_repository
 
 router = APIRouter(prefix="/api/mt5-demo", tags=["mt5-demo"])
 service: MT5DemoService | None = None
+
+
+class ManualOrderPayload(BaseModel):
+    request_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    account_type: Literal["DEMO", "REAL"]
+    symbol: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9._-]+$")
+    direction: Literal["BUY", "SELL"]
+    volume: float = Field(gt=0, le=1, allow_inf_nan=False)
+    stop_loss: float = Field(gt=0, allow_inf_nan=False)
+    take_profit: float = Field(gt=0, allow_inf_nan=False)
+    confirmed: Literal[True]
+
+
+class ActivationPayload(BaseModel):
+    account_type: Literal["REAL"]
+    confirmed: Literal[True]
 
 
 class DemoConnectPayload(BaseModel):
@@ -47,5 +64,47 @@ def demo_state(request: Request) -> dict[str, Any]:
     user = require_user(request)
     try:
         return _service().get_demo_state(user.user_id)
+    except MT5DemoError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+
+@router.post("/connect-real")
+def connect_real_read_only(payload: DemoConnectPayload, request: Request) -> dict[str, Any]:
+    user = require_user(request)
+    try:
+        return _service().connect_account(user.user_id, payload.model_dump(), "REAL")
+    except MT5DemoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+def _require_trade_origin(request: Request) -> None:
+    if request.cookies.get("atlas_session") and not request.headers.get("authorization"):
+        expected = os.getenv("ATLAS_PUBLIC_ORIGIN", "https://justai-atlas.online").rstrip("/")
+        if request.headers.get("origin") != expected:
+            raise HTTPException(status_code=403, detail="Invalid trading request origin.")
+
+
+@router.get("/trading-state")
+def trading_state(request: Request) -> dict[str, Any]:
+    user = require_user(request)
+    return _service().manual_trading_state(user.user_id)
+
+
+@router.post("/activate-trading")
+def activate_trading(payload: ActivationPayload, request: Request) -> dict[str, Any]:
+    user = require_user(request)
+    _require_trade_origin(request)
+    try:
+        return _service().activate_manual_trading(user.user_id, payload.account_type)
+    except MT5DemoError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/order")
+def manual_order(payload: ManualOrderPayload, request: Request) -> dict[str, Any]:
+    user = require_user(request)
+    _require_trade_origin(request)
+    try:
+        return _service().place_manual_order(user.user_id, payload.model_dump())
     except MT5DemoError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

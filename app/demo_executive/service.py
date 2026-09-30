@@ -3,14 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from app.billing.plans import access_for_plan
-
-
 class DemoExecutiveError(RuntimeError):
-    pass
-
-
-class DemoExecutiveAccessError(DemoExecutiveError):
     pass
 
 
@@ -20,11 +13,8 @@ class DemoExecutiveService:
         self.mt5_service = mt5_service
         self._active: dict[str, bool] = {}
 
-    def _require_paid(self, user_id: str) -> str:
-        plan = str(self.repository.get_subscription(user_id).get("plan", "FREE")).upper()
-        if not access_for_plan(plan)["demo_executive"]:
-            raise DemoExecutiveAccessError("Live Demo Executive requires a paid ATLAS plan.")
-        return plan
+    def _plan(self, user_id: str) -> str:
+        return str(self.repository.get_subscription(user_id).get("plan", "FREE")).upper()
 
     @staticmethod
     def _decision(symbol: dict[str, Any] | None) -> str:
@@ -41,10 +31,10 @@ class DemoExecutiveService:
         return "WAIT"
 
     def start(self, user_id: str) -> dict[str, Any]:
-        plan = self._require_paid(user_id)
+        plan = self._plan(user_id)
         dashboard = self.mt5_service.get_dashboard_state(user_id)
-        if not dashboard.get("connected"):
-            raise DemoExecutiveError("Connect a verified MT5 Demo account first.")
+        if not dashboard.get("connected") or str((dashboard.get("account") or {}).get("account_type", "")).upper() != "DEMO":
+            raise DemoExecutiveError("Connect an MT5 Demo account first.")
         symbol = (dashboard.get("symbols") or [None])[0]
         decision = self._decision(symbol)
         event = {

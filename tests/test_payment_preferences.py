@@ -17,11 +17,15 @@ def client():
 
 
 def test_whish_disabled_until_recipient_configured(monkeypatch):
+    from app.auth.supabase_auth import AuthenticatedUser
+    monkeypatch.setattr("app.billing.whish.require_user", lambda request: AuthenticatedUser("user-a", "a@example.com"))
     monkeypatch.setenv("ATLAS_WHISH_ENABLED", "false")
     assert client().post("/billing/whish/signals/request", json={"email": "a@example.com"}).status_code == 503
 
 
 def test_whish_persists_pending_request_without_granting_access(tmp_path, monkeypatch):
+    from app.auth.supabase_auth import AuthenticatedUser
+    monkeypatch.setattr("app.billing.whish.require_user", lambda request: AuthenticatedUser("user-a", "a@example.com"))
     monkeypatch.setenv("ATLAS_WHISH_ENABLED", "true")
     monkeypatch.setenv("ATLAS_WHISH_RECIPIENT", "Test merchant")
     monkeypatch.setenv("ATLAS_WHISH_SUPPORT", "support@example.com")
@@ -35,7 +39,7 @@ def test_whish_persists_pending_request_without_granting_access(tmp_path, monkey
     assert c.post("/billing/whish/signals/request", json={"email": "a@example.com"}).json()["reference"] == result["reference"]
     assert c.post("/billing/whish/execution/request", json={"email": "a@example.com"}).json()["amount_usd"] == 149
     assert c.post("/billing/whish/invalid/request", json={"email": "a@example.com"}).status_code == 404
-    assert c.post("/billing/whish/execution/request", json={"email": "invalid"}).status_code == 422
+    assert c.post("/billing/whish/execution/request", json={"email": "invalid"}).status_code == 403
 
 
 def test_preferences_on_all_pages_and_whish_subscription_methods():

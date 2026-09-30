@@ -13,7 +13,7 @@ class SubscriptionPlan:
 PLANS: dict[str, SubscriptionPlan] = {
     "free": SubscriptionPlan(
         id="free", name="ATLAS Free", monthly_price=0, trial_days=0,
-        features=("Private account", "One MT5 Demo connection", "Read-only account telemetry", "AI chart and market context"),
+        features=("Private account", "FxPro MT5 Demo or Real connection", "Read-only account telemetry", "Public market preview"),
     ),
     "starter": SubscriptionPlan(
         id="starter", name="ATLAS Starter", monthly_price=99, trial_days=0,
@@ -36,10 +36,9 @@ def public_plans() -> tuple[SubscriptionPlan, ...]:
 
 def access_for_plan(plan: str) -> dict[str, bool]:
     normalized = str(plan or "FREE").upper()
-    paid = normalized in {"STARTER", "PRO", "ELITE"}
     return {
         "mt5_demo_read_only": normalized in {"FREE", "STARTER", "PRO", "ELITE"},
-        "demo_executive": paid,
+        "demo_executive": normalized in {"STARTER", "PRO", "ELITE"},
         "broker_execution": False,
         "private_dashboard": normalized in {"FREE", "STARTER", "PRO", "ELITE"},
     }
