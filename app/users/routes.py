@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+import os
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,6 +18,11 @@ router = APIRouter(tags=["users"])
 _CHART_SYMBOLS = {"XAUUSD", "XAGUSD", "GAS", "EURUSD", "XRPUSDT", "SOLUSDT"}
 _CHART_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
 repository: Any | None = None
+
+
+def _is_owner(user) -> bool:
+    configured = os.getenv("ATLAS_OWNER_EMAIL", "").strip().lower()
+    return bool(configured and user.email and user.email.strip().lower() == configured)
 
 
 class AssistantPayload(BaseModel):
@@ -46,7 +52,7 @@ def api_me(request: Request) -> dict[str, Any]:
     repo = _repository()
     profile = repo.get_or_create_profile(user.user_id, email=user.email)
     subscription = repo.get_subscription(user.user_id)
-    return {"user": profile, "subscription": subscription}
+    return {"user": {**profile, "role": "OWNER" if _is_owner(user) else "CUSTOMER"}, "subscription": subscription}
 
 
 @router.get("/api/user/settings")
@@ -99,13 +105,14 @@ def user_dashboard(request: Request) -> dict[str, Any]:
     repo = _repository()
     repo.get_or_create_profile(user.user_id, email=user.email)
     subscription = repo.get_subscription(user.user_id)
+    owner = _is_owner(user)
     from app.mt5_demo.routes import _service as mt5_service
     from app.execution_guard.routes import _service as execution_guard_service
-    plan_features = access_for_plan(subscription.get("plan", "FREE"))
+    plan_features = access_for_plan("elite" if owner else subscription.get("plan", "FREE"))
     return {
-        "user": {"user_id": user.user_id, "email": user.email},
-        "plan": str(subscription.get("plan", "FREE")).upper(),
-        "features": {**plan_features, "execution_guard": bool(plan_features.get("demo_executive"))},
+        "user": {"user_id": user.user_id, "email": user.email, "role": "OWNER" if owner else "CUSTOMER"},
+        "plan": "OWNER" if owner else str(subscription.get("plan", "FREE")).upper(),
+        "features": {**plan_features, "trading_intelligence": owner or bool(plan_features.get("demo_executive")), "execution_guard": owner or bool(plan_features.get("demo_executive"))},
         "mt5": mt5_service().get_dashboard_state(user.user_id),
         "execution_guard": execution_guard_service().status(user.user_id),
     }
