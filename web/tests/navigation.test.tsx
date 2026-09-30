@@ -14,14 +14,14 @@ describe("ATLAS navigation", () => {
     for (const label of mobileLabels) expect(mobile).toHaveTextContent(label);
   });
 
-  it("moves the mobile active color to the pressed section", () => {
+  it("starts on ATLAS AI and moves the active color to the pressed section", () => {
     render(<AtlasShell><div>content</div></AtlasShell>);
     const mobile = screen.getByTestId("mobile-nav");
-    const trade = mobile.querySelector('a[href="#trade"]')!;
+    const ai = mobile.querySelector('a[href="#ai"]')!;
     const news = mobile.querySelector('a[href="#news"]')!;
-    expect(trade).toHaveAttribute("aria-current", "page");
+    expect(ai).toHaveAttribute("aria-current", "page");
     fireEvent.click(news);
     expect(news).toHaveAttribute("aria-current", "page");
-    expect(trade).not.toHaveAttribute("aria-current", "page");
+    expect(ai).not.toHaveAttribute("aria-current", "page");
   });
 });

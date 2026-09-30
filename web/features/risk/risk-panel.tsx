@@ -1,5 +1,5 @@
-﻿import type { RiskViewModel } from "@/lib/api/types";
-import { AgentBadge } from "@/components/system/agent-badge";
+import type { RiskViewModel } from "@/lib/api/types";
+import { SectorHeader } from "@/components/system/sector-header";
 
 const pct = (v: number | null) => v == null ? "—" : `${v}%`;
 const rows = [
@@ -8,16 +8,11 @@ const rows = [
 ] as const;
 
 export function RiskPanel({ risk }: { risk: RiskViewModel }) {
-  return (
-    <section className="atlas-card atlas-risk-panel atlas-feature-3d" id="risk">
-      <div className="atlas-section-heading"><div><span className="atlas-card-label">Capital protection</span><h2>Risk Controls <AgentBadge /></h2></div><strong>{risk.protectionState ?? "Unknown"}</strong></div>
-      <div className="atlas-risk-list">
-        {rows.map(([label, key]) => <div className="atlas-risk-row" key={key}><span>{label}</span><div className="atlas-risk-track"><i style={{ width: `${Math.max(0, Math.min(100, risk[key] ?? 0))}%` }} /></div><strong>{pct(risk[key])}</strong></div>)}
-      </div>
-      {risk.warnings.length > 0 && <div className="atlas-warning">{risk.warnings.join(" · ")}</div>}
-    </section>
-  );
+  return <section className="atlas-card atlas-risk-panel atlas-feature-3d atlas-mobile-reference-card" id="risk">
+    <SectorHeader title="Risk Controls" kind="risk" />
+    <div className="atlas-risk-list">
+      {rows.map(([label, key]) => <div className="atlas-risk-row" key={key}><span>{label}</span><div className="atlas-risk-track"><i style={{ width: `${Math.max(0, Math.min(100, risk[key] ?? 0))}%` }} /></div><strong>{pct(risk[key])}</strong></div>)}
+    </div>
+    {risk.warnings.length > 0 && <div className="atlas-warning">{risk.warnings.join(" · ")}</div>}
+  </section>;
 }
-
-
-

@@ -28,7 +28,8 @@ describe("DashboardScreen", () => {
   it("renders explicit offline placeholders", () => {
     render(<DashboardScreen state={{ ...DASHBOARD_FIXTURE, connection: "offline", account: { ...DASHBOARD_FIXTURE.account, balance: null } }} />);
     expect(screen.getByText("Backend offline")).toBeInTheDocument();
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.getByText("Positions unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Signals unavailable")).toBeInTheDocument();
   });
 });
 
