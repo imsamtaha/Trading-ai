@@ -4,6 +4,7 @@ if (!/^https?:\/\/[^/]+$/.test(origin)) throw new Error("ATLAS_BACKEND_ORIGIN mu
 if (origin === "http://127.0.0.1:8011") throw new Error("ATLAS_BACKEND_ORIGIN cannot point to the frontend port");
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: process.cwd(),
   distDir: process.env.ATLAS_BUILD_DIR || ".next",
   async redirects() {
     return [

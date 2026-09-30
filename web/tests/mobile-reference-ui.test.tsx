@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PositionsPanel } from "@/features/trades/positions-panel";
@@ -29,7 +31,7 @@ describe("approved mobile reference UI", () => {
   });
 
   it("contains the approved mobile reference styling hooks", () => {
-    const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
     expect(css).toContain(".atlas-reference-header");
     expect(css).toContain(".atlas-sector-icon");
     expect(css).toContain(".atlas-mobile-reference-card");

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
@@ -43,7 +45,7 @@ it("labels each dashboard sector with an AGENT badge", () => {
 });
 
 it("styles dashboard headings as orange 3D blocks and paragraphs yellow", () => {
-  const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+  const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
   expect(css).toContain(".atlas-dashboard .atlas-card h2");
   expect(css).toContain(".atlas-dashboard .atlas-card p");
   expect(css).toContain("color: #ffd84d");
@@ -56,7 +58,7 @@ it("shows OWNER in the account status when the signed-in role is owner", () => {
 });
 
 it("styles headings as dark 3D boxes with black edge and orange text", () => {
-  const css = require("node:fs").readFileSync(require("node:path").resolve(process.cwd(), "app/globals.css"), "utf8");
+  const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
   expect(css).toContain("background: linear-gradient(145deg, #2a2a2a");
   expect(css).toContain("border: 1px solid #050505");
   expect(css).toContain("color: var(--atlas-orange)");
