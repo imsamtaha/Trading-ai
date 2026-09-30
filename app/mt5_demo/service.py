@@ -8,6 +8,7 @@ from typing import Any, Callable
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, REAL_MONEY_ACK
 from app.mt5_demo.audit import TradeAudit
 from app.strategy.universe import build_universe
+from app.runtime_control.service import get_demo_execution_enabled
 
 _MT5_TERMINAL_LOCK = threading.RLock()
 
@@ -23,7 +24,8 @@ class MT5DemoService:
                  audit_store: TradeAudit | None = None) -> None:
         self.repository = repository
         self.broker_factory = broker_factory or self._default_broker_factory
-        self.demo_orders_enabled = (os.getenv("ATLAS_USER_DEMO_ORDERS", "false").lower() == "true") if demo_orders_enabled is None else demo_orders_enabled
+        self._demo_runtime_managed = demo_orders_enabled is None
+        self.demo_orders_enabled = get_demo_execution_enabled() if demo_orders_enabled is None else bool(demo_orders_enabled)
         self.real_orders_enabled = ((os.getenv("ATLAS_USER_REAL_ORDERS", "false").lower() == "true")
                                     and os.getenv("ATLAS_REAL_MONEY_ACK", "") == REAL_MONEY_ACK) if real_orders_enabled is None else real_orders_enabled
         self.execution_factory = execution_factory or self._execution_broker_factory
@@ -89,6 +91,8 @@ class MT5DemoService:
                     "attach_current": True,
                 }
                 return {**metadata, "connected": True, "read_only": True}
+            except MT5ExecutionError as exc:
+                raise MT5DemoError("Unable to attach current MT5 Demo account.") from exc
             finally:
                 try:
                     broker.disconnect()
@@ -255,6 +259,8 @@ class MT5DemoService:
         if session.get("attach_current"):
             return {"connected": True, "active": False, "account_type": mode,
                     "account_masked": self._mask_login(session["login"]), "server_enabled": False}
+        if mode == "DEMO" and self._demo_runtime_managed:
+            self.demo_orders_enabled = get_demo_execution_enabled()
         enabled = self.demo_orders_enabled if mode == "DEMO" else self.real_orders_enabled
         active = bool(enabled and (mode == "DEMO" or self._active_real.get(user_id) == session["login"]))
         return {"connected": True, "active": active, "account_type": mode,
