@@ -19,6 +19,7 @@ class MT5Config:
     magic: int = 260830
     deviation: int = 20
     dry_run: bool = True
+    use_active_session: bool = False
 
     @classmethod
     def from_env(cls) -> "MT5Config":
@@ -31,6 +32,7 @@ class MT5Config:
             magic=int(os.getenv("MT5_MAGIC", "260830")),
             deviation=int(os.getenv("MT5_DEVIATION", "20")),
             dry_run=os.getenv("ATLAS_LIVE_TRADING", "false").lower() != "true",
+            use_active_session=os.getenv("MT5_USE_ACTIVE_SESSION", "false").lower() == "true",
         )
 
 
@@ -55,7 +57,8 @@ class MT5Broker:
         if not initialized:
             raise MT5ExecutionError(f"MT5 initialize failed: {mt5.last_error()}")
 
-        if self.config.login and self.config.password and self.config.server:
+        if (not self.config.use_active_session
+                and self.config.login and self.config.password and self.config.server):
             if not mt5.login(self.config.login, password=self.config.password, server=self.config.server):
                 code = mt5.last_error()
                 mt5.shutdown()
