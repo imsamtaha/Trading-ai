@@ -48,3 +48,29 @@ def test_mt5_demo_runtime_rejects_real_account(monkeypatch):
         MT5DemoRuntime(lambda: broker).run(customer_id="c1", account_id="123", symbol="EURUSD", timeframe="5m", demo_volume=0.1, requested_risk_pct=1.0)
     assert broker.orders == []
     assert broker.connected is False
+
+
+def test_runtime_blocks_fourth_position_before_analysis():
+    broker = FakeDemoBroker()
+    broker.positions = lambda: [{"ticket":i} for i in range(3)]
+    with pytest.raises(MT5ExecutionError, match="Open position limit"):
+        MT5DemoRuntime(lambda: broker, max_open_positions=3).run(customer_id="c1", account_id="123", symbol="EURUSD", timeframe="5m", demo_volume=.01, requested_risk_pct=.1)
+    assert broker.orders == []
+
+
+def test_runtime_accepts_two_positions_and_reports_existing_risk(monkeypatch):
+    from app.customer.realtime import runtime
+    monkeypatch.setattr(runtime, "mt5", SimpleNamespace(TIMEFRAME_M5=5,TIMEFRAME_M15=15,TIMEFRAME_M30=30,TIMEFRAME_H1=60,ACCOUNT_TRADE_MODE_DEMO=0))
+    monkeypatch.setattr(runtime, "analyze_candles", lambda candles: {"price":1.1002,"trend":"bullish","momentum":"bullish","indicators":{"atr_14":.001}})
+    captured = {}
+    original = runtime.build_snapshot
+    def capture(**kwargs):
+        captured.update(kwargs["account"])
+        return original(**kwargs)
+    monkeypatch.setattr(runtime, "build_snapshot", capture)
+    broker = FakeDemoBroker()
+    broker.positions = lambda: [{"ticket":1},{"ticket":2}]
+    broker.open_risk_pct = lambda equity: .2
+    result = MT5DemoRuntime(lambda: broker,max_open_positions=3).run(customer_id="c1",account_id="123",symbol="EURUSD",timeframe="5m",demo_volume=.01,requested_risk_pct=.1)
+    assert result["mode"] == "LIVE_DEMO"
+    assert captured["open_risk_pct"] == .2

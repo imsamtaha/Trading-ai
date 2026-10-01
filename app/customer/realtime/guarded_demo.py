@@ -16,7 +16,8 @@ class GuardedDemoBroker(MT5Broker):
     def __init__(self, config, *, login: int, server: str,
                  max_volume: float = 0.01, max_risk_pct: float = 0.1,
                  state_path: Path | None = None,
-                 max_daily_entries: int | None = 1):
+                 max_daily_entries: int | None = 1,
+                 max_open_positions: int = 1):
         super().__init__(config)
         self.login = int(login)
         self.server = server
@@ -25,6 +26,9 @@ class GuardedDemoBroker(MT5Broker):
         if max_daily_entries is not None and (type(max_daily_entries) is not int or max_daily_entries < 1):
             raise ValueError("Daily entry cap must be positive or None for unlimited.")
         self.max_daily_entries = max_daily_entries
+        if type(max_open_positions) is not int or max_open_positions < 1:
+            raise ValueError('Open position cap must be a positive integer.')
+        self.max_open_positions = max_open_positions
         self.state_path = Path(state_path) if state_path else None
 
     def connect(self) -> dict[str, Any]:
@@ -52,9 +56,7 @@ class GuardedDemoBroker(MT5Broker):
         volume = float(request["volume"])
         if not (0 < volume <= self.max_volume + 1e-8):
             raise MT5ExecutionError("Demo volume exceeds the fixed cap.")
-        positions = mt5.positions_get()
-        if positions is None or len(positions) != 0:
-            raise MT5ExecutionError("Open position exists or positions unavailable.")
+        self._open_positions()
         info = mt5.symbol_info(request["symbol"])
         tick = mt5.symbol_info_tick(request["symbol"])
         if info is None or tick is None or not info.visible:
@@ -91,6 +93,28 @@ class GuardedDemoBroker(MT5Broker):
             comment = getattr(check, "comment", str(mt5.last_error()) if check is None else "no broker response")
             raise MT5ExecutionError(f"MT5 order_check rejected the order: {code} {comment}")
         self._claim_daily_slot(equity)
+
+    def _open_positions(self):
+        positions = mt5.positions_get()
+        if positions is None:
+            raise MT5ExecutionError("MT5 positions unavailable.")
+        if len(positions) >= self.max_open_positions:
+            raise MT5ExecutionError("Open position limit reached.")
+        return positions
+
+    def open_risk_pct(self, equity: float) -> float:
+        if not isfinite(equity) or equity <= 0:
+            raise MT5ExecutionError("Invalid equity for open risk.")
+        loss = 0.0
+        for position in self._open_positions():
+            if not isfinite(float(position.sl)) or float(position.sl) <= 0:
+                raise MT5ExecutionError("Open position needs a protective stop.")
+            pnl = mt5.order_calc_profit(position.type, position.symbol, position.volume,
+                                        position.price_current, position.sl)
+            if pnl is None or not isfinite(float(pnl)):
+                raise MT5ExecutionError("Open position risk unavailable.")
+            loss += max(0.0, -float(pnl))
+        return loss / equity * 100
 
     def _claim_daily_slot(self, equity: float) -> None:
         if self.state_path is None:

@@ -13,7 +13,10 @@ from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 
 
 class MT5DemoRuntime:
-    def __init__(self, broker_factory=None):
+    def __init__(self, broker_factory=None, *, max_open_positions: int = 1):
+        if type(max_open_positions) is not int or max_open_positions < 1:
+            raise ValueError('Open position cap must be a positive integer.')
+        self.max_open_positions = max_open_positions
         self.broker_factory = broker_factory or self._default_broker
 
     @staticmethod
@@ -44,11 +47,18 @@ class MT5DemoRuntime:
                 raise MT5ExecutionError("Connected MT5 demo account does not match account identity.")
             if not account.get("trade_allowed"):
                 raise MT5ExecutionError("Connected MT5 demo account does not allow trading.")
-            if hasattr(broker, "positions") and broker.positions():
-                raise MT5ExecutionError("Open positions require manual review before a new demo entry.")
+            positions = broker.positions() if hasattr(broker, "positions") else []
+            if len(positions) >= self.max_open_positions:
+                raise MT5ExecutionError("Open position limit reached.")
             balance, equity = float(account.get("balance") or 0), float(account.get("equity") or 0)
             if balance <= 0 or equity <= 0:
                 raise MT5ExecutionError("Demo balance and equity must be positive.")
+            open_risk_pct = 0.0
+            if positions:
+                risk_reader = getattr(broker, "open_risk_pct", None)
+                if not callable(risk_reader):
+                    raise MT5ExecutionError("Open position risk unavailable.")
+                open_risk_pct = risk_reader(equity)
             drawdown_pct = max(0.0, (balance - equity) / balance * 100)
             quote = broker.quote(symbol)
             candles = broker.candles(symbol, self._timeframe(timeframe), 120)
@@ -77,7 +87,7 @@ class MT5DemoRuntime:
                     **quote, "timestamp": market_time.isoformat(), "trend": trend, "momentum": momentum,
                     "volatility": round((atr / price) * 100, 6),
                 },
-                account={**account, "drawdown_pct": drawdown_pct, "open_risk_pct": 0.0},
+                account={**account, "drawdown_pct": drawdown_pct, "open_risk_pct": open_risk_pct},
                 system={"connector_ok": True, "latency_ms": 0},
                 news=None, sentiment=None, now=datetime.now(timezone.utc),
             )

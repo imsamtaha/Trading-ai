@@ -64,3 +64,34 @@ def test_ten_daily_entries_block_the_eleventh(tmp_path):
     with pytest.raises(MT5ExecutionError, match="Daily demo entry limit"):
         broker._claim_daily_slot(10000.0)
     assert json.loads(path.read_text())["entries"] == 10
+
+
+@pytest.mark.parametrize("count,blocked", [(0,False),(2,False),(3,True),(4,True)])
+def test_three_open_position_cap(monkeypatch, count, blocked):
+    from app.customer.realtime import guarded_demo
+    monkeypatch.setattr(guarded_demo, "mt5", SimpleNamespace(positions_get=lambda: [object()] * count))
+    broker = GuardedDemoBroker(MT5Config(), login=592031391, server="FxPro-MT5 Demo", max_open_positions=3)
+    if blocked:
+        with pytest.raises(MT5ExecutionError, match="Open position limit"):
+            broker._open_positions()
+    else:
+        assert len(broker._open_positions()) == count
+
+
+def test_positions_unavailable_remains_blocked(monkeypatch):
+    from app.customer.realtime import guarded_demo
+    monkeypatch.setattr(guarded_demo, "mt5", SimpleNamespace(positions_get=lambda: None))
+    broker = GuardedDemoBroker(MT5Config(), login=592031391, server="FxPro-MT5 Demo", max_open_positions=3)
+    with pytest.raises(MT5ExecutionError, match="positions unavailable"):
+        broker._open_positions()
+
+
+def test_open_risk_includes_existing_stops(monkeypatch):
+    from app.customer.realtime import guarded_demo
+    position = SimpleNamespace(type=1,symbol="EURUSD",volume=.01,price_current=1.12,sl=1.125)
+    monkeypatch.setattr(guarded_demo, "mt5", SimpleNamespace(positions_get=lambda: [position,position],order_calc_profit=lambda *args: -10))
+    broker = GuardedDemoBroker(MT5Config(), login=592031391, server="FxPro-MT5 Demo", max_open_positions=3)
+    assert broker.open_risk_pct(10000) == pytest.approx(.2)
+    position.sl = 0
+    with pytest.raises(MT5ExecutionError, match="protective stop"):
+        broker.open_risk_pct(10000)

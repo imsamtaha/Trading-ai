@@ -28,7 +28,7 @@ def broker_factory():
     config = replace(MT5Config.from_env(), terminal_path=TERMINAL,
                      login=LOGIN, server=SERVER, magic=MAGIC, dry_run=False)
     return GuardedDemoBroker(config, login=LOGIN, server=SERVER,
-                             state_path=DAILY, max_daily_entries=10)
+                             state_path=DAILY, max_daily_entries=10, max_open_positions=3)
 def settle_closed(ledger: LearningLedger) -> None:
     if not ledger.pending_tickets():
         return
@@ -65,7 +65,7 @@ def run() -> dict:
         raise MT5ExecutionError("FxPro demo clock offset is not configured.")
     ledger = LearningLedger(LEDGER, account_id=str(LOGIN))
     settle_closed(ledger)
-    result = MT5DemoRuntime(broker_factory).run(
+    result = MT5DemoRuntime(broker_factory, max_open_positions=3).run(
         customer_id="owner", account_id=str(LOGIN), symbol="EURUSD",
         timeframe="15m", demo_volume=0.01, requested_risk_pct=0.1,
         learned_weights=ledger.weights(),
