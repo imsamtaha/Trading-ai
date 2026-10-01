@@ -49,7 +49,7 @@ export default function ConnectPage() {
         {owner && runtime && <><p>{ar ? "مجلس Demo المتعلّم:" : "Learned Demo council:"} <strong>{runtime.learned_council_enabled && runtime.demo_execution ? (ar ? "مفعّل" : "Enabled") : (ar ? "متوقف" : "Stopped")}</strong></p>
           <button className="atlas-primary-button" type="button" onClick={() => void toggle()}>{runtime.learned_council_enabled ? (ar ? "إيقاف المجلس" : "Stop council") : (ar ? "تشغيل المجلس التجريبي" : "Start Demo council")}</button></>}
         <p>{ar ? "الحساب الحقيقي يحتاج اشتراكاً نشطاً تم تأكيد دفعه. التنفيذ الحقيقي مقفل حالياً على الخادم." : "A live account requires an active, verified paid subscription. Live execution is currently locked on the server."}</p>
-        <a href="/subscribe">{ar ? "خطط الاشتراك" : "Subscription plans"}</a> · <a href="/dashboard">{ar ? "لوحة التداول والصفقات" : "Trading dashboard and positions"}</a>
+        <a href="/subscribe">{ar ? "خطط الاشتراك" : "Subscription plans"}</a> · <a href="/dashboard">{ar ? "لوحة التداول والصفقات" : "Trading dashboard and positions"}</a> · <a href="/offline-contact.html">{ar ? "كود تواصل بلا إنترنت" : "Offline contact code"}</a>
         {notice && <p role="status">{notice}</p>}
       </section></>}
   </main></AtlasShell>;

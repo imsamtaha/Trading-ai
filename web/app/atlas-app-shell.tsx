@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { AtlasShell } from "@/components/layout/atlas-shell";
+import { ServerHealth } from "@/components/system/server-health";
 import { BackendStatus, type BackendState } from "@/components/system/backend-status";
 import { DashboardScreen } from "@/features/dashboard/dashboard-screen";
 import { AccountConnection } from "@/features/trades/account-connection";
@@ -78,7 +79,8 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
   return <AtlasShell><section data-testid="atlas-app-shell" lang={language} dir={language === "ar" ? "rtl" : "ltr"}>
     <div className="atlas-language-row" aria-label="Language"><button type="button" className={language === "ar" ? "is-active" : ""} onClick={() => setLanguage("ar")}>العربية</button><span>|</span><button type="button" className={language === "en" ? "is-active" : ""} onClick={() => setLanguage("en")}>EN</button></div>
     <BackendStatus status={backend} language={language} />
-    <p className="atlas-connection-link"><a href="/connect">{language === "ar" ? "ربط FxPro MT5 ومجلس أطلس" : "Connect FxPro MT5 and ATLAS council"}</a> · <a href="/subscribe">{language === "ar" ? "الاشتراكات" : "Subscriptions"}</a></p>
+    {!sessionRequired && <ServerHealth language={language} />}
+    <p className="atlas-connection-link"><a href="/connect">{language === "ar" ? "ربط FxPro MT5 ومجلس أطلس" : "Connect FxPro MT5 and ATLAS council"}</a> · <a href="/subscribe">{language === "ar" ? "الاشتراكات" : "Subscriptions"}</a> · <a href="/offline-contact.html">{language === "ar" ? "تواصل دون إنترنت" : "Offline contact"}</a></p>
     {sessionRequired && <main className="atlas-auth-required atlas-card">
       <h2>{language === "ar" ? "استكشف أطلس" : "Explore ATLAS market preview"}</h2>
       <p>{language === "ar" ? "سجّل الدخول لربط حساب FxPro MT5" : "Sign in to connect your FxPro MT5 account"}</p>

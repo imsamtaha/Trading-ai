@@ -29,6 +29,10 @@ export function mapPrivateDashboardState(input: unknown): DashboardViewModel {
     account: { login: account.account_masked, account_type: account.account_type, balance: account.balance, equity: account.equity, floating_profit: mt5.floating_position_pnl },
     positions: mt5.positions,
     markets: mt5.symbols,
+    alerts: Array.isArray(mt5.recent_trades) ? mt5.recent_trades.map(obj).map((trade) => ({
+      message: `${str(trade.symbol) ?? "MT5"} · #${num(trade.position_id) ?? num(trade.ticket) ?? ""} · ${num(trade.profit) ?? 0} ${str(account.currency) ?? ""}`,
+      timestamp: num(trade.time) !== null ? new Date(((num(trade.time) ?? 0) - (num(mt5.history_time_offset_seconds) ?? 0)) * 1000).toISOString() : null,
+    })) : [],
   });
   return { ...(state.account.id ? state : mapDashboardState({ status: "OFFLINE" })), ...identity };
 }
