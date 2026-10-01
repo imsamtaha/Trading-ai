@@ -31,7 +31,7 @@ def atomic_json(path, value):
 def powershell(code):
     result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive",
         "-Command", "$ErrorActionPreference='Stop'; " + code],
-        capture_output=True, text=True, timeout=10, creationflags=0x08000000)
+        capture_output=True, text=True, timeout=30, creationflags=0x08000000)
     if result.returncode:
         raise RuntimeError("WINDOWS_TASK_OPERATION_FAILED")
     return result.stdout.strip()
