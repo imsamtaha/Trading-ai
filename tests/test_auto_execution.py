@@ -128,3 +128,15 @@ def test_auto_execution_blocks_duplicate_symbol_position():
     assert result["status"] == "BLOCKED"
     assert result["reason"] == "POSITION_ALREADY_OPEN"
     assert broker.orders == []
+
+
+def test_runtime_status_reports_execution_boundary(monkeypatch):
+    monkeypatch.setenv("ATLAS_AUTO_EXECUTION_ENABLED", "false")
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    body = TestClient(app).get("/runtime/status").json()
+    assert body["auto_execution"]["effective_execution_enabled"] is False
+    assert body["evolution"]["execution_access"] is False
+    assert body["pipeline"][-1] == "mt5"
