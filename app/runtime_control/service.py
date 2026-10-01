@@ -1,10 +1,13 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
 import subprocess
 from pathlib import Path
 from typing import Callable
+from uuid import uuid4
+
+_INSTANCE_ID = uuid4().hex
 
 
 class RuntimeControlError(RuntimeError):
@@ -64,6 +67,7 @@ class RuntimeControlService:
         ))
         return {
             "backend": "ONLINE",
+            "instance_id": _INSTANCE_ID,
             "demo_execution": get_demo_execution_enabled(),
             "live_execution": "LOCKED",
             "restart_supported": launcher.exists(),

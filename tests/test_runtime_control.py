@@ -51,3 +51,19 @@ def test_owner_can_request_backend_restart(monkeypatch):
     assert response.status_code == 202
     assert response.json()["status"] == "RESTARTING"
     assert fake.restarted is True
+
+
+def test_runtime_instance_is_stable_in_process_and_changes_after_restart():
+    import subprocess
+    import sys
+    from app.runtime_control.service import RuntimeControlService
+
+    instance = RuntimeControlService().status()["instance_id"]
+    assert isinstance(instance, str) and len(instance) == 32
+    assert RuntimeControlService().status()["instance_id"] == instance
+    child = subprocess.check_output([
+        sys.executable, "-c",
+        "from app.runtime_control.service import RuntimeControlService; "
+        "print(RuntimeControlService().status()['instance_id'])",
+    ], text=True).strip()
+    assert child != instance
