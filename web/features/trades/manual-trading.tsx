@@ -6,7 +6,8 @@ import { apiPath } from "@/lib/api/config";
 type TradingState = { connected: boolean; active: boolean; account_type: "DEMO" | "REAL" | null; account_masked?: string; server_enabled?: boolean };
 const path = (route: string) => apiPath(`/api/mt5-demo/${route}`);
 
-export function ManualTrading() {
+export function ManualTrading({ language = "en" }: { language?: "ar" | "en" }) {
+  const ar = language === "ar";
   const [state, setState] = useState<TradingState | null>(null);
   const [symbol, setSymbol] = useState("");
   const [direction, setDirection] = useState<"BUY" | "SELL">("BUY");
@@ -24,7 +25,7 @@ export function ManualTrading() {
       .catch(() => { if (mounted) setMessage("Trading state unavailable."); });
     return () => { mounted = false; };
   }, []);
-  if (!state?.connected) return <section id="trade" className="atlas-card atlas-manual-trading atlas-feature-3d"><h2>FxPro MT5 trading</h2><p role={message ? "status" : undefined}>{message || "Connect MT5 to open the trading workspace."}</p></section>
+  if (!state?.connected) return <section id="trade" className="atlas-card atlas-manual-trading atlas-feature-3d" dir={ar ? "rtl" : "ltr"} lang={language}><h2>{ar ? "تداول MT5" : "MT5 trading"}</h2><p role={message ? "status" : undefined}>{message || "Connect MT5 to open the trading workspace."}</p></section>
   const mode = state.account_type === "REAL" ? "Live" : "Demo";
   async function activate() {
     if (!state || state.account_type !== "REAL") return;
@@ -51,25 +52,25 @@ export function ManualTrading() {
     } catch { setMessage("Order not confirmed. Check your MT5 account and order history before trying again."); }
     finally { setReviewing(false); setBusy(false); }
   }
-  return <section id="trade" className="atlas-card atlas-manual-trading atlas-feature-3d">
-    <h2>FxPro MT5 manual trading</h2>
-    <p>{mode} account {state.account_masked} · {state.active ? "Trading available" : "Trading inactive"}</p>
-    {!state.server_enabled && <p>Order submission is disabled on this server.</p>}
+  return <section id="trade" className="atlas-card atlas-manual-trading atlas-feature-3d" dir={ar ? "rtl" : "ltr"} lang={language}>
+    <header className="atlas-trade-header"><h2>{ar ? "تداول MT5" : "MT5 trading"}</h2>
+    <p className="atlas-trade-account">{`${ar ? (state.account_type === "REAL" ? "حقيقي" : "تجريبي") : `${mode} account`} ${state.account_masked ?? ""} · ${state.active ? (ar ? "جاهز" : "Ready") : (ar ? "غير مفعّل" : "Inactive")}`}</p></header>
+    {!state.server_enabled && <p>{ar ? "إرسال الأوامر غير مفعّل" : "Order submission disabled."}</p>}
     {state.account_type === "REAL" && !state.active && state.server_enabled &&
-      <button type="button" onClick={() => void activate()} disabled={busy}>Activate Live trading</button>}
+      <button type="button" onClick={() => void activate()} disabled={busy}>{ar ? "تفعيل التداول الحقيقي" : "Activate Live trading"}</button>}
     {state.active && <>
       <form onSubmit={(event) => { event.preventDefault(); setRequestId(crypto.randomUUID()); setReviewing(true); setMessage(""); }}>
-        <label>Symbol<input required aria-label="Symbol" value={symbol} onChange={(e) => { setSymbol(e.target.value); setReviewing(false); }} /></label>
-        <label>Side<select aria-label="Side" value={direction} onChange={(e) => { setDirection(e.target.value as "BUY" | "SELL"); setReviewing(false); }}><option>BUY</option><option>SELL</option></select></label>
-        <label>Volume<input required aria-label="Volume" type="number" min="0.01" max="1" step="0.01" value={volume} onChange={(e) => { setVolume(e.target.value); setReviewing(false); }} /></label>
-        <label>Stop loss<input required aria-label="Stop loss" type="number" step="any" min="0.00001" value={stopLoss} onChange={(e) => { setStopLoss(e.target.value); setReviewing(false); }} /></label>
-        <label>Take profit<input required aria-label="Take profit" type="number" step="any" min="0.00001" value={takeProfit} onChange={(e) => { setTakeProfit(e.target.value); setReviewing(false); }} /></label>
-        <button type="submit" disabled={busy}>Review order</button>
+        <label className="atlas-trade-symbol">{ar ? "الرمز" : "Symbol"}<input required aria-label={ar ? "الرمز" : "Symbol"} dir="ltr" placeholder="EURUSD" value={symbol} onChange={(e) => { setSymbol(e.target.value); setReviewing(false); }} /></label>
+        <label>{ar ? "الاتجاه" : "Side"}<select aria-label={ar ? "الاتجاه" : "Side"} value={direction} onChange={(e) => { setDirection(e.target.value as "BUY" | "SELL"); setReviewing(false); }}><option value="BUY">{ar ? "شراء" : "BUY"}</option><option value="SELL">{ar ? "بيع" : "SELL"}</option></select></label>
+        <label>{ar ? "الحجم (لوت)" : "Volume"}<input required aria-label={ar ? "الحجم (لوت)" : "Volume"} dir="ltr" type="number" min="0.01" max="1" step="0.01" value={volume} onChange={(e) => { setVolume(e.target.value); setReviewing(false); }} /></label>
+        <label>{ar ? "وقف الخسارة" : "Stop loss"}<input required aria-label={ar ? "وقف الخسارة" : "Stop loss"} dir="ltr" type="number" step="any" min="0.00001" value={stopLoss} onChange={(e) => { setStopLoss(e.target.value); setReviewing(false); }} /></label>
+        <label>{ar ? "جني الربح" : "Take profit"}<input required aria-label={ar ? "جني الربح" : "Take profit"} dir="ltr" type="number" step="any" min="0.00001" value={takeProfit} onChange={(e) => { setTakeProfit(e.target.value); setReviewing(false); }} /></label>
+        <button className="atlas-primary-button atlas-trade-review" type="submit" disabled={busy}>{ar ? "مراجعة الصفقة" : "Review order"}</button>
       </form>
-      {reviewing && <div role="group" aria-label="Order confirmation">
-        <p>Confirm {direction} {volume} {symbol} on {mode} account {state.account_masked}; SL {stopLoss}, TP {takeProfit}.</p>
-        <button type="button" disabled={busy} onClick={() => void submitOrder()}>Confirm {mode} order</button>
-        <button type="button" onClick={() => setReviewing(false)}>Cancel</button>
+      {reviewing && <div className="atlas-trade-confirmation" role="group" aria-label={ar ? "تأكيد الصفقة" : "Order confirmation"}>
+        <p>{ar ? "تأكيد" : "Confirm"} {direction} {volume} {symbol} · {ar ? (state.account_type === "REAL" ? "حقيقي" : "تجريبي") : mode} {state.account_masked} · SL {stopLoss} · TP {takeProfit}</p>
+        <button type="button" disabled={busy} onClick={() => void submitOrder()}>{ar ? "تأكيد الصفقة" : `Confirm ${mode} order`}</button>
+        <button type="button" onClick={() => setReviewing(false)}>{ar ? "إلغاء" : "Cancel"}</button>
       </div>}
     </>}
     {message && <p role="status">{message}</p>}

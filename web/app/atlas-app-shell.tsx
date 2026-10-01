@@ -87,7 +87,7 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
       <a className="atlas-primary-button" href="/login">{language === "ar" ? "تسجيل الدخول" : "Sign in with Google"}</a>
     </main>}
     {!sessionRequired && state.connection !== "connected" && <AccountConnection language={language} onConnected={() => setRefreshKey((key) => key + 1)} />}
-    {!sessionRequired && state.connection === "connected" && <ManualTrading key={refreshKey} />}
+    {!sessionRequired && state.connection === "connected" && <ManualTrading key={refreshKey} language={language} />}
     {!sessionRequired && !state.entitlements?.tradingIntelligence && <section className="atlas-card atlas-subscription-gate"><h2>{language === "ar" ? "اشتراك أطلس" : "ATLAS subscription"}</h2><p>{language === "ar" ? "اختر الخطة المناسبة" : "Choose the plan that fits you"}</p><a className="atlas-primary-button" href="/subscribe">{language === "ar" ? "عرض الخطط" : "View plans"}</a></section>}
     {chartStatus && <span role="status" className="atlas-chart-status">{chartStatus}</span>}
     <DashboardScreen state={state} candles={candles} symbol={symbol} timeframe={timeframe} assistantAvailable={!sessionRequired && state.entitlements?.tradingIntelligence === true} intelligenceAvailable={!sessionRequired && state.entitlements?.tradingIntelligence === true} language={language}

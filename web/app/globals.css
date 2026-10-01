@@ -525,3 +525,19 @@ html{scroll-behavior:smooth}
 .atlas-connect-page .atlas-card{padding:20px}
 .atlas-connect-page a,.atlas-connection-link a{color:#f28b36;text-decoration:underline;text-underline-offset:4px}
 .atlas-connection-link{padding:4px 18px 12px;font-size:.95rem}
+
+/* Compact MT5 order workspace */
+.atlas-manual-trading{padding:20px;min-width:0;margin:12px 0 18px}
+.atlas-trade-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.atlas-trade-header h2{margin:0;font-size:1.15rem;color:var(--atlas-orange)}
+.atlas-trade-account{margin:0;color:var(--atlas-muted);font-size:.875rem;overflow-wrap:anywhere}
+.atlas-manual-trading form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.atlas-manual-trading label{display:grid;gap:7px;min-width:0;color:var(--atlas-text);font-size:.875rem}
+.atlas-manual-trading input,.atlas-manual-trading select{width:100%;min-width:0;min-height:48px;padding:11px 12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:#0d141c;color:var(--atlas-text);font:inherit;font-size:1rem}
+.atlas-manual-trading input:focus-visible,.atlas-manual-trading select:focus-visible{outline:2px solid var(--atlas-orange);outline-offset:2px}
+.atlas-trade-symbol,.atlas-trade-review{grid-column:1/-1}
+.atlas-trade-review{min-height:48px;margin-top:2px}
+.atlas-trade-confirmation{margin-top:16px;padding:14px;border:1px solid var(--atlas-border);border-radius:12px}
+.atlas-trade-confirmation p{overflow-wrap:anywhere}
+.atlas-trade-confirmation button{min-height:44px;margin:4px;padding:10px 14px;border:1px solid var(--atlas-border);border-radius:10px;background:var(--atlas-surface-2);color:var(--atlas-text)}
+@media(max-width:360px){.atlas-manual-trading form{grid-template-columns:minmax(0,1fr)}}
