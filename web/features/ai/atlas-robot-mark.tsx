@@ -1,2 +1,9 @@
-import type { ReactElement } from "react";
-export function AtlasRobotMark(): ReactElement { return <span className="atlas-robot-mark" aria-hidden="true"><i /><i /></span>; }
+export function AtlasRobotMark() {
+  return (
+    <div className="atlas-robot-mark" aria-hidden="true">
+      <span className="atlas-robot-eye atlas-robot-eye--left" />
+      <span className="atlas-robot-eye atlas-robot-eye--right" />
+      <span className="atlas-robot-chin" />
+    </div>
+  );
+}

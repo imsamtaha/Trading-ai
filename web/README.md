@@ -1,20 +1,27 @@
-# ATLAS Web App
+# ATLAS web app
 
-This directory contains the new responsive Next.js interface. The existing FastAPI dashboard and static public website remain available while the web app is evaluated.
+Next.js frontend for the existing FastAPI service. The backend remains authoritative for MT5, account, risk, agents and execution. This frontend has no execution requests.
 
-## Local development
+## Local run
 
-1. Install the repository's Python requirements and start FastAPI from the repository root using the existing project instructions.
-2. In this directory, run `npm ci` and `npm run dev`.
-3. Leave `NEXT_PUBLIC_ATLAS_API_BASE_URL` blank when the frontend and API share an origin. For a separate API host, set it to the public HTTPS API origin in `.env.local`.
-4. Run `npm test -- --run`, `npm run lint`, and `npm run build` before deployment.
+Start FastAPI on `127.0.0.1:8011` using the existing project runtime. In a separate terminal:
 
-The production build is a static export in `out/`. The browser calls the existing read/analysis routes: `/health`, `/dashboard/mt5-state`, `/dashboard/market-briefing`, `/market/{symbol}/candles`, `/mt5/positions`, and `/agent/right-hand/chat`. The frontend contains no broker credentials or execution authorization. Backend risk and execution policy remain authoritative.
+```powershell
+cd web
+npm ci
+Copy-Item .env.example .env.local
+npm run dev
+```
 
-## Hosting and cutover
+Open `http://127.0.0.1:3000`. The server-side Next rewrite uses `ATLAS_BACKEND_ORIGIN` (default `http://127.0.0.1:8011`). No browser-facing environment variable holds broker or service credentials.
 
-Serve `out/` from the chosen static host. Configure the ingress so the listed API paths reach the existing FastAPI service, or set `NEXT_PUBLIC_ATLAS_API_BASE_URL` to that service's public HTTPS origin and allow the deployed frontend origin through the API's CORS policy. Do not put server secrets in `NEXT_PUBLIC_*` variables.
+## Verify and build
 
-Use a staging host first. Verify health/account status, offline and degraded states, candles by symbol/timeframe, assistant failure handling, and a narrow mobile viewport. Then route the new app path or root only after the deployment owner confirms the ingress target. Keep the current server-rendered dashboard reachable during cutover. Rollback by pointing the frontend route back to the existing dashboard/static root; no database, account, risk, or execution state migration is involved.
+```powershell
+npm test -- --run
+npm run build
+npm run lint
+npm run start
+```
 
-The current repository keeps the public root and deployment configuration unchanged. See `../docs/deployment/atlas-webapp.md` for the route map and readiness checklist.
+The `/login` page reads the private backend's public `/auth/config` and uses Supabase for Google sign-in and email OTP. If `GOOGLE_CLIENT_ID` is set, it uses Google ID tokens; otherwise it uses Supabase Google OAuth with the existing `/?auth=callback` return. After Supabase returns an access token, `/auth/session` verifies it server-side and sets an HttpOnly cookie. Account telemetry is read only from authenticated `/api/user/dashboard`; chart and market briefing use authenticated `/api/user/...` routes. Sign-in alone does not authorize trading. See `docs/deployment/atlas-webapp.md` for routing and rollback.

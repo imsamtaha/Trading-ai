@@ -1,11 +1,28 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AtlasAssistant } from "../features/ai/atlas-assistant";
-vi.mock("../lib/api/agent", () => ({ sendAgentMessage: vi.fn() }));
-import { sendAgentMessage } from "../lib/api/agent";
-const mockedSend = vi.mocked(sendAgentMessage);
-beforeEach(() => vi.clearAllMocks());
+import { describe, expect, it, vi } from "vitest";
+import { AtlasAssistant } from "@/features/ai/atlas-assistant";
+
 describe("AtlasAssistant", () => {
-  it("submits prompt and shows response", async () => { mockedSend.mockResolvedValue({ message: "Review the market structure." }); render(<AtlasAssistant />); fireEvent.change(screen.getByLabelText("Message ATLAS AI"), { target: { value: "Review EURUSD" } }); fireEvent.click(screen.getAllByRole("button", { name: "Send" }).at(-1)!); expect(screen.getByText("Thinking…")).toBeInTheDocument(); await waitFor(() => expect(screen.getByText("Review the market structure.")).toBeInTheDocument()); expect(mockedSend).toHaveBeenCalledWith(expect.objectContaining({ request: "Review EURUSD" })); });
-  it("preserves prompt and reports failure", async () => { mockedSend.mockRejectedValue(new Error("offline")); render(<AtlasAssistant />); const input = screen.getByLabelText("Message ATLAS AI"); fireEvent.change(input, { target: { value: "Check gold" } }); fireEvent.click(screen.getAllByRole("button", { name: "Send" }).at(-1)!); await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument()); expect(input).toHaveValue("Check gold"); });
+  it("describes scope and limits input", () => {
+    render(<AtlasAssistant sendMessage={vi.fn()} />);
+    expect(screen.getByText(/لا يرى حسابك أو الأسعار الحية/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("اسأل ATLAS")).toHaveAttribute("maxlength", "1000");
+  });
+  it("submits a prompt and renders the response", async () => {
+    const send = vi.fn().mockResolvedValue({ message: "Risk is within configured limits." });
+    render(<AtlasAssistant sendMessage={send} />);
+    fireEvent.change(screen.getByLabelText("اسأل ATLAS"), { target: { value: "Review risk" } });
+    fireEvent.click(screen.getByRole("button", { name: "إرسال" }));
+    expect(screen.getByRole("button", { name: "جارٍ الإرسال…" })).toBeDisabled();
+    expect(await screen.findByText("Risk is within configured limits.")).toBeInTheDocument();
+  });
+  it("shows failure and preserves the prompt", async () => {
+    const send = vi.fn().mockRejectedValue(new Error("offline"));
+    render(<AtlasAssistant sendMessage={send} />);
+    const input = screen.getByLabelText("اسأل ATLAS");
+    fireEvent.change(input, { target: { value: "Explain signal" } });
+    fireEvent.click(screen.getByRole("button", { name: "إرسال" }));
+    await waitFor(() => expect(screen.getByText("المساعد غير متاح")).toBeInTheDocument());
+    expect(input).toHaveValue("Explain signal");
+  });
 });

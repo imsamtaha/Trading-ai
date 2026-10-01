@@ -1,4 +1,8 @@
-import type { ReactElement } from "react";
-export function StatCard({ label, value, detail }: { label: string; value: string; detail?: string | null }): ReactElement {
-  return <article className="atlas-card atlas-stat-card"><p className="atlas-card__label">{label}</p><strong className="atlas-stat-card__value">{value}</strong>{detail && <p className="atlas-card__detail">{detail}</p>}</article>;
+export function StatCard({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "positive" | "warning" }) {
+  return (
+    <article className={`atlas-card atlas-stat atlas-stat--${tone}`}>
+      <span className="atlas-card-label">{label}</span>
+      <strong>{value}</strong>
+    </article>
+  );
 }

@@ -1,5 +1,10 @@
-import type { ReactElement } from "react";
-import type { Position } from "../../lib/api/types";
-export function ActivityPanel({ positions }: { positions: Position[] }): ReactElement {
-  return <section className="atlas-card"><div className="atlas-section-heading"><h2>Open positions</h2><span className="atlas-pill atlas-pill--muted">{positions.length}</span></div>{positions.length ? <div className="atlas-position-list">{positions.map((p, i) => <div className="atlas-position-row" key={`${p.symbol}-${i}`}><strong>{p.symbol}</strong><span>{p.direction ?? "—"}</span><span>{p.volume ?? "—"}</span><strong>{p.profit === null ? "—" : p.profit.toLocaleString("en-US", { style: "currency", currency: "USD" })}</strong></div>)}</div> : <p className="atlas-empty">No open positions reported.</p>}</section>;
+import { SectorHeader } from "@/components/system/sector-header";
+
+export type ActivityEvent = { message: string; timestamp?: string | null };
+export function ActivityPanel({ events = [], available = true }: { events?: ActivityEvent[]; available?: boolean }) {
+  return <section className="atlas-card atlas-activity-card atlas-feature-3d atlas-mobile-reference-card" id="activity">
+    <SectorHeader title="Recent Activity" kind="activity" />
+    {!available ? <div className="atlas-empty-line atlas-mobile-reference-empty">Activity unavailable</div> : events.length === 0 ? <div className="atlas-empty-line atlas-mobile-reference-empty">No recent activity</div> :
+      <ul className="atlas-activity-list">{events.map((event, i) => <li key={i}>{event.message}{event.timestamp && <time dateTime={event.timestamp}>{event.timestamp}</time>}</li>)}</ul>}
+  </section>;
 }

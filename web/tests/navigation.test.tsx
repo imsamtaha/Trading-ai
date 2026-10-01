@@ -1,25 +1,27 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { MobileNav } from "../components/layout/mobile-nav";
-import { Sidebar } from "../components/layout/sidebar";
-import { NAV_ITEMS } from "../lib/navigation";
+import { AtlasShell } from "@/components/layout/atlas-shell";
 
-describe("responsive navigation", () => {
-  it("renders every destination with the active page announced", () => {
-    render(
-      <>
-        <Sidebar active="dashboard" />
-        <MobileNav active="dashboard" />
-      </>,
-    );
+const desktopLabels = ["Dashboard", "Markets", "Trade", "Signals", "Risk", "Analytics", "News", "ATLAS AI", "Account"];
+const mobileLabels = ["التداول", "الإشارات", "المخاطر", "الأخبار", "ATLAS AI"];
 
-    for (const item of NAV_ITEMS) {
-      expect(screen.getAllByText(item.label).length).toBeGreaterThan(0);
-    }
-    expect(screen.getByTestId("desktop-sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("link", { name: "Dashboard" })[0],
-    ).toHaveAttribute("aria-current", "page");
+describe("ATLAS navigation", () => {
+  it("keeps desktop destinations and uses five mobile actions", () => {
+    render(<AtlasShell><div>content</div></AtlasShell>);
+    const mobile = screen.getByTestId("mobile-nav");
+    for (const label of desktopLabels) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    expect(mobile.querySelectorAll("a")).toHaveLength(5);
+    for (const label of mobileLabels) expect(mobile).toHaveTextContent(label);
+  });
+
+  it("starts on ATLAS AI and moves the active color to the pressed section", () => {
+    render(<AtlasShell><div>content</div></AtlasShell>);
+    const mobile = screen.getByTestId("mobile-nav");
+    const ai = mobile.querySelector('a[href="#ai"]')!;
+    const news = mobile.querySelector('a[href="#news"]')!;
+    expect(ai).toHaveAttribute("aria-current", "page");
+    fireEvent.click(news);
+    expect(news).toHaveAttribute("aria-current", "page");
+    expect(ai).not.toHaveAttribute("aria-current", "page");
   });
 });
