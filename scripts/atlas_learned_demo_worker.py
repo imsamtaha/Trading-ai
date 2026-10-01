@@ -28,7 +28,7 @@ def broker_factory():
     config = replace(MT5Config.from_env(), terminal_path=TERMINAL,
                      login=LOGIN, server=SERVER, magic=MAGIC, dry_run=False)
     return GuardedDemoBroker(config, login=LOGIN, server=SERVER,
-                             state_path=DAILY)
+                             state_path=DAILY, max_daily_entries=10)
 def settle_closed(ledger: LearningLedger) -> None:
     if not ledger.pending_tickets():
         return

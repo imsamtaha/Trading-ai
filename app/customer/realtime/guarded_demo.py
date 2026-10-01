@@ -15,12 +15,16 @@ from app.execution.mt5 import MT5Broker, MT5ExecutionError, mt5
 class GuardedDemoBroker(MT5Broker):
     def __init__(self, config, *, login: int, server: str,
                  max_volume: float = 0.01, max_risk_pct: float = 0.1,
-                 state_path: Path | None = None):
+                 state_path: Path | None = None,
+                 max_daily_entries: int | None = 1):
         super().__init__(config)
         self.login = int(login)
         self.server = server
         self.max_volume = max_volume
         self.max_risk_pct = max_risk_pct
+        if max_daily_entries is not None and (type(max_daily_entries) is not int or max_daily_entries < 1):
+            raise ValueError("Daily entry cap must be positive or None for unlimited.")
+        self.max_daily_entries = max_daily_entries
         self.state_path = Path(state_path) if state_path else None
 
     def connect(self) -> dict[str, Any]:
@@ -102,7 +106,9 @@ class GuardedDemoBroker(MT5Broker):
         if state.get("day") != day:
             state.update(day=day, baseline_equity=equity, entries=0)
         baseline = float(state["baseline_equity"])
-        if baseline <= 0 or equity <= baseline * 0.97 or int(state["entries"]) >= 1:
-            raise MT5ExecutionError("Daily demo loss or entry limit reached.")
+        if baseline <= 0 or equity <= baseline * 0.97:
+            raise MT5ExecutionError("Daily demo loss limit reached.")
+        if self.max_daily_entries is not None and int(state["entries"]) >= self.max_daily_entries:
+            raise MT5ExecutionError("Daily demo entry limit reached.")
         state["entries"] += 1
         self.state_path.write_text(json.dumps(state), encoding="utf-8")

@@ -39,3 +39,28 @@ def test_symbol_filling_bitmask_does_not_use_order_enum(monkeypatch):
     broker = GuardedDemoBroker(MT5Config(), login=592031391, server="FxPro-MT5 Demo")
     assert broker._filling_type(SimpleNamespace(filling_mode=2, trade_exemode=2)) == 1
     assert broker._filling_type(SimpleNamespace(filling_mode=1, trade_exemode=2)) == 0
+
+
+def test_unlimited_daily_entries_keep_loss_protection(tmp_path):
+    path = tmp_path / "daily.json"
+    broker = GuardedDemoBroker(MT5Config(dry_run=False), login=592031391,
+                               server="FxPro-MT5 Demo", state_path=path,
+                               max_daily_entries=None)
+    for _ in range(50):
+        broker._claim_daily_slot(10000.0)
+    assert json.loads(path.read_text())["entries"] == 50
+    with pytest.raises(MT5ExecutionError, match="Daily demo loss"):
+        broker._claim_daily_slot(9700.0)
+    assert json.loads(path.read_text())["entries"] == 50
+
+
+def test_ten_daily_entries_block_the_eleventh(tmp_path):
+    path = tmp_path / "daily.json"
+    broker = GuardedDemoBroker(MT5Config(dry_run=False), login=592031391,
+                               server="FxPro-MT5 Demo", state_path=path,
+                               max_daily_entries=10)
+    for _ in range(10):
+        broker._claim_daily_slot(10000.0)
+    with pytest.raises(MT5ExecutionError, match="Daily demo entry limit"):
+        broker._claim_daily_slot(10000.0)
+    assert json.loads(path.read_text())["entries"] == 10
