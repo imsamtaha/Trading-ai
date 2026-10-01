@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+import os
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.evolution.engine import EvolutionEngine
@@ -20,7 +22,7 @@ class MetricsPayload(BaseModel):
     consistency: float = Field(ge=0.0, le=1.0)
 
     def to_metrics(self) -> AgentMetrics:
-        return AgentMetrics(**self.model_dump())
+        return AgentMetrics(**self.dict())
 
 
 class RecordPayload(BaseModel):
@@ -40,8 +42,14 @@ def evolution_status():
     return engine.status()
 
 
+def _require_writes_enabled() -> None:
+    if os.getenv("ATLAS_EVOLUTION_WRITES_ENABLED", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="Evolution writes are disabled.")
+
+
 @router.post("/score")
 def score_agent(payload: RecordPayload):
+    _require_writes_enabled()
     result = engine.record(payload.agent, payload.metrics.to_metrics())
     return {
         "agent": payload.agent,
@@ -52,6 +60,7 @@ def score_agent(payload: RecordPayload):
 
 @router.post("/evaluate")
 def evaluate_candidate(payload: CandidatePayload):
+    _require_writes_enabled()
     decision = engine.evaluate_candidate(
         agent=payload.agent,
         incumbent_metrics=payload.incumbent.to_metrics(),
