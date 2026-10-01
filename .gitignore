@@ -25,3 +25,4 @@ dist/
 .next/
 *.tsbuildinfo
 .worktrees/
+web/.next-*/
