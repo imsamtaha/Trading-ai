@@ -72,7 +72,16 @@ def disconnect_demo(request: Request) -> dict[str, Any]:
 def demo_state(request: Request) -> dict[str, Any]:
     user = require_user(request)
     try:
-        return _service().get_demo_state(user.user_id)
+        connector = _service()
+        if _is_owner(user) and connector.session_credentials(user.user_id) is None:
+            try:
+                connector.attach_current_demo(user.user_id)
+                session = connector.session_credentials(user.user_id) or {}
+                if int(session.get("login", 0)) != 592031391 or session.get("server") != "FxPro-MT5 Demo":
+                    connector.disconnect_demo(user.user_id)
+            except MT5DemoError:
+                pass
+        return connector.get_demo_state(user.user_id)
     except MT5DemoError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

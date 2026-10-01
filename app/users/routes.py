@@ -134,6 +134,15 @@ def user_dashboard(request: Request) -> dict[str, Any]:
             current_attacher(user.user_id)
         except MT5DemoError:
             pass
+    dashboard = mt5.get_dashboard_state(user.user_id)
+    session = session_getter(user.user_id) if callable(session_getter) else None
+    if owner and session and session.get("login") == 592031391 and session.get("server") == "FxPro-MT5 Demo":
+        dashboard["recent_trades"] = [
+            trade for trade in dashboard.get("recent_trades", [])
+            if int(trade.get("time", 0) or 0) >= 1790880044
+        ]
+        dashboard["history_start_ticket"] = 349264740
+        dashboard["history_time_offset_seconds"] = 10800
     return {
         "user": {"user_id": user.user_id, "email": user.email, "role": "OWNER" if owner else "CUSTOMER"},
         "plan": "OWNER" if owner else str(subscription.get("plan", "FREE")).upper(),
@@ -141,6 +150,6 @@ def user_dashboard(request: Request) -> dict[str, Any]:
                      "trading_intelligence": owner or paid_access(subscription),
                      "demo_executive": owner or paid_access(subscription),
                      "execution_guard": owner or paid_access(subscription)},
-        "mt5": mt5.get_dashboard_state(user.user_id),
+        "mt5": dashboard,
         "execution_guard": execution_guard_service().status(user.user_id),
     }
