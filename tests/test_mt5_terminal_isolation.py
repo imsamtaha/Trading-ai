@@ -21,3 +21,17 @@ def test_customer_cannot_switch_reserved_council_terminal(monkeypatch):
     monkeypatch.setenv("MT5_TERMINAL_PATH", r"C:\council\terminal64.exe")
     with pytest.raises(MT5DemoError, match="separate MT5 terminal"):
         MT5DemoService._default_broker_factory({"login":123,"server":"FxPro-MT5 Demo","password":"test"})
+
+
+def test_connect_uses_requested_credentials_before_loading_stale_session(monkeypatch):
+    from types import SimpleNamespace
+    from app.main import app
+    from app.execution import mt5 as module
+    account = SimpleNamespace(login=123,server="FxPro-MT5 Demo",trade_mode=0,balance=100,equity=100,currency="USD",trade_allowed=True)
+    expected = {"login":123,"password":"test","server":"FxPro-MT5 Demo"}
+    fake = SimpleNamespace(initialize=lambda *args, **kwargs: kwargs == expected,
+                           login=lambda *args, **kwargs: True, account_info=lambda: account,
+                           shutdown=lambda: None, last_error=lambda: (-6,"stale session"))
+    monkeypatch.setattr(module, "mt5", fake)
+    broker = module.MT5Broker(module.MT5Config(terminal_path=r"C:\customers\terminal64.exe", **expected))
+    assert broker.connect()["login"] == 123
