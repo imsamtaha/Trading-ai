@@ -47,6 +47,7 @@ class CustomerRealtimeCycle:
         take_profit: float,
         demo_volume: float,
         requested_risk_pct: float = 1.0,
+        learned_weights: dict[str, float] | None = None,
         trace_id: str | None = None,
     ) -> dict:
         trace_id = trace_id or str(uuid4())
@@ -63,7 +64,7 @@ class CustomerRealtimeCycle:
             self._audit(snapshot, trace_id, "DECISION", decision="WAIT", reason=reason)
             return {"status": "BLOCKED", "reason": reason, "trace_id": trace_id, "decision": "WAIT"}
 
-        decision = coordinate(snapshot, verdicts)
+        decision = coordinate(snapshot, verdicts, weights=learned_weights)
         self._audit(snapshot, trace_id, "DECISION", decision=decision.decision.value, confidence=decision.confidence, blockers=list(decision.blockers))
         if decision.decision not in {Decision.BUY, Decision.SELL}:
             return {"status": "BLOCKED", "reason": "non-actionable decision", "trace_id": trace_id, "decision": decision.decision.value}
@@ -74,6 +75,14 @@ class CustomerRealtimeCycle:
             return {"status": "BLOCKED", "reason": "; ".join(capital.blockers), "trace_id": trace_id, "decision": decision.decision.value}
 
         entry = float(snapshot.market.get("ask") if decision.decision is Decision.BUY else snapshot.market.get("bid"))
+        stop_distance = abs(float(stop_loss) - entry)
+        target_distance = abs(float(take_profit) - entry)
+        if stop_distance <= 0 or target_distance <= 0:
+            return {"status": "BLOCKED", "reason": "invalid stop distance", "trace_id": trace_id, "decision": decision.decision.value}
+        if decision.decision is Decision.BUY:
+            stop_loss, take_profit = entry - stop_distance, entry + target_distance
+        else:
+            stop_loss, take_profit = entry + stop_distance, entry - target_distance
         intent = self.trader.build_intent(snapshot, decision, entry=entry, stop_loss=stop_loss, take_profit=take_profit)
         risk = calculate_risk(
             direction=intent.direction,
@@ -119,6 +128,7 @@ class CustomerRealtimeCycle:
         return {
             "status": execution.status,
             "agents": [v.agent for v in verdicts],
+            "agent_signals": {v.agent: v.signal.value for v in verdicts},
             "trace_id": trace_id,
             "decision": decision.decision.value,
             "confidence": decision.confidence,

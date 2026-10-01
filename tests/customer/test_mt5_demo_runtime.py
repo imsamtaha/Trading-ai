@@ -13,7 +13,7 @@ class FakeDemoBroker:
         self.orders = []
     def connect(self):
         self.connected = True
-        return {"trade_mode": self.trade_mode, "trade_allowed": True, "equity": 10000.0, "balance": 10000.0}
+        return {"login": 123, "trade_mode": self.trade_mode, "trade_allowed": True, "equity": 10000.0, "balance": 10000.0}
     def quote(self, symbol):
         return {"symbol": symbol, "bid": 1.1000, "ask": 1.1002, "spread_points": 2.0, "time": 1760000000}
     def candles(self, symbol, timeframe, count):
@@ -33,7 +33,7 @@ def test_mt5_demo_runtime_uses_demo_broker_and_runs_customer_cycle(monkeypatch):
         "indicators":{"atr_14":0.001},
     })
     broker = FakeDemoBroker(0)
-    result = MT5DemoRuntime(lambda: broker).run(customer_id="c1", account_id="a1", symbol="EURUSD", timeframe="5m", demo_volume=0.1, requested_risk_pct=1.0)
+    result = MT5DemoRuntime(lambda: broker).run(customer_id="c1", account_id="123", symbol="EURUSD", timeframe="5m", demo_volume=0.1, requested_risk_pct=1.0)
     assert result["mode"] == "LIVE_DEMO"
     assert result["status"] in {"EXECUTED", "BLOCKED"}
     assert result["trace_id"]
@@ -45,6 +45,6 @@ def test_mt5_demo_runtime_rejects_real_account(monkeypatch):
     monkeypatch.setattr("app.customer.realtime.runtime.mt5", fake_mt5)
     broker = FakeDemoBroker(2)
     with pytest.raises(MT5ExecutionError, match="demo account"):
-        MT5DemoRuntime(lambda: broker).run(customer_id="c1", account_id="a1", symbol="EURUSD", timeframe="5m", demo_volume=0.1, requested_risk_pct=1.0)
+        MT5DemoRuntime(lambda: broker).run(customer_id="c1", account_id="123", symbol="EURUSD", timeframe="5m", demo_volume=0.1, requested_risk_pct=1.0)
     assert broker.orders == []
     assert broker.connected is False

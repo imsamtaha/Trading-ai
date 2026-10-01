@@ -257,12 +257,16 @@ class MT5Broker:
         account = mt5.account_info()
         if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
+        self._pre_send(request, account)
         result = mt5.order_send(request)
         if result is None:
             raise MT5ExecutionError(f"MT5 order_send returned None: {mt5.last_error()}")
         if result.retcode != mt5.TRADE_RETCODE_DONE:
             raise MT5ExecutionError(f"MT5 order rejected: retcode={result.retcode}, comment={result.comment}")
         return {"status": "FILLED", "ticket": int(result.order), "deal": int(result.deal), "symbol": symbol, "side": side, "volume": float(result.volume), "price": float(result.price), "sl": stop_loss, "tp": take_profit, "comment": str(result.comment)}
+
+    def _pre_send(self, request: dict[str, Any], account: Any) -> None:
+        """Broker-specific last gate; protected demo worker overrides this."""
 
     def close_position(self, ticket: int) -> dict[str, Any]:
         self.ensure_connected()

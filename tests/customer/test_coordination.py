@@ -79,6 +79,14 @@ def test_confidence_requires_independent_fresh_factors_and_penalizes_concentrati
     assert calibrate_confidence(multi, Signal.LONG) > calibrate_confidence(one_source, Signal.LONG)
 
 
+def test_learned_weights_change_direction_only_inside_council_vote():
+    snap = _snapshot()
+    verdicts = [_v(snap, "technical", Signal.LONG), _v(snap, "regime", Signal.SHORT)]
+    assert coordinate(snap, verdicts).decision is Decision.BUY
+    learned = coordinate(snap, verdicts, weights={"technical": 0.3, "regime": 2.5})
+    assert learned.decision is Decision.SELL
+
+
 def test_capital_guardian_vetoes_independently_of_consensus():
     snap = _snapshot(account={"equity": 9000, "balance": 10000, "drawdown_pct": 10.0, "open_risk_pct": 1.0})
     capital = evaluate_capital(snap, requested_risk_pct=1.0)

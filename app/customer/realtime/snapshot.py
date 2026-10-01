@@ -51,4 +51,4 @@ def build_snapshot(
 
 def snapshot_is_stale(snapshot: MarketSnapshot, *, max_age_seconds: float) -> bool:
     age = (snapshot.snapshot_timestamp - snapshot.market_timestamp).total_seconds()
-    return age > max_age_seconds
+    return age > max_age_seconds or age < -max_age_seconds

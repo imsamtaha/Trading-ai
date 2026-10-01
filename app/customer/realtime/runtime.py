@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import replace
 from datetime import datetime, timezone
 
@@ -32,15 +33,23 @@ class MT5DemoRuntime:
             raise ValueError("Unsupported demo timeframe")
         return mapping[value]
 
-    def run(self, *, customer_id: str, account_id: str, symbol: str, timeframe: str, demo_volume: float, requested_risk_pct: float) -> dict:
+    def run(self, *, customer_id: str, account_id: str, symbol: str, timeframe: str, demo_volume: float, requested_risk_pct: float, learned_weights: dict[str, float] | None = None) -> dict:
         broker = self.broker_factory()
         try:
             account = broker.connect()
             demo_mode = getattr(mt5, "ACCOUNT_TRADE_MODE_DEMO", 0) if mt5 is not None else 0
             if int(account.get("trade_mode", -1)) != int(demo_mode):
                 raise MT5ExecutionError("Customer LIVE_DEMO requires an MT5 demo account.")
+            if str(account.get("login")) != str(account_id):
+                raise MT5ExecutionError("Connected MT5 demo account does not match account identity.")
             if not account.get("trade_allowed"):
                 raise MT5ExecutionError("Connected MT5 demo account does not allow trading.")
+            if hasattr(broker, "positions") and broker.positions():
+                raise MT5ExecutionError("Open positions require manual review before a new demo entry.")
+            balance, equity = float(account.get("balance") or 0), float(account.get("equity") or 0)
+            if balance <= 0 or equity <= 0:
+                raise MT5ExecutionError("Demo balance and equity must be positive.")
+            drawdown_pct = max(0.0, (balance - equity) / balance * 100)
             quote = broker.quote(symbol)
             candles = broker.candles(symbol, self._timeframe(timeframe), 120)
             technical = analyze_candles(candles)
@@ -55,7 +64,12 @@ class MT5DemoRuntime:
             else:
                 entry = float(quote["ask"]); stop_loss = entry - 1.5 * atr; take_profit = entry + 2.5 * atr
             tick_seconds = int(quote.get("time") or 0)
-            market_time = datetime.fromtimestamp(tick_seconds, tz=timezone.utc) if tick_seconds else datetime.now(timezone.utc)
+            if not tick_seconds:
+                raise MT5ExecutionError("MT5 quote has no timestamp.")
+            offset = int(os.getenv("ATLAS_MT5_TICK_OFFSET_SECONDS", "0"))
+            if offset not in {0, 7200, 10800}:
+                raise MT5ExecutionError("Unsupported broker tick clock offset.")
+            market_time = datetime.fromtimestamp(tick_seconds - offset, tz=timezone.utc)
             snapshot = build_snapshot(
                 context=CustomerContext(customer_id, account_id, Mode.LIVE_DEMO),
                 symbol=symbol.upper(), timeframe=timeframe,
@@ -63,13 +77,14 @@ class MT5DemoRuntime:
                     **quote, "timestamp": market_time.isoformat(), "trend": trend, "momentum": momentum,
                     "volatility": round((atr / price) * 100, 6),
                 },
-                account={**account, "drawdown_pct": 0.0, "open_risk_pct": 0.0},
+                account={**account, "drawdown_pct": drawdown_pct, "open_risk_pct": 0.0},
                 system={"connector_ok": True, "latency_ms": 0},
                 news=None, sentiment=None, now=datetime.now(timezone.utc),
             )
             result = CustomerRealtimeCycle(DemoAdapter(broker)).run(
                 snapshot, stop_loss=stop_loss, take_profit=take_profit,
                 demo_volume=demo_volume, requested_risk_pct=requested_risk_pct,
+                learned_weights=learned_weights,
             )
             return {**result, "mode": "LIVE_DEMO", "symbol": symbol.upper(), "timeframe": timeframe}
         finally:
