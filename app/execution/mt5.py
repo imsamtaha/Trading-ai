@@ -192,6 +192,23 @@ class MT5Broker:
             "magic": int(p.magic),
         } for p in raw]
 
+    def volume_for_risk(self, symbol: str, entry: float, stop_loss: float, risk_amount: float) -> float:
+        """Convert a cash-risk budget into MT5 lot volume using symbol tick metadata."""
+        if entry <= 0 or stop_loss <= 0 or risk_amount <= 0:
+            raise MT5ExecutionError("Entry, stop loss, and risk amount must be greater than zero.")
+        info = self.symbol_info(symbol)
+        tick_size = float(getattr(info, "trade_tick_size", 0.0) or 0.0)
+        tick_value = float(getattr(info, "trade_tick_value", 0.0) or 0.0)
+        if tick_size <= 0 or tick_value <= 0:
+            raise MT5ExecutionError(f"Risk sizing metadata unavailable for {symbol}")
+        distance = abs(float(entry) - float(stop_loss))
+        ticks_at_risk = distance / tick_size
+        cash_risk_per_lot = ticks_at_risk * tick_value
+        if cash_risk_per_lot <= 0:
+            raise MT5ExecutionError(f"Invalid cash risk per lot for {symbol}")
+        raw_volume = float(risk_amount) / cash_risk_per_lot
+        return self._normalized_volume(symbol, raw_volume)
+
     def _normalized_volume(self, symbol: str, volume: float) -> float:
         if volume <= 0:
             raise MT5ExecutionError("Order volume must be greater than zero.")
