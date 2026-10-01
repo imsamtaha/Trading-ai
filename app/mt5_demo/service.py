@@ -34,15 +34,30 @@ class MT5DemoService:
         self.audit = audit_store or TradeAudit()
 
     @staticmethod
+    def _terminal_path(credentials: dict[str, Any]) -> str | None:
+        council = os.getenv("ATLAS_COUNCIL_MT5_TERMINAL_PATH", "").strip()
+        general = os.getenv("MT5_TERMINAL_PATH")
+        if not council:
+            return general
+        owner_login = int(os.getenv("ATLAS_COUNCIL_MT5_LOGIN", "592031391"))
+        owner_server = os.getenv("ATLAS_COUNCIL_MT5_SERVER", "FxPro-MT5 Demo")
+        if credentials.get("attach_current") or (int(credentials.get("login", 0)) == owner_login
+                and credentials.get("server") == owner_server):
+            return council
+        if not general or os.path.normcase(os.path.abspath(general)) == os.path.normcase(os.path.abspath(council)):
+            raise MT5DemoError("A separate MT5 terminal is required for customer connections.")
+        return general
+
+    @staticmethod
     def _default_broker_factory(credentials: dict[str, Any]) -> MT5Broker:
         if credentials.get("attach_current"):
             return MT5Broker(MT5Config(
-                terminal_path=os.getenv("MT5_TERMINAL_PATH"),
+                terminal_path=MT5DemoService._terminal_path(credentials),
                 dry_run=True,
                 real_money_execution=False,
             ))
         return MT5Broker(MT5Config(
-            terminal_path=os.getenv("MT5_TERMINAL_PATH"),
+            terminal_path=MT5DemoService._terminal_path(credentials),
             login=int(credentials["login"]),
             password=str(credentials["password"]),
             server=str(credentials["server"]),
@@ -52,7 +67,7 @@ class MT5DemoService:
 
     def _execution_broker_factory(self, credentials: dict[str, Any]) -> MT5Broker:
         return MT5Broker(MT5Config(
-            terminal_path=os.getenv("MT5_TERMINAL_PATH"),
+            terminal_path=MT5DemoService._terminal_path(credentials),
             login=int(credentials["login"]), password=str(credentials["password"]),
             server=str(credentials["server"]), dry_run=False,
             demo_order_execution=self.demo_orders_enabled,
