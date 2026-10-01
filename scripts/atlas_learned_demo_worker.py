@@ -87,4 +87,7 @@ def run() -> dict:
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        run()
+    except MT5ExecutionError as exc:
+        print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))

@@ -83,7 +83,9 @@ class GuardedDemoBroker(MT5Broker):
             raise MT5ExecutionError("Cash loss at stop exceeds demo risk cap.")
         check = mt5.order_check(request)
         if check is None or int(check.retcode) not in {0, int(mt5.TRADE_RETCODE_DONE)}:
-            raise MT5ExecutionError("MT5 order_check rejected the order.")
+            code = getattr(check, "retcode", None)
+            comment = getattr(check, "comment", str(mt5.last_error()) if check is None else "no broker response")
+            raise MT5ExecutionError(f"MT5 order_check rejected the order: {code} {comment}")
         self._claim_daily_slot(equity)
 
     def _claim_daily_slot(self, equity: float) -> None:

@@ -38,6 +38,6 @@ class DemoAdapter:
             volume=volume,
             stop_loss=intent.stop_loss,
             take_profit=intent.take_profit,
-            comment=f"ATLAS-DEMO-{trace_id}"[:31],
+            comment=f"ATLAS-DEMO-{trace_id[:8]}",
         )
         return ExecutionResult("EXECUTED", Mode.LIVE_DEMO, trace_id, intent.customer_id, intent.account_id, broker_result=dict(result))

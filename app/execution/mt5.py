@@ -209,12 +209,15 @@ class MT5Broker:
         return round(normalized, 8)
 
     def _filling_type(self, info: Any) -> int:
-        mode = getattr(info, "filling_mode", None)
-        for candidate_name in ("ORDER_FILLING_FOK", "ORDER_FILLING_IOC", "ORDER_FILLING_RETURN"):
-            candidate = getattr(mt5, candidate_name, None)
-            if candidate is not None and mode == candidate:
-                return int(candidate)
-        return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
+        # SYMBOL_FILLING_MODE is a bit mask; ORDER_FILLING_* are enum values.
+        mask = int(getattr(info, "filling_mode", 0) or 0)
+        if mask & 2:
+            return int(mt5.ORDER_FILLING_IOC)
+        if mask & 1:
+            return int(mt5.ORDER_FILLING_FOK)
+        if int(getattr(info, "trade_exemode", -1)) != int(getattr(mt5, "SYMBOL_TRADE_EXECUTION_MARKET", 2)):
+            return int(mt5.ORDER_FILLING_RETURN)
+        raise MT5ExecutionError("No supported market filling mode for symbol.")
 
     def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS") -> dict[str, Any]:
         self.ensure_connected()

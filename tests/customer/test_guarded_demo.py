@@ -29,3 +29,13 @@ def test_live_account_fails_before_order(monkeypatch, tmp_path):
                                server="FxPro-MT5 Demo", state_path=tmp_path / "daily.json")
     with pytest.raises(MT5ExecutionError, match="Expected FxPro demo"):
         broker._identity(SimpleNamespace(login=592031391, server="FxPro-MT5 Demo", trade_mode=2))
+
+
+def test_symbol_filling_bitmask_does_not_use_order_enum(monkeypatch):
+    from app.execution import mt5 as broker_module
+    fake = SimpleNamespace(ORDER_FILLING_FOK=0, ORDER_FILLING_IOC=1,
+                           ORDER_FILLING_RETURN=2, SYMBOL_TRADE_EXECUTION_MARKET=2)
+    monkeypatch.setattr(broker_module, "mt5", fake)
+    broker = GuardedDemoBroker(MT5Config(), login=592031391, server="FxPro-MT5 Demo")
+    assert broker._filling_type(SimpleNamespace(filling_mode=2, trade_exemode=2)) == 1
+    assert broker._filling_type(SimpleNamespace(filling_mode=1, trade_exemode=2)) == 0

@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $project = 'C:\Users\KHAT W TELEPHONE\Trading-ai-atlas-agent-v2'
 $python = 'C:\Users\KHAT W TELEPHONE\Trading-ai\.venv\Scripts\python.exe'
 $env:ATLAS_MT5_TICK_OFFSET_SECONDS = '10800'
