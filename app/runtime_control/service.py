@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 from uuid import uuid4
+from .server_health import read_server_health
 
 _INSTANCE_ID = uuid4().hex
 
@@ -88,6 +89,7 @@ class RuntimeControlService:
         ))
         return {
             "backend": "ONLINE",
+            "server_monitor": read_server_health(),
             "instance_id": _INSTANCE_ID,
             "demo_execution": get_demo_execution_enabled(),
             "learned_council_enabled": get_learned_council_enabled(),
