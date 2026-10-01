@@ -16,4 +16,17 @@ describe("ExecutionAgentPanel", () => {
     await waitFor(() => expect(screen.getAllByText(/d1/).length).toBeGreaterThan(0));
     expect(screen.queryByRole("button", { name: /confirm|execute|تنفيذ|تأكيد/i })).not.toBeInTheDocument();
   });
+  it("shows execution terms in Arabic when Arabic is selected", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "READY" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ decision_id: "d2", status: "BLOCKED", reason: "Demo execution is disabled." }]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ExecutionAgentPanel language="ar" />);
+    expect(screen.getByRole("heading", { name: /وكيل التنفيذ/ })).toBeInTheDocument();
+    expect(await screen.findByText("حالة الحماية:")).toBeInTheDocument();
+    expect(await screen.findByText("جاهز")).toBeInTheDocument();
+    expect(await screen.findByText("محظور")).toBeInTheDocument();
+    expect(screen.getByText(/تنفيذ الصفقات التجريبية معطّل/)).toBeInTheDocument();
+    expect(screen.queryByText(/Demo decisions may auto-execute/)).not.toBeInTheDocument();
+  });
 });

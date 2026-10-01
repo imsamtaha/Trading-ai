@@ -57,10 +57,11 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
   useEffect(() => {
     let active = true;
     if (!state.entitlements?.tradingIntelligence) { setHeadlines([]); setBriefingAvailable(false); return; }
-    getMarketBriefing().then((items) => { if (active) { setHeadlines(items); setBriefingAvailable(true); } })
+    setHeadlines([]); setBriefingAvailable(false);
+    getMarketBriefing(language).then((items) => { if (active) { setHeadlines(items); setBriefingAvailable(true); } })
       .catch(() => { if (active) { setHeadlines([]); setBriefingAvailable(false); } });
     return () => { active = false; };
-  }, [state.entitlements?.tradingIntelligence]);
+  }, [state.entitlements?.tradingIntelligence, language]);
   useEffect(() => {
     let active = true;
     async function refreshChart() {

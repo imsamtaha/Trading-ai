@@ -20,6 +20,14 @@ describe("DashboardScreen", () => {
     expect(screen.getByRole("link", { name: "Rates update" })).toHaveAttribute("href", "https://example.com/news");
   });
 
+  it("shows an Arabic headline with its Arabic source and original link", () => {
+    render(<DashboardScreen state={DASHBOARD_FIXTURE} language="ar" briefingAvailable headlines={[
+      { title: "أسواق المال اليوم", source: "الإخبارية - أسواق", url: "https://example.com/ar/markets" },
+    ]} />);
+    expect(screen.getByRole("link", { name: "أسواق المال اليوم" })).toHaveAttribute("href", "https://example.com/ar/markets");
+    expect(screen.getByText("المصدر: الإخبارية - أسواق")).toBeInTheDocument();
+  });
+
   it("shows chart levels only for the selected matching position", () => {
     const { rerender } = render(<DashboardScreen state={DASHBOARD_FIXTURE} symbol="BTCUSDT" />);
     expect(screen.getByText("Entry 66,420")).toBeInTheDocument();
@@ -38,7 +46,7 @@ describe("DashboardScreen", () => {
 it("labels each dashboard sector with an AGENT badge", () => {
   render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
   expect(screen.getAllByText("AGENT")).toHaveLength(9);
-  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي", "EXECUTION AGENT"]) {
+  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي", "وكيل التنفيذ"]) {
     const heading = screen.getByText(title);
     expect(heading.closest("section,div")?.textContent).toContain("AGENT");
   }
