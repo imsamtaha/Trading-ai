@@ -32,5 +32,7 @@ def test_private_briefing_returns_read_only_snapshot(monkeypatch):
                                     "expires_at": (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()}
     monkeypatch.setattr(routes, "repository", repo)
     monkeypatch.setattr(routes, "require_user", lambda request: AuthenticatedUser("user-a"))
-    monkeypatch.setattr(routes, "get_market_briefing", lambda: {"headlines": [], "market_board": []})
-    assert TestClient(app).get("/api/user/market-briefing").json()["headlines"] == []
+    monkeypatch.setattr(routes, "get_market_briefing", lambda language="en": {"headlines": [], "market_board": [], "language": language})
+    client = TestClient(app)
+    assert client.get("/api/user/market-briefing").json()["headlines"] == []
+    assert client.get("/api/user/market-briefing?language=ar").json()["language"] == "ar"

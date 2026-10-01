@@ -109,11 +109,11 @@ def user_chart_data(request: Request, symbol: str = "XAUUSD", interval: str = "1
 
 
 @router.get("/api/user/market-briefing")
-def user_market_briefing(request: Request) -> dict[str, Any]:
+def user_market_briefing(request: Request, language: str = "en") -> dict[str, Any]:
     user = require_user(request)
     if not (_is_owner(user) or paid_access(_repository().get_subscription(user.user_id))):
         raise HTTPException(status_code=403, detail="An active ATLAS subscription is required.")
-    return get_market_briefing()
+    return get_market_briefing(language="ar" if language.lower().startswith("ar") else "en")
 
 
 @router.get("/api/user/dashboard")
