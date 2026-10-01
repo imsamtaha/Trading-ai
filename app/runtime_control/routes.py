@@ -36,6 +36,14 @@ def demo_execution(payload: DemoExecutionPayload, request: Request) -> dict[str,
     return service.set_demo_execution(payload.enabled)
 
 
+@router.post("/learned-council")
+def learned_council(payload: DemoExecutionPayload, request: Request) -> dict[str, object]:
+    _require_owner(request)
+    if payload.enabled and not service.status()["demo_execution"]:
+        raise HTTPException(status_code=409, detail="Enable Demo execution first.")
+    return service.set_learned_council(payload.enabled)
+
+
 @router.post("/restart", status_code=http_status.HTTP_202_ACCEPTED)
 def restart_backend(request: Request) -> dict[str, str]:
     _require_owner(request)

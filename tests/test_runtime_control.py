@@ -8,13 +8,18 @@ from app.runtime_control import routes
 class FakeRuntime:
     def __init__(self):
         self.demo_enabled = False
+        self.learned_enabled = False
         self.restarted = False
 
     def status(self):
-        return {"backend": "ONLINE", "demo_execution": self.demo_enabled, "live_execution": "LOCKED", "restart_supported": True}
+        return {"backend": "ONLINE", "demo_execution": self.demo_enabled, "learned_council_enabled": self.learned_enabled, "live_execution": "LOCKED", "restart_supported": True}
 
     def set_demo_execution(self, enabled: bool):
         self.demo_enabled = enabled
+        return self.status()
+
+    def set_learned_council(self, enabled: bool):
+        self.learned_enabled = enabled
         return self.status()
 
     def restart(self):
@@ -43,6 +48,15 @@ def test_owner_can_toggle_demo_execution(monkeypatch):
     assert response.status_code == 200
     assert response.json()["demo_execution"] is True
     assert fake.demo_enabled is True
+
+
+def test_learned_council_requires_owner_and_demo_switch(monkeypatch):
+    client, fake = make_client(monkeypatch, "customer@example.com")
+    assert client.post("/api/runtime/learned-council", json={"enabled": True}).status_code == 403
+    client, fake = make_client(monkeypatch, "owner@example.com")
+    assert client.post("/api/runtime/learned-council", json={"enabled": True}).status_code == 409
+    fake.demo_enabled = True
+    assert client.post("/api/runtime/learned-council", json={"enabled": True}).json()["learned_council_enabled"] is True
 
 
 def test_owner_can_request_backend_restart(monkeypatch):

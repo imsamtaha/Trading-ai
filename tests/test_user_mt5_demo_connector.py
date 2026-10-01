@@ -98,11 +98,17 @@ def test_real_route_requires_login_and_keeps_execution_disabled(monkeypatch):
     from app.mt5_demo import routes
     from app.auth.supabase_auth import AuthenticatedUser
     from app.users.repository import MemoryUserRepository
-    service = routes.MT5DemoService(MemoryUserRepository(), broker_factory=make_factory({12345678: "REAL"}))
+    repo = MemoryUserRepository()
+    service = routes.MT5DemoService(repo, broker_factory=make_factory({12345678: "REAL"}))
     monkeypatch.setattr(routes, "service", service)
+    monkeypatch.setattr(routes, "user_repository", lambda: repo)
     client = TestClient(app)
     assert client.post("/api/mt5-demo/connect-real", json={"login": 12345678, "password": "x", "server": "FxPro"}).status_code == 401
     monkeypatch.setattr(routes, "require_user", lambda request: AuthenticatedUser("user-a", "a@example.com"))
+    assert client.post("/api/mt5-demo/connect-real", json={"login": 12345678, "password": "x", "server": "FxPro"}).status_code == 403
+    from datetime import datetime, timedelta, timezone
+    repo.subscriptions["user-a"] = {"plan": "STARTER", "status": "ACTIVE", "billing_reference": "ATLAS-PAID",
+                                    "expires_at": (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()}
     response = client.post("/api/mt5-demo/connect-real", json={"login": 12345678, "password": "x", "server": "FxPro"})
     assert response.status_code == 200
     assert response.json()["real_money_execution_enabled"] is False

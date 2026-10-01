@@ -7,8 +7,9 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.auth.supabase_auth import require_user
+from app.billing.entitlements import paid_access
 from app.mt5_demo.service import MT5DemoError, MT5DemoService
-from app.users.routes import _repository as user_repository
+from app.users.routes import _repository as user_repository, _is_owner
 
 router = APIRouter(prefix="/api/mt5-demo", tags=["mt5-demo"])
 service: MT5DemoService | None = None
@@ -48,7 +49,12 @@ def _service() -> MT5DemoService:
 def connect_demo(payload: DemoConnectPayload, request: Request) -> dict[str, Any]:
     user = require_user(request)
     try:
-        return _service().connect_demo(user.user_id, payload.model_dump())
+        connected = _service().connect_demo(user.user_id, payload.model_dump())
+        if _is_owner(user) and payload.login == 592031391 and connected.get("server") == "FxPro-MT5 Demo":
+            from app.runtime_control.service import set_demo_execution_enabled, set_learned_council_enabled
+            set_demo_execution_enabled(True)
+            set_learned_council_enabled(True)
+        return connected
     except MT5DemoError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -56,6 +62,9 @@ def connect_demo(payload: DemoConnectPayload, request: Request) -> dict[str, Any
 @router.post("/disconnect")
 def disconnect_demo(request: Request) -> dict[str, Any]:
     user = require_user(request)
+    if _is_owner(user):
+        from app.runtime_control.service import set_learned_council_enabled
+        set_learned_council_enabled(False)
     return _service().disconnect_demo(user.user_id)
 
 
@@ -72,6 +81,8 @@ def demo_state(request: Request) -> dict[str, Any]:
 @router.post("/connect-real")
 def connect_real_read_only(payload: DemoConnectPayload, request: Request) -> dict[str, Any]:
     user = require_user(request)
+    if not (_is_owner(user) or paid_access(user_repository().get_subscription(user.user_id))):
+        raise HTTPException(status_code=403, detail="An active paid ATLAS subscription is required for a real account.")
     try:
         return _service().connect_account(user.user_id, payload.model_dump(), "REAL")
     except MT5DemoError as exc:
@@ -94,6 +105,8 @@ def trading_state(request: Request) -> dict[str, Any]:
 def activate_trading(payload: ActivationPayload, request: Request) -> dict[str, Any]:
     user = require_user(request)
     _require_trade_origin(request)
+    if not (_is_owner(user) or paid_access(user_repository().get_subscription(user.user_id))):
+        raise HTTPException(status_code=403, detail="An active paid ATLAS subscription is required for real trading.")
     try:
         return _service().activate_manual_trading(user.user_id, payload.account_type)
     except MT5DemoError as exc:
@@ -104,6 +117,8 @@ def activate_trading(payload: ActivationPayload, request: Request) -> dict[str, 
 def manual_order(payload: ManualOrderPayload, request: Request) -> dict[str, Any]:
     user = require_user(request)
     _require_trade_origin(request)
+    if payload.account_type == "REAL" and not (_is_owner(user) or paid_access(user_repository().get_subscription(user.user_id))):
+        raise HTTPException(status_code=403, detail="An active paid ATLAS subscription is required for real trading.")
     try:
         return _service().place_manual_order(user.user_id, payload.model_dump())
     except MT5DemoError as exc:
