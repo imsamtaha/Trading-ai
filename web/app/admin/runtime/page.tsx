@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { atlasFetch, AtlasApiError } from "@/lib/api/client";
 import { apiPath } from "@/lib/api/config";
 type RuntimeState = {
-  backend: string; demo_execution: boolean; live_execution: string; restart_supported: boolean; instance_id?: string;
+  backend: string; demo_execution: boolean; learned_council_enabled: boolean; live_execution: string; restart_supported: boolean; instance_id?: string;
 };
 export default function RuntimePage() {
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
@@ -51,7 +51,7 @@ export default function RuntimePage() {
     const interval = setInterval(() => { void refresh(); }, 5000);
     return () => { alive.current = false; clearInterval(interval); controller.current?.abort(); };
   }, []);
-  async function change(action: "demo-execution" | "restart") {
+  async function change(action: "demo-execution" | "learned-council" | "restart") {
     if (!runtime || mutating.current || (action === "restart" && !runtime.instance_id)) return;
     if (action === "restart") restartOrigin.current = runtime.instance_id ?? null;
     mutating.current = true; controller.current?.abort();
@@ -62,7 +62,7 @@ export default function RuntimePage() {
         apiPath("/api/runtime/" + action), {
           method: "POST", credentials: "same-origin",
           headers: { "content-type": "application/json" },
-          ...(action === "demo-execution" ? { body: JSON.stringify({ enabled: !runtime.demo_execution }) } : {}),
+          ...(action === "demo-execution" ? { body: JSON.stringify({ enabled: !runtime.demo_execution }) } : action === "learned-council" ? { body: JSON.stringify({ enabled: !runtime.learned_council_enabled }) } : {}),
         }, 10000);
       if (!alive.current) return;
       if (action === "restart") {
@@ -70,7 +70,7 @@ export default function RuntimePage() {
         restarting.current = true; setRuntime(null); setMessage("Restarting backend… waiting for recovery.");
       } else {
         if (!("demo_execution" in result) || typeof result.demo_execution !== "boolean") throw new Error("Invalid runtime response");
-        setRuntime(result); setMessage(result.demo_execution ? "Demo orders enabled." : "Demo orders disabled.");
+        setRuntime(result); setMessage(action === "learned-council" ? (result.learned_council_enabled ? "Learned Demo council enabled." : "Learned Demo council stopped.") : (result.demo_execution ? "Demo orders enabled." : "Demo orders disabled."));
       }
     } catch {
       if (alive.current) { setRuntime(null); setError("Request failed. Refresh status before trying again."); }
@@ -86,13 +86,18 @@ export default function RuntimePage() {
       disabled={busy || !runtime} onClick={() => void change("demo-execution")}>
       {runtime?.demo_execution ? "Stop demo orders" : "Start demo orders"}
     </button>
+    <button className="atlas-primary-button" type="button" aria-label="Learned Demo council" aria-pressed={runtime?.learned_council_enabled ?? false}
+      disabled={busy || !runtime?.demo_execution} onClick={() => void change("learned-council")}>
+      {runtime?.learned_council_enabled ? "Stop learned Demo council" : "Start learned Demo council"}
+    </button>
     <button className="atlas-primary-button" type="button"
       disabled={busy || !runtime?.restart_supported || !runtime?.instance_id} onClick={() => void change("restart")}>
       Restart backend
     </button>
     <button type="button" disabled={busy} onClick={() => { setError(""); void refresh(); }}>Refresh status</button>
     <p>Live execution: {runtime?.live_execution ?? "UNKNOWN"}</p>
-    <p>Demo permission enables existing demo order routes. It does not start an autonomous trading loop.</p>
+    <p>The learned council runs on the scheduled Windows Demo worker when both switches are enabled. Existing positions remain open when stopped.</p>
+    <p><a href="/connect">FxPro MT5 connection</a></p>
     <p>Disabling orders does not close existing positions. A stopped backend needs the local Windows launcher.</p>
     <a href="/dashboard">Dashboard</a> · <a href="/login">Owner sign-in</a>
   </section></main>;

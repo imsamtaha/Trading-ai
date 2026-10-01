@@ -519,3 +519,9 @@ html{scroll-behavior:smooth}
     border-color:#ff8d33;
   }
 }
+
+.atlas-connect-page{width:min(1080px,100%);margin:0 auto;padding:18px;display:grid;gap:16px}
+.atlas-connect-page h1{font-size:clamp(1.8rem,5vw,3rem);margin:10px 0}
+.atlas-connect-page .atlas-card{padding:20px}
+.atlas-connect-page a,.atlas-connection-link a{color:#f28b36;text-decoration:underline;text-underline-offset:4px}
+.atlas-connection-link{padding:4px 18px 12px;font-size:.95rem}

@@ -11,10 +11,10 @@ it("requests manual Whish review under the signed-in identity without unlocking 
   ), { status: 200 })));
   vi.stubGlobal("fetch", fetch);
   render(<SubscriptionFlow />);
-  fireEvent.click(await screen.findByRole("button", { name: "Request Starter" }));
+  fireEvent.click(await screen.findByRole("button", { name: "طلب Starter" }));
   await waitFor(() => expect(screen.getByText(/ATLAS-123/)).toBeInTheDocument());
   expect(fetch.mock.calls.at(-1)?.[0]).toContain("/backend/billing/whish/starter/request");
   expect(JSON.parse(fetch.mock.calls.at(-1)?.[1]?.body)).toEqual({ email: "buyer@example.com" });
-  expect(screen.getByText(/pending owner review/i)).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Email payment proof to owner" })).toHaveAttribute("href", expect.stringContaining("mailto:imsamtaha.ai@gmail.com"));
+  expect(screen.getByText(/الطلب قيد مراجعة المالك/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "إرسال إثبات الدفع" })).toHaveAttribute("href", expect.stringContaining("mailto:imsamtaha.ai@gmail.com"));
 });
