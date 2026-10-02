@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 from uuid import uuid4
 from .server_health import read_server_health
+from .analytics import process_started_at, uptime_seconds, snapshot as analytics_snapshot
 
 _INSTANCE_ID = uuid4().hex
 
@@ -95,6 +97,10 @@ class RuntimeControlService:
             "learned_council_enabled": get_learned_council_enabled(),
             "live_execution": "LOCKED",
             "restart_supported": launcher.exists(),
+            "started_at": process_started_at(),
+            "server_time": datetime.now(timezone.utc).isoformat(),
+            "uptime_seconds": uptime_seconds(),
+            "analytics": analytics_snapshot(),
         }
 
     def set_demo_execution(self, enabled: bool) -> dict[str, object]:
