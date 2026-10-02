@@ -76,29 +76,83 @@ export default function RuntimePage() {
       if (alive.current) { setRuntime(null); setError("Request failed. Refresh status before trying again."); }
     } finally { mutating.current = false; if (alive.current) setBusy(false); }
   }
-  return <main className="atlas-page"><section className="atlas-card" lang="en">
-    <h1>ATLAS Runtime</h1>
-    <p>Owner controls · تحكّم المالك</p>
-    <p role="status" aria-live="polite">{message}</p>
-    {error && <p role="alert">{error}</p>}
-    <button className="atlas-primary-button" type="button" role="switch"
-      aria-label="Demo execution" aria-checked={runtime?.demo_execution ?? false}
-      disabled={busy || !runtime} onClick={() => void change("demo-execution")}>
-      {runtime?.demo_execution ? "Stop demo orders" : "Start demo orders"}
-    </button>
-    <button className="atlas-primary-button" type="button" aria-label="Learned Demo council" aria-pressed={runtime?.learned_council_enabled ?? false}
-      disabled={busy || !runtime?.demo_execution} onClick={() => void change("learned-council")}>
-      {runtime?.learned_council_enabled ? "Stop learned Demo council" : "Start learned Demo council"}
-    </button>
-    <button className="atlas-primary-button" type="button"
-      disabled={busy || !runtime?.restart_supported || !runtime?.instance_id} onClick={() => void change("restart")}>
-      Restart backend
-    </button>
-    <button type="button" disabled={busy} onClick={() => { setError(""); void refresh(); }}>Refresh status</button>
-    <p>Live execution: {runtime?.live_execution ?? "UNKNOWN"}</p>
-    <p>The learned council runs on the scheduled Windows Demo worker when both switches are enabled. Existing positions remain open when stopped.</p>
-    <p><a href="/connect">FxPro MT5 connection</a></p>
-    <p>Disabling orders does not close existing positions. A stopped backend needs the local Windows launcher.</p>
-    <a href="/dashboard">Dashboard</a> · <a href="/login">Owner sign-in</a>
-  </section></main>;
+  const ownerReady = Boolean(runtime) && !error;
+  return <main className="atlas-runtime-page" lang="en">
+    <section className="atlas-card atlas-runtime-box atlas-runtime-hero">
+      <div>
+        <span className="atlas-runtime-kicker">ATLAS OWNER</span>
+        <h1>ATLAS Runtime</h1>
+        <p className="atlas-runtime-subtitle">Owner controls · تحكّم المالك</p>
+      </div>
+      <div className={`atlas-runtime-access ${ownerReady ? "is-online" : "is-locked"}`}>
+        <span className="atlas-runtime-access-dot" aria-hidden="true" />
+        <div>
+          <strong>{ownerReady ? "Owner access active" : "Owner access required"}</strong>
+          <small>{ownerReady ? "Private runtime controls are available." : "Sign in with the owner account to unlock controls."}</small>
+        </div>
+      </div>
+      <p className="atlas-runtime-message" role="status" aria-live="polite">{message}</p>
+      {error && <p className="atlas-runtime-error" role="alert">{error}</p>}
+    </section>
+
+    <section className="atlas-card atlas-runtime-box">
+      <div className="atlas-runtime-section-head">
+        <div><span className="atlas-runtime-kicker">CONTROL</span><h2>Runtime Actions</h2></div>
+        <span className="atlas-runtime-section-note">Demo-safe owner controls</span>
+      </div>
+      <div className="atlas-runtime-actions">
+        <button className="atlas-primary-button atlas-runtime-action" type="button" role="switch"
+          aria-label="Demo execution" aria-checked={runtime?.demo_execution ?? false}
+          disabled={busy || !runtime} onClick={() => void change("demo-execution")}>
+          <span>{runtime?.demo_execution ? "Stop demo orders" : "Start demo orders"}</span>
+          <small>{runtime?.demo_execution ? "Demo execution is enabled" : "Enable guarded demo execution"}</small>
+        </button>
+        <button className="atlas-primary-button atlas-runtime-action" type="button"
+          aria-label="Learned Demo council" aria-pressed={runtime?.learned_council_enabled ?? false}
+          disabled={busy || !runtime?.demo_execution} onClick={() => void change("learned-council")}>
+          <span>{runtime?.learned_council_enabled ? "Stop learned Demo council" : "Start learned Demo council"}</span>
+          <small>Controls the scheduled council worker</small>
+        </button>
+        <button className="atlas-primary-button atlas-runtime-action" type="button" aria-label="Restart backend"
+          disabled={busy || !runtime?.restart_supported || !runtime?.instance_id} onClick={() => void change("restart")}>
+          <span>Restart backend</span>
+          <small>Restart the private ATLAS API process</small>
+        </button>
+        <button className="atlas-runtime-action atlas-runtime-action--secondary" type="button" aria-label="Refresh status"
+          disabled={busy} onClick={() => { setError(""); void refresh(); }}>
+          <span>Refresh status</span>
+          <small>Fetch current runtime state</small>
+        </button>
+      </div>
+    </section>
+
+    <section className="atlas-card atlas-runtime-box">
+      <div className="atlas-runtime-section-head">
+        <div><span className="atlas-runtime-kicker">EXECUTION</span><h2>Execution Status</h2></div>
+        <span className="atlas-runtime-live-pill">{runtime?.live_execution ?? "UNKNOWN"}</span>
+      </div>
+      <div className="atlas-runtime-info-grid">
+        <div className="atlas-runtime-info-item"><span>Live execution</span><strong>{runtime?.live_execution ?? "UNKNOWN"}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Demo orders</span><strong>{runtime?.demo_execution ? "ENABLED" : "DISABLED"}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Learned council</span><strong>{runtime?.learned_council_enabled ? "ENABLED" : "DISABLED"}</strong></div>
+      </div>
+      <p className="atlas-runtime-copy">The learned council runs on the scheduled Windows Demo worker when both demo switches are enabled. Existing positions remain open when stopped.</p>
+    </section>
+
+    <section className="atlas-card atlas-runtime-box">
+      <div className="atlas-runtime-section-head">
+        <div><span className="atlas-runtime-kicker">CONNECTION</span><h2>MT5 & Backend</h2></div>
+      </div>
+      <div className="atlas-runtime-links">
+        <a className="atlas-runtime-link-card" href="/connect"><span>FxPro MT5 connection</span><small>Open connection status and account setup</small></a>
+        <div className="atlas-runtime-note-card"><span>Backend note</span><small>Disabling orders does not close existing positions. A stopped backend needs the local Windows launcher.</small></div>
+      </div>
+    </section>
+
+    <section className="atlas-card atlas-runtime-box atlas-runtime-footer">
+      <a href="/dashboard">Dashboard</a>
+      <span>•</span>
+      <a href="/login">Owner sign-in</a>
+    </section>
+  </main>;
 }
