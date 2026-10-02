@@ -154,6 +154,10 @@ class AutoExecutionCoordinator:
                 return {"status": "BLOCKED", "reason": "ENTRY_DRIFT"}
             # Retain the qualified strategy levels. Recheck reward/risk at the current quote.
             portfolio = self.broker.risk_snapshot()
+            if self.config.one_position_per_symbol and any(
+                position.get("symbol") == symbol for position in portfolio.get("positions", [])
+            ):
+                return {"status": "BLOCKED", "reason": "POSITION_ALREADY_OPEN"}
             expected_account = MT5Broker.account_identity(account)
             if MT5Broker.account_identity(portfolio) != expected_account:
                 return {"status": "BLOCKED", "reason": "ACCOUNT_CHANGED"}
