@@ -137,11 +137,14 @@ def user_dashboard(request: Request) -> dict[str, Any]:
     dashboard = mt5.get_dashboard_state(user.user_id)
     session = session_getter(user.user_id) if callable(session_getter) else None
     if owner and session and session.get("login") == 592031391 and session.get("server") == "FxPro-MT5 Demo":
+        # History archived on 2026-10-02 at 23:10:28 UTC; open positions stay visible.
+        history_start_ticket = 323402062
         dashboard["recent_trades"] = [
             trade for trade in dashboard.get("recent_trades", [])
             if int(trade.get("time", 0) or 0) >= 1790880044
+            and int(trade.get("ticket", 0) or 0) >= history_start_ticket
         ]
-        dashboard["history_start_ticket"] = 349264740
+        dashboard["history_start_ticket"] = history_start_ticket
         dashboard["history_time_offset_seconds"] = 10800
     return {
         "user": {"user_id": user.user_id, "email": user.email, "role": "OWNER" if owner else "CUSTOMER"},
