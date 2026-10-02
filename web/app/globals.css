@@ -541,3 +541,51 @@ html{scroll-behavior:smooth}
 .atlas-trade-confirmation p{overflow-wrap:anywhere}
 .atlas-trade-confirmation button{min-height:44px;margin:4px;padding:10px 14px;border:1px solid var(--atlas-border);border-radius:10px;background:var(--atlas-surface-2);color:var(--atlas-text)}
 @media(max-width:360px){.atlas-manual-trading form{grid-template-columns:minmax(0,1fr)}}
+
+/* Unified AGENT title buttons: same 3D treatment in Arabic and English */
+.atlas-dashboard .atlas-agent-title,
+.atlas-dashboard .atlas-reference-title{
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  width:fit-content;
+  max-width:100%;
+  gap:10px;
+  margin:0;
+  padding:.42rem .72rem;
+  border:1px solid #050505;
+  border-radius:.62rem;
+  background:linear-gradient(145deg,#2a2a2a 0%,#171717 52%,#080808 100%);
+  color:var(--atlas-orange);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.9),0 7px 15px rgba(0,0,0,.38),0 3px 0 #000;
+  text-shadow:0 1px 0 #000;
+  letter-spacing:.02em;
+}
+.atlas-dashboard .atlas-agent-title .atlas-agent-badge,
+.atlas-dashboard .atlas-reference-title .atlas-agent-badge{margin:0;flex:none}
+.atlas-dashboard .atlas-reference-title h2{
+  margin:0;
+  padding:0;
+  border:0;
+  background:none;
+  box-shadow:none;
+  color:var(--atlas-orange);
+  text-shadow:none;
+}
+.atlas-reference-header--ar{direction:rtl}
+.atlas-reference-header--en{direction:ltr}
+.atlas-reference-header--ar .atlas-reference-title,
+.atlas-reference-header--en .atlas-reference-title{justify-self:start}
+@media(max-width:760px){
+  .atlas-dashboard .atlas-agent-title,
+  .atlas-dashboard .atlas-reference-title{
+    padding:.48rem .78rem;
+    gap:10px;
+    border:1px solid #050505;
+    border-radius:.68rem;
+    background:linear-gradient(145deg,#2a2a2a 0%,#171717 52%,#080808 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.9),0 7px 15px rgba(0,0,0,.38),0 3px 0 #000;
+  }
+  .atlas-dashboard .atlas-reference-title h2,
+  .atlas-dashboard .atlas-agent-title span{font-size:1.08rem;font-weight:500;white-space:nowrap}
+}

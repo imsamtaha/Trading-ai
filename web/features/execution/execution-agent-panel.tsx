@@ -48,7 +48,7 @@ export function ExecutionAgentPanel({ language = "en" }: { language?: Language }
   }, []);
   const ar = language === "ar";
   return <section className="atlas-card atlas-feature-3d atlas-execution-agent" id="execution-agent" lang={language}>
-    <h2>{ar ? "وكيل التنفيذ" : "EXECUTION AGENT"} <AgentBadge /></h2>
+    <h2 className="atlas-agent-title" dir={ar ? "rtl" : "ltr"}>{ar ? <><span>وكيل التنفيذ</span><AgentBadge /></> : <><AgentBadge /><span>Execution Agent</span></>}</h2>
     {unavailable ? <p className="atlas-empty-line">{ar ? "حالة التنفيذ غير متاحة حالياً" : "Execution status unavailable"}</p> : <>
       <p><span>{ar ? "حالة الحماية:" : "Guard status:"}</span> <strong>{label(status, language)}</strong></p>
       <p>{ar ? "تُراجع أوامر الحساب التجريبي قبل التنفيذ. أوامر الحساب الحقيقي غير مفعّلة." : "Demo decisions may auto-execute only after guard checks. Live decisions remain draft-only."}</p>

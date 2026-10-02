@@ -43,12 +43,20 @@ describe("DashboardScreen", () => {
   });
 });
 
-it("labels each dashboard sector with an AGENT badge", () => {
-  render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
+it("labels each Arabic dashboard sector with an AGENT badge", () => {
+  render(<DashboardScreen state={DASHBOARD_FIXTURE} language="ar" />);
   expect(screen.getAllByText("AGENT")).toHaveLength(9);
-  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "الأداء", "موجز السوق", "المساعد الذكي", "وكيل التنفيذ"]) {
-    const heading = screen.getByText(title);
-    expect(heading.closest("section,div")?.textContent).toContain("AGENT");
+  for (const title of ["السوق", "الصفقات المفتوحة", "الإشارات", "ضوابط المخاطر", "النشاط الأخير", "الأداء", "موجز السوق", "المساعد الذكي", "وكيل التنفيذ"]) {
+    const heading = screen.getAllByRole("heading").find((item) => item.textContent?.includes(title));
+    expect(heading).toBeDefined();
+    expect(heading?.closest("section,div")?.textContent).toContain("AGENT");
+  }
+});
+
+it("uses English AGENT titles in English mode", () => {
+  render(<DashboardScreen state={DASHBOARD_FIXTURE} language="en" />);
+  for (const title of ["Market", "Open Positions", "Signals", "Risk Controls", "Recent Activity", "Performance", "Market briefing", "AI Assistant", "Execution Agent"]) {
+    expect(screen.getAllByRole("heading").some((item) => item.textContent?.includes(title))).toBe(true);
   }
 });
 

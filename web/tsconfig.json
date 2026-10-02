@@ -31,11 +31,8 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next-arabic-20261001/types/**/*.ts",
-    ".next-runtime-instance-20261001/types/**/*.ts",
-    ".next/types/**/*.ts",
-    "next-env.d.ts",
-    ".next-connect-20261001/types/**/*.ts"
+    ".next-ui-agent-20261003/types/**/*.ts",
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules"
