@@ -10,7 +10,15 @@ if ($errors.Count) { throw 'Switch parse failed' }
 $replacements = @{
   'Get-MT5Mode' = 'function Get-MT5Mode { return 0 }'
   'Stop-AtlasProcesses' = 'function Stop-AtlasProcesses {}'
-  'Start-Dashboard' = 'function Start-Dashboard {}'
+  'Start-Dashboard' = @'
+function Start-Dashboard {
+  $values = @{}
+  foreach ($name in @('ATLAS_DASHBOARD_ONLY','ATLAS_EVOLUTION_WRITES_ENABLED','ATLAS_LIVE_TRADING','ATLAS_AUTO_EXECUTION_ENABLED','ATLAS_LIVE_DEMO','MT5_REQUIRE_DEMO','MT5_USE_ACTIVE_SESSION')) {
+    $values[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+  }
+  $values | ConvertTo-Json | Set-Content (Join-Path $Root 'spawned-env.json')
+}
+'@
 }
 $nodes = $ast.FindAll({param($node)
   $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $replacements.ContainsKey($node.Name)
@@ -20,6 +28,11 @@ foreach ($node in $nodes) {
 }
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
+$inherited = @{}
+foreach ($name in @('ATLAS_DASHBOARD_ONLY','ATLAS_LIVE_TRADING','ATLAS_AUTO_EXECUTION_ENABLED')) {
+  $inherited[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+  [Environment]::SetEnvironmentVariable($name, $(if ($name -eq 'ATLAS_DASHBOARD_ONLY') {'false'} else {'true'}), 'Process')
+}
 try {
   $script = Join-Path $tempRoot 'ATLAS_SWITCH.ps1'
   Set-Content $script $source -Encoding UTF8
@@ -40,11 +53,18 @@ try {
     foreach ($name in @('ATLAS_LIVE_TRADING', 'ATLAS_AUTO_EXECUTION_ENABLED')) {
       if ($settings[$name] -ne 'false') { throw "$mode enabled execution" }
     }
+    if ($mode -ne 'OFF') {
+      $spawned = Get-Content (Join-Path $tempRoot 'spawned-env.json') -Raw | ConvertFrom-Json
+      foreach ($name in $settings.Keys) {
+        if ($spawned.$name -ne $settings[$name]) { throw "$mode inherited stale process flag: $name" }
+      }
+    }
     if ($mode -eq 'DEMO' -and $settings['ATLAS_EVOLUTION_WRITES_ENABLED'] -ne 'false') {
       throw 'DEMO unexpectedly enabled evolution writes'
     }
   }
   Write-Host 'ATLAS switch mode isolation passed (external operations stubbed)'
 } finally {
+  foreach ($name in $inherited.Keys) { [Environment]::SetEnvironmentVariable($name, $inherited[$name], 'Process') }
   Remove-Item $tempRoot -Recurse -Force
 }

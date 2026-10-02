@@ -9,6 +9,7 @@ from typing import Any
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.risk.manager import calculate_risk
+from app.execution.portfolio_lock import portfolio_lock, ExecutionBusy
 
 
 @dataclass(frozen=True)
@@ -107,6 +108,14 @@ class AutoExecutionCoordinator:
             return {"status": "BLOCKED", "reason": "DECISION_DIRECTION_MISMATCH"}
 
         try:
+            with portfolio_lock():
+                return self._execute_locked(symbol=symbol, candidate=candidate, decision=decision, account=account,
+                                            expected_action=expected_action)
+        except (ExecutionBusy, OSError):
+            return {"status": "BLOCKED", "reason": "EXECUTION_BUSY"}
+
+    def _execute_locked(self, *, symbol, candidate, decision, account, expected_action):
+        try:
             if self.config.one_position_per_symbol and self.broker.positions(symbol):
                 return {"status": "BLOCKED", "reason": "POSITION_ALREADY_OPEN"}
             if candidate.get("qualified") is not True:
@@ -145,6 +154,9 @@ class AutoExecutionCoordinator:
                 return {"status": "BLOCKED", "reason": "ENTRY_DRIFT"}
             # Retain the qualified strategy levels. Recheck reward/risk at the current quote.
             portfolio = self.broker.risk_snapshot()
+            expected_account = MT5Broker.account_identity(account)
+            if MT5Broker.account_identity(portfolio) != expected_account:
+                return {"status": "BLOCKED", "reason": "ACCOUNT_CHANGED"}
             snapshot_age = time.time() - float(portfolio["timestamp"])
             if not math.isfinite(snapshot_age) or snapshot_age < -5 or snapshot_age > self.config.max_quote_age_seconds:
                 return {"status": "BLOCKED", "reason": "PORTFOLIO_STALE"}
@@ -163,6 +175,7 @@ class AutoExecutionCoordinator:
                 symbol=symbol, decision=decision, volume=volume, stop_loss=stop_loss,
                 take_profit=take_profit, max_cash_risk=risk_amount,
                 expected_entry=source_entry, max_entry_deviation=allowed_drift,
+                expected_account=expected_account,
             )
             return {**result, "risk": risk, "volume": volume, "entry": entry, "auto_execution": True}
         except (MT5ExecutionError, ValueError, TypeError, KeyError) as exc:

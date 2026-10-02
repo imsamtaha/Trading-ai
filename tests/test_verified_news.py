@@ -188,3 +188,19 @@ def test_arabic_fallback_preserves_successfully_translated_official_news(monkeyp
     assert len(stories) == 3
     assert all(s['title_ar'] for s in stories)
     assert any(s['source_id'] == 'federal_reserve' and s['translation_status'] == 'TRANSLATED' for s in stories)
+
+
+@pytest.mark.parametrize('output', ['{"titles":["invalid"]}', '{"titles":["تراجع السوق +2.5%"]}'])
+def test_failed_translation_is_cached_to_avoid_repeated_paid_requests(monkeypatch, output):
+    calls=[]
+    translation_client(monkeypatch, output, calls)
+    for i in range(3):
+        _arabic_headlines([{'title':'Market falls -2.5%'}])
+    assert len(calls) == 1
+
+
+def test_translation_cannot_reverse_a_signed_market_move(monkeypatch):
+    translation_client(monkeypatch, '{"titles":["تحرك السوق +2.5%"]}', [])
+    result = _arabic_headlines([{'title':'Market moves -2.5%'}])[0]
+    assert result['translation_status'] == 'UNAVAILABLE'
+    assert not result.get('title_ar')

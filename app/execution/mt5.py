@@ -50,6 +50,7 @@ class MT5Broker:
     def __init__(self, config: MT5Config | None = None):
         self.config = config or MT5Config.from_env()
         self.connected = False
+        self._connected_account = None
 
     def connect(self) -> dict[str, Any]:
         if mt5 is None:
@@ -81,6 +82,7 @@ class MT5Broker:
                 mt5.shutdown()
                 raise MT5ExecutionError("Configured demo account is not the active MT5 session.")
 
+        self._connected_account = self.account_identity(account)
         self.connected = True
         return {
             "login": int(account.login),
@@ -92,6 +94,26 @@ class MT5Broker:
             "trade_mode": int(account.trade_mode),
             "live_trading_enabled": not self.config.dry_run,
         }
+
+    @staticmethod
+    def account_identity(account) -> dict:
+        try:
+            def value(name):
+                return account[name] if isinstance(account, dict) else getattr(account, name)
+            login, server, mode = int(value("login")), str(value("server")), int(value("trade_mode"))
+            if login <= 0 or not server.strip() or mode not in {0, 1, 2}:
+                raise ValueError()
+            return {"login": login, "server": server, "trade_mode": mode}
+        except (KeyError, AttributeError, TypeError, ValueError):
+            raise MT5ExecutionError("Account identity is missing or invalid.") from None
+
+    def _validate_account(self, expected):
+        current = mt5.account_info()
+        if current is None or self.account_identity(current) != self.account_identity(expected):
+            raise MT5ExecutionError("Target account changed before submission.")
+        if os.getenv("MT5_REQUIRE_DEMO", "false").lower() == "true" and current.trade_mode != 0:
+            raise MT5ExecutionError("Target account is not a demo account.")
+        return current
 
     def disconnect(self) -> None:
         if mt5 is not None:
@@ -233,7 +255,7 @@ class MT5Broker:
             raise MT5ExecutionError("MT5 account risk state unavailable.")
         equity = self._positive(account.equity, "Account equity")
         balance = float(account.balance)
-        identity = (account.login, getattr(account, "server", None))
+        identity = self.account_identity(account)
         credit = float(getattr(account, "credit", 0.0))
         if not math.isfinite(balance) or not math.isfinite(credit):
             raise MT5ExecutionError("Invalid account balance/credit.")
@@ -281,9 +303,9 @@ class MT5Broker:
         # Bracket the history/positions reads. A closing deal or cash flow
         # during collection would mix account balances from different instants.
         latest = mt5.account_info()
-        if latest is None or (latest.login, getattr(latest, "server", None)) != identity or float(latest.balance) != balance or float(getattr(latest, "credit", 0.0)) != credit:
+        if latest is None or self.account_identity(latest) != identity or float(latest.balance) != balance or float(getattr(latest, "credit", 0.0)) != credit:
             raise MT5ExecutionError("Account balance, credit or identity changed during risk collection.")
-        return {"equity": equity, "daily_realized_pnl": pnl,
+        return {**identity, "equity": equity, "daily_realized_pnl": pnl,
                 "daily_start_capital": daily_start_capital,
                 "open_risk_percent": open_cash_risk / equity * 100.0,
                 "positions": symbols, "timestamp": collected_at}
@@ -325,7 +347,7 @@ class MT5Broker:
                 return int(candidate)
         return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
 
-    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, max_cash_risk: float | None = None, expected_entry: float | None = None, max_entry_deviation: float | None = None) -> dict[str, Any]:
+    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, max_cash_risk: float | None = None, expected_entry: float | None = None, max_entry_deviation: float | None = None, expected_account: dict | None = None) -> dict[str, Any]:
         self.ensure_connected()
         direction = direction.upper()
         if direction not in {"LONG", "SHORT", "BUY", "SELL"}:
@@ -375,10 +397,13 @@ class MT5Broker:
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": self._filling_type(info),
         }
+        target = expected_account or self._connected_account
+        if target is not None:
+            self._validate_account(target)
         if self.config.dry_run:
             return {"status": "DRY_RUN", "symbol": symbol, "side": side, "volume": volume, "price": price, "sl": stop_loss, "tp": take_profit}
 
-        account = mt5.account_info()
+        account = self._validate_account(target) if target is not None else mt5.account_info()
         if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
         result = mt5.order_send(request)

@@ -13,7 +13,7 @@ def terminal(monkeypatch):
     state = SimpleNamespace(
         info=SimpleNamespace(volume_min=0.01, volume_max=100.0, volume_step=0.01,
                              trade_tick_size=0.0001, trade_tick_value=10.0, point=0.00001, digits=5),
-        account=SimpleNamespace(equity=10000.0, balance=10000.0, login=123, trade_allowed=True),
+        account=SimpleNamespace(equity=10000.0, balance=10000.0, login=123, server="Test", trade_mode=0, trade_allowed=True),
         positions=[], deals=[], sent=[],
     )
     def history(start, end):
@@ -202,8 +202,21 @@ def test_snapshot_blocks_invalid_start_capital(terminal, balance):
 def test_snapshot_blocks_balance_change_during_history_read(terminal, monkeypatch):
     broker, state = terminal
     def close_during_history(start, end):
-        state.account = SimpleNamespace(balance=9700, equity=9700, login=123, trade_allowed=True)
+        state.account = SimpleNamespace(balance=9700, equity=9700, login=123, server="Test", trade_mode=0, trade_allowed=True)
         return [SimpleNamespace(type=0, profit=-300)]
     monkeypatch.setattr(adapter.mt5, 'history_deals_get', close_during_history)
     with pytest.raises(MT5ExecutionError, match='changed'):
         broker.risk_snapshot()
+
+
+@pytest.mark.parametrize('change', [{'login':999}, {'server':'Different'}, {'trade_mode':2}])
+def test_final_submission_rechecks_expected_account(terminal, change):
+    broker, state = terminal
+    broker.config = MT5Config(dry_run=False)
+    state.account = SimpleNamespace(balance=10000, equity=10000, login=123, server='Test', trade_mode=0, trade_allowed=True)
+    for key,value in change.items():
+        setattr(state.account,key,value)
+    with pytest.raises(MT5ExecutionError, match='account|Account'):
+        broker.market_order('EURUSD','BUY',0.02,1.09,1.12, max_cash_risk=25,
+            expected_account={'login':123,'server':'Test','trade_mode':0})
+    assert state.sent == []

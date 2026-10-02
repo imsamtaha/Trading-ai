@@ -92,6 +92,7 @@ jobs:
       - name: Verify ATLAS journal integrity and status on Windows
         run: >-
           python -m pytest
+          tests/test_portfolio_lock.py
           tests/test_signal_journal_integrity.py
           tests/test_atlas_demo_status_integrity.py
           -q

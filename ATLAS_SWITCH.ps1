@@ -21,6 +21,7 @@ function Set-EnvValue([string]$Name, [string]$Value) {
   }
   if (-not $found) { $updated += "$Name=$Value" }
   Set-Content -Path $EnvFile -Value $updated -Encoding UTF8
+  [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
 }
 function Get-MT5Mode {
   if (-not (Test-Path $Python)) { throw "Python environment missing: $Python" }

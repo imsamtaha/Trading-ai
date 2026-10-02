@@ -52,7 +52,7 @@ class AtlasExecutionService:
         stop_loss: float,
         take_profit: float,
         *, max_cash_risk: float | None = None, expected_entry: float | None = None,
-        max_entry_deviation: float | None = None,
+        max_entry_deviation: float | None = None, expected_account: dict | None = None,
     ) -> dict[str, Any]:
         approved, reason = self.gate(decision)
         if not approved:
@@ -68,6 +68,8 @@ class AtlasExecutionService:
             bounds["max_cash_risk"] = max_cash_risk
         if expected_entry is not None:
             bounds.update(expected_entry=expected_entry, max_entry_deviation=max_entry_deviation)
+        if expected_account is not None:
+            bounds["expected_account"] = expected_account
         return self.broker.market_order(
             symbol=symbol,
             direction=str(decision["decision"]),

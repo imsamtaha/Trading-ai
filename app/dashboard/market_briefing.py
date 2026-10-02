@@ -50,7 +50,7 @@ _DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫٪", "0123456789.%")
 
 
 def _numbers(text):
-    return re.findall(r"\d+(?:[.,]\d+)*%?", text.translate(_DIGITS))
+    return re.findall(r"[+-]?\d+(?:[.,]\d+)*%?", text.translate(_DIGITS).replace("−", "-").replace("＋", "+"))
 
 
 def _arabic_headlines(stories, language="ar"):
@@ -74,11 +74,17 @@ def _arabic_headlines(stories, language="ar"):
                 continue
             cached = _TRANSLATION_CACHE.get((model, story["title"]))
             if cached and now-cached[0] < ttl:
-                story.update(title_ar=cached[1], translation_status="TRANSLATED")
+                if cached[1] is not None:
+                    story.update(title_ar=cached[1], translation_status="TRANSLATED")
             else:
                 pending.append(story)
         if not pending:
             return result
+        # Negative entries throttle failures and rejected headlines for the same TTL.
+        for story in pending:
+            _TRANSLATION_CACHE[(model, story["title"])] = (now, None)
+        while len(_TRANSLATION_CACHE) > 200:
+            del _TRANSLATION_CACHE[next(iter(_TRANSLATION_CACHE))]
         try:
             from openai import OpenAI
             response = OpenAI(api_key=key, timeout=12.0, max_retries=0).responses.create(

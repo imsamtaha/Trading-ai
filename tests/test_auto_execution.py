@@ -15,7 +15,7 @@ class FakeBroker:
         return list(self._positions)
 
     def risk_snapshot(self):
-        return {"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": 0.0, "open_risk_percent": 0.0,
+        return {"login":123,"server":"Test","trade_mode":0,"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": 0.0, "open_risk_percent": 0.0,
                 "positions": self._positions, "timestamp": time.time()}
 
     def quote(self, symbol):
@@ -81,7 +81,7 @@ def test_auto_execution_blocked_when_switch_off():
         symbol="EURUSD",
         candidate=candidate(),
         decision=decision(),
-        account={"equity": 10000.0},
+        account={"login":123,"server":"Test","trade_mode":0,"equity": 10000.0},
     )
     assert result["status"] == "BLOCKED"
     assert result["reason"] == "AUTO_EXECUTION_DISABLED"
@@ -96,7 +96,7 @@ def test_auto_execution_requires_live_trading():
         symbol="EURUSD",
         candidate=candidate(),
         decision=decision(),
-        account={"equity": 10000.0},
+        account={"login":123,"server":"Test","trade_mode":0,"equity": 10000.0},
     )
     assert result["status"] == "BLOCKED"
     assert result["reason"] == "LIVE_TRADING_DISABLED"
@@ -112,7 +112,7 @@ def test_auto_execution_routes_through_risk_and_execution_gate():
         symbol="EURUSD",
         candidate=candidate(),
         decision=decision(),
-        account={"equity": 10000.0},
+        account={"login":123,"server":"Test","trade_mode":0,"equity": 10000.0},
     )
     assert result["status"] == "FILLED"
     assert result["risk"]["approved"] is True
@@ -131,7 +131,7 @@ def test_auto_execution_blocks_duplicate_symbol_position():
         symbol="EURUSD",
         candidate=candidate(),
         decision=decision(),
-        account={"equity": 10000.0},
+        account={"login":123,"server":"Test","trade_mode":0,"equity": 10000.0},
     )
     assert result["status"] == "BLOCKED"
     assert result["reason"] == "POSITION_ALREADY_OPEN"
@@ -167,7 +167,7 @@ class PortfolioBroker(FakeBroker):
         from app.execution.mt5 import MT5ExecutionError
         if self.snapshot_error:
             raise MT5ExecutionError("History unavailable")
-        return {"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": self.daily_pnl,
+        return {"login":123,"server":"Test","trade_mode":0,"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": self.daily_pnl,
                 "open_risk_percent": self.open_risk, "positions": [], "timestamp": time.time()}
 
     def quote(self, symbol):
@@ -185,7 +185,7 @@ def validated_candidate(risk_percent=0.25):
 def test_auto_execution_blocks_portfolio_limits_and_unknown_history(broker):
     coordinator = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True))
     result = coordinator.execute_candidate(symbol="EURUSD", candidate=validated_candidate(),
-                                           decision=decision(), account={"equity": 10000})
+                                           decision=decision(), account={"login":123,"server":"Test","trade_mode":0,"equity": 10000})
     assert result["status"] == "BLOCKED"
     assert broker.orders == []
 
@@ -195,7 +195,7 @@ def test_auto_execution_preserves_strategy_risk_budget():
     c = validated_candidate(0.25)
     c.update(stop_loss=1.08, take_profit=1.14)
     result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
-        symbol="EURUSD", candidate=c, decision=decision(), account={"equity": 10000})
+        symbol="EURUSD", candidate=c, decision=decision(), account={"login":123,"server":"Test","trade_mode":0,"equity": 10000})
     assert result["status"] == "FILLED"
     assert result["risk"]["risk_percent"] == 0.25
     assert result["risk"]["actual_risk_amount"] <= 25.0
@@ -207,7 +207,7 @@ def test_auto_execution_rejects_invalid_or_stale_candidates(change):
     broker = PortfolioBroker()
     c = {**validated_candidate(), **change}
     result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
-        symbol="EURUSD", candidate=c, decision=decision(), account={"equity": 10000})
+        symbol="EURUSD", candidate=c, decision=decision(), account={"login":123,"server":"Test","trade_mode":0,"equity": 10000})
     assert result["status"] == "BLOCKED"
     assert broker.orders == []
 
@@ -215,7 +215,7 @@ def test_auto_execution_rejects_invalid_or_stale_candidates(change):
 def test_auto_execution_blocks_excessive_entry_drift():
     broker = PortfolioBroker(quote_entry=1.15)
     result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
-        symbol="EURUSD", candidate=validated_candidate(), decision=decision(), account={"equity": 10000})
+        symbol="EURUSD", candidate=validated_candidate(), decision=decision(), account={"login":123,"server":"Test","trade_mode":0,"equity": 10000})
     assert result["status"] == "BLOCKED"
     assert result["reason"] == "ENTRY_DRIFT"
     assert broker.orders == []
@@ -223,10 +223,10 @@ def test_auto_execution_blocks_excessive_entry_drift():
 
 def test_daily_loss_cannot_be_diluted_by_equity_gains():
     broker = PortfolioBroker(daily_pnl=-300)
-    broker.risk_snapshot = lambda: {'equity': 12000.0, 'daily_start_capital': 10000.0,
+    broker.risk_snapshot = lambda: {'login':123,'server':'Test','trade_mode':0,'equity': 12000.0, 'daily_start_capital': 10000.0,
         'daily_realized_pnl': -300.0, 'open_risk_percent': 0.0, 'timestamp': time.time()}
     result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
-        symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'equity': 12000})
+        symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'login':123,'server':'Test','trade_mode':0,'equity': 12000})
     assert result['status'] == 'BLOCKED'
     assert result['risk']['daily_loss_percent'] == 3.0
     assert broker.orders == []
@@ -234,9 +234,46 @@ def test_daily_loss_cannot_be_diluted_by_equity_gains():
 
 def test_auto_execution_requires_daily_capital_baseline():
     broker = PortfolioBroker()
-    broker.risk_snapshot = lambda: {'equity': 12000.0, 'daily_realized_pnl': 0,
+    broker.risk_snapshot = lambda: {'login':123,'server':'Test','trade_mode':0,'equity': 12000.0, 'daily_realized_pnl': 0,
         'open_risk_percent': 0.0, 'timestamp': time.time()}
     result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
-        symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'equity': 12000})
+        symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'login':123,'server':'Test','trade_mode':0,'equity': 12000})
+    assert result['status'] == 'BLOCKED'
+    assert broker.orders == []
+
+
+def test_concurrent_automatic_orders_are_blocked_until_submission_finishes():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    broker = PortfolioBroker()
+    entered, release = Event(), Event()
+    quote = broker.quote
+    def slow_quote(symbol):
+        if symbol == 'EURUSD':
+            entered.set()
+            assert release.wait(5)
+        return quote(symbol)
+    broker.quote = slow_quote
+    coordinator = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(coordinator.execute_candidate, symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'login':123,'server':'Test','trade_mode':0,'equity':10000})
+        assert entered.wait(5)
+        try:
+            second = coordinator.execute_candidate(symbol='GBPUSD', candidate=validated_candidate(), decision=decision(), account={'login':123,'server':'Test','trade_mode':0,'equity':10000})
+            assert second['status'] == 'BLOCKED'
+            assert second['reason'] == 'EXECUTION_BUSY'
+        finally:
+            release.set()
+        assert first.result()['status'] == 'FILLED'
+    assert len(broker.orders) == 1
+
+
+def test_auto_execution_rejects_changed_account_identity():
+    broker = PortfolioBroker()
+    snapshot = broker.risk_snapshot
+    broker.risk_snapshot = lambda: {**snapshot(), 'login':999, 'server':'Test', 'trade_mode':0}
+    result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
+        symbol='EURUSD', candidate=validated_candidate(), decision=decision(),
+        account={'login':123,'server':'Test','trade_mode':0,'equity':10000,'login':123,'server':'Test','trade_mode':0})
     assert result['status'] == 'BLOCKED'
     assert broker.orders == []
