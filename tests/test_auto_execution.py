@@ -15,7 +15,7 @@ class FakeBroker:
         return list(self._positions)
 
     def risk_snapshot(self):
-        return {"equity": 10000.0, "daily_realized_pnl": 0.0, "open_risk_percent": 0.0,
+        return {"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": 0.0, "open_risk_percent": 0.0,
                 "positions": self._positions, "timestamp": time.time()}
 
     def quote(self, symbol):
@@ -167,7 +167,7 @@ class PortfolioBroker(FakeBroker):
         from app.execution.mt5 import MT5ExecutionError
         if self.snapshot_error:
             raise MT5ExecutionError("History unavailable")
-        return {"equity": 10000.0, "daily_realized_pnl": self.daily_pnl,
+        return {"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": self.daily_pnl,
                 "open_risk_percent": self.open_risk, "positions": [], "timestamp": time.time()}
 
     def quote(self, symbol):
@@ -218,4 +218,25 @@ def test_auto_execution_blocks_excessive_entry_drift():
         symbol="EURUSD", candidate=validated_candidate(), decision=decision(), account={"equity": 10000})
     assert result["status"] == "BLOCKED"
     assert result["reason"] == "ENTRY_DRIFT"
+    assert broker.orders == []
+
+
+def test_daily_loss_cannot_be_diluted_by_equity_gains():
+    broker = PortfolioBroker(daily_pnl=-300)
+    broker.risk_snapshot = lambda: {'equity': 12000.0, 'daily_start_capital': 10000.0,
+        'daily_realized_pnl': -300.0, 'open_risk_percent': 0.0, 'timestamp': time.time()}
+    result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
+        symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'equity': 12000})
+    assert result['status'] == 'BLOCKED'
+    assert result['risk']['daily_loss_percent'] == 3.0
+    assert broker.orders == []
+
+
+def test_auto_execution_requires_daily_capital_baseline():
+    broker = PortfolioBroker()
+    broker.risk_snapshot = lambda: {'equity': 12000.0, 'daily_realized_pnl': 0,
+        'open_risk_percent': 0.0, 'timestamp': time.time()}
+    result = AutoExecutionCoordinator(broker=broker, config=AutoExecutionConfig(enabled=True)).execute_candidate(
+        symbol='EURUSD', candidate=validated_candidate(), decision=decision(), account={'equity': 12000})
+    assert result['status'] == 'BLOCKED'
     assert broker.orders == []

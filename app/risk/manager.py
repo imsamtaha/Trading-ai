@@ -12,6 +12,7 @@ def calculate_risk(
     max_daily_loss_percent: float = 3.0,
     open_risk_percent: float = 0.0,
     max_total_open_risk_percent: float = 3.0,
+    daily_start_capital: float | None = None,
 ) -> dict:
     """Apply deterministic ATLAS pre-trade risk controls.
 
@@ -26,7 +27,8 @@ def calculate_risk(
     controls are optional and default to a clean account state.
     """
 
-    values = (entry, stop_loss, take_profit, account_balance, risk_percent, max_position_percent,
+    daily_capital = account_balance if daily_start_capital is None else daily_start_capital
+    values = (daily_capital, entry, stop_loss, take_profit, account_balance, risk_percent, max_position_percent,
               daily_realized_pnl, max_daily_loss_percent, open_risk_percent, max_total_open_risk_percent)
     if not all(isfinite(value) for value in values):
         return {"approved": False, "reason": "Risk inputs must be finite."}
@@ -69,14 +71,18 @@ def calculate_risk(
             "reason": "Open-risk limits are invalid.",
         }
 
+    if daily_capital <= 0:
+        return {"approved": False, "reason": "Start-of-day capital must be greater than zero."}
+
     daily_loss_amount = max(0.0, -daily_realized_pnl)
-    daily_loss_percent = (daily_loss_amount / account_balance) * 100
+    daily_loss_percent = (daily_loss_amount / daily_capital) * 100
 
     if daily_loss_percent >= max_daily_loss_percent:
         return {
             "approved": False,
             "reason": "Daily loss limit reached. Trading must halt for the session.",
             "daily_loss_percent": round(daily_loss_percent, 4),
+            "daily_start_capital": round(daily_capital, 2),
             "max_daily_loss_percent": max_daily_loss_percent,
         }
 
@@ -161,6 +167,7 @@ def calculate_risk(
         "actual_risk_amount": round(actual_risk, 2),
         "position_size": round(position_size, 8),
         "position_value": round(position_value, 2),
+        "daily_start_capital": round(daily_capital, 2),
         "daily_realized_pnl": round(daily_realized_pnl, 2),
         "daily_loss_percent": round(daily_loss_percent, 4),
         "max_daily_loss_percent": max_daily_loss_percent,

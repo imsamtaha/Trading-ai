@@ -87,7 +87,7 @@ if ($Mode -eq "OFF") {
   exit 0
 }
 
-Set-EnvValue "ATLAS_DASHBOARD_ONLY" "false"
+Set-EnvValue "ATLAS_DASHBOARD_ONLY" "true"
 Set-EnvValue "ATLAS_EVOLUTION_WRITES_ENABLED" ($(if($Evolution){"true"}else{"false"}))
 
 if ($Mode -eq "DASHBOARD") {
@@ -104,6 +104,7 @@ if ($Mode -eq "DASHBOARD") {
 
 $mt5Mode = Get-MT5Mode
 if ($Mode -eq "DEMO") {
+  Set-EnvValue "ATLAS_EVOLUTION_WRITES_ENABLED" "false"
   if ($mt5Mode -ne 0) { throw "DEMO refused: active MT5 account is not Demo." }
   Set-EnvValue "MT5_REQUIRE_DEMO" "true"
   Set-EnvValue "MT5_USE_ACTIVE_SESSION" "true"

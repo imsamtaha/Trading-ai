@@ -232,6 +232,11 @@ class MT5Broker:
         if account is None:
             raise MT5ExecutionError("MT5 account risk state unavailable.")
         equity = self._positive(account.equity, "Account equity")
+        balance = float(account.balance)
+        identity = (account.login, getattr(account, "server", None))
+        credit = float(getattr(account, "credit", 0.0))
+        if not math.isfinite(balance) or not math.isfinite(credit):
+            raise MT5ExecutionError("Invalid account balance/credit.")
         now = datetime.now(timezone.utc)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         deals = mt5.history_deals_get(start, now)
@@ -245,12 +250,20 @@ class MT5Broker:
             if hasattr(mt5, name):
                 trading_types.add(getattr(mt5, name))
         pnl = 0.0
+        balance_change = 0.0
+        credit_type = getattr(mt5, "DEAL_TYPE_CREDIT", 3)
         for deal in deals:
+            values = [float(getattr(deal, name, 0.0)) for name in ("profit", "commission", "swap", "fee")]
+            if not all(math.isfinite(v) for v in values):
+                raise MT5ExecutionError("Non-finite account deal amounts.")
+            amount = sum(values)
             if deal.type in trading_types:
-                values = [float(getattr(deal, name, 0.0)) for name in ("profit", "commission", "swap", "fee")]
-                if not all(math.isfinite(v) for v in values):
-                    raise MT5ExecutionError("Non-finite realized P&L.")
-                pnl += sum(values)
+                pnl += amount
+            # Credit changes account.credit, not account.balance. Undo every other
+            # intraday balance flow, including deposits, withdrawals and trading costs.
+            if deal.type != credit_type:
+                balance_change += amount
+        daily_start_capital = self._positive(balance - balance_change, "Start-of-day capital")
         open_cash_risk = 0.0
         symbols = []
         for position in positions:
@@ -265,7 +278,13 @@ class MT5Broker:
                 raise MT5ExecutionError("Open position cash risk unavailable.")
             open_cash_risk += max(0.0, -float(loss))
             symbols.append({"symbol": str(position.symbol)})
+        # Bracket the history/positions reads. A closing deal or cash flow
+        # during collection would mix account balances from different instants.
+        latest = mt5.account_info()
+        if latest is None or (latest.login, getattr(latest, "server", None)) != identity or float(latest.balance) != balance or float(getattr(latest, "credit", 0.0)) != credit:
+            raise MT5ExecutionError("Account balance, credit or identity changed during risk collection.")
         return {"equity": equity, "daily_realized_pnl": pnl,
+                "daily_start_capital": daily_start_capital,
                 "open_risk_percent": open_cash_risk / equity * 100.0,
                 "positions": symbols, "timestamp": collected_at}
 

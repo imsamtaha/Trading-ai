@@ -161,3 +161,49 @@ def test_final_valid_request_passes_all_bounds_without_sending_order(terminal):
     assert result['status'] == 'DRY_RUN'
     assert result['volume'] == 0.02
     assert state.sent == []
+
+
+@pytest.mark.parametrize('equity,balance,deposit', [(12000, 10700, 1000), (12000, 9700, 0), (9000, 9200, -500)])
+def test_snapshot_daily_capital_excludes_intraday_flows_and_floating_pnl(terminal, equity, balance, deposit):
+    broker, state = terminal
+    state.account.equity = equity
+    state.account.balance = balance
+    state.deals = [SimpleNamespace(type=0, profit=-300), SimpleNamespace(type=2, profit=deposit)]
+    result = broker.risk_snapshot()
+    assert result['daily_start_capital'] == 10000
+    assert result['daily_realized_pnl'] == -300
+
+
+def test_snapshot_rejects_nonfinite_cash_flow(terminal):
+    broker, state = terminal
+    state.deals = [SimpleNamespace(type=2, profit=float('nan'))]
+    with pytest.raises(MT5ExecutionError):
+        broker.risk_snapshot()
+
+
+def test_snapshot_credit_does_not_change_start_balance(terminal):
+    broker, state = terminal
+    state.account.balance = 9700
+    state.account.equity = 14700
+    state.deals = [SimpleNamespace(type=0, profit=-300), SimpleNamespace(type=3, profit=5000)]
+    result = broker.risk_snapshot()
+    assert result['daily_start_capital'] == 10000
+    assert result['daily_realized_pnl'] == -300
+
+
+@pytest.mark.parametrize('balance', [0, -1, float('nan'), float('inf')])
+def test_snapshot_blocks_invalid_start_capital(terminal, balance):
+    broker, state = terminal
+    state.account.balance = balance
+    with pytest.raises(MT5ExecutionError):
+        broker.risk_snapshot()
+
+
+def test_snapshot_blocks_balance_change_during_history_read(terminal, monkeypatch):
+    broker, state = terminal
+    def close_during_history(start, end):
+        state.account = SimpleNamespace(balance=9700, equity=9700, login=123, trade_allowed=True)
+        return [SimpleNamespace(type=0, profit=-300)]
+    monkeypatch.setattr(adapter.mt5, 'history_deals_get', close_during_history)
+    with pytest.raises(MT5ExecutionError, match='changed'):
+        broker.risk_snapshot()

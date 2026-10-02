@@ -153,6 +153,7 @@ class AutoExecutionCoordinator:
                 take_profit=take_profit, account_balance=float(portfolio["equity"]),
                 risk_percent=risk_percent, daily_realized_pnl=float(portfolio["daily_realized_pnl"]),
                 open_risk_percent=float(portfolio["open_risk_percent"]),
+                daily_start_capital=float(portfolio["daily_start_capital"]),
             )
             if not risk.get("approved"):
                 return {"status": "BLOCKED", "reason": "RISK_REJECTED", "risk": risk}

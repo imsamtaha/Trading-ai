@@ -82,7 +82,11 @@ def _decision(candidate: dict, context: dict | None = None) -> dict:
             low = 0.0 if name in {"conflict_score", "volatility_score", "event_risk_score"} else -1.0
             if not math.isfinite(value) or not low <= value <= 1.0:
                 return blocked
-        technical = {"LONG": 1.0, "SHORT": -1.0}.get(candidate.get("direction"), 0.0)
+        confidence = float(candidate["confidence"])
+        direction = candidate["direction"]
+        if not math.isfinite(confidence) or not 0 <= confidence <= 100 or direction not in {"LONG", "SHORT"}:
+            return blocked
+        technical = (1.0 if direction == "LONG" else -1.0) * confidence / 100.0
         result = UnifiedDecisionEngine().analyze(DecisionInput(
             technical_score=technical, regime=str(candidate.get("regime", "TRANSITION")), **scores,
         ))

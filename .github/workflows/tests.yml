@@ -83,6 +83,10 @@ jobs:
           $source = Get-Content ATLAS_SWITCH.ps1 -Raw
           $null = [scriptblock]::Create($source)
 
+      - name: Verify ATLAS switch mode isolation
+        shell: pwsh
+        run: ./tests/test_atlas_switch_modes.ps1
+
       - name: Verify ATLAS journal integrity and status on Windows
         run: >-
           python -m pytest

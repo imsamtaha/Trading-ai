@@ -13,7 +13,7 @@ def context(**changes):
 
 
 def candidate():
-    return {"symbol": "EURUSD", "direction": "LONG", "regime": "TRENDING_BULL"}
+    return {"symbol": "EURUSD", "direction": "LONG", "regime": "TRENDING_BULL", "confidence": 100.0}
 
 
 def test_worker_does_not_treat_missing_context_as_zero_risk():
@@ -59,3 +59,26 @@ def test_worker_loads_root_env_before_startup_gates(tmp_path, monkeypatch, capsy
     assert worker.main() == 2
     assert worker.os.getenv('ATLAS_LIVE_TRADING') == 'true'
     assert 'BLOCKED' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('direction, expected', [('LONG', 'BUY'), ('SHORT', 'SELL')])
+def test_worker_preserves_technical_confidence_strength(direction, expected):
+    c = {**candidate(), 'direction': direction, 'confidence': 70.0, 'regime': 'TRANSITION'}
+    result = worker._decision(c, context())
+    assert result['decision'] == 'WAIT'
+    assert result['confidence'] == 38.5
+    c['confidence'] = 100.0
+    result = worker._decision(c, context())
+    assert result['decision'] == expected
+    assert result['confidence'] == 55.0
+
+
+@pytest.mark.parametrize('confidence', [None, -1, 101, float('nan'), float('inf')])
+def test_worker_rejects_invalid_candidate_evidence(confidence):
+    assert worker._decision({**candidate(), 'confidence': confidence}, context())['decision'] == 'NO_TRADE'
+
+
+def test_worker_rejects_missing_candidate_confidence():
+    c = candidate()
+    c.pop('confidence')
+    assert worker._decision(c, context())['decision'] == 'NO_TRADE'
