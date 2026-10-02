@@ -1,3 +1,5 @@
+from math import isfinite, isclose
+
 def calculate_risk(
     direction: str,
     entry: float,
@@ -23,6 +25,11 @@ def calculate_risk(
     Existing callers remain backwards compatible because the added portfolio
     controls are optional and default to a clean account state.
     """
+
+    values = (entry, stop_loss, take_profit, account_balance, risk_percent, max_position_percent,
+              daily_realized_pnl, max_daily_loss_percent, open_risk_percent, max_total_open_risk_percent)
+    if not all(isfinite(value) for value in values):
+        return {"approved": False, "reason": "Risk inputs must be finite."}
 
     direction = direction.upper()
 
@@ -133,7 +140,7 @@ def calculate_risk(
         actual_risk = risk_amount
 
     risk_reward = reward_per_unit / risk_per_unit
-    approved = risk_reward >= 1.5
+    approved = risk_reward >= 1.5 or isclose(risk_reward, 1.5, rel_tol=0, abs_tol=1e-12)
 
     if not approved:
         reason = "Risk/reward is below the minimum 1.5:1."
@@ -160,3 +167,4 @@ def calculate_risk(
         "open_risk_percent": round(open_risk_percent, 4),
         "max_total_open_risk_percent": max_total_open_risk_percent,
     }
+

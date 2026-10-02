@@ -151,8 +151,8 @@ def runtime_status():
         "version": "1.8.1",
         "auto_execution": auto.status(),
         "evolution": evolution_engine.status(),
+        "evolution_influences_decisions": False,
         "pipeline": [
-            "evolution_weights",
             "atlas_decision",
             "risk_manager",
             "execution_gate",
@@ -328,3 +328,4 @@ def performance(account_id: int):
         "metrics": metrics,
         "trades": trades,
     }
+

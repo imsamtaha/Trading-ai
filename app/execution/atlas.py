@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import isfinite
 from dataclasses import dataclass
 from typing import Any
 
@@ -33,7 +34,7 @@ class AtlasExecutionService:
             return False, "LIVE_EXECUTION_DISABLED"
         if action not in {"BUY", "SELL"}:
             return False, "NO_TRADE_DECISION"
-        if confidence < self.policy.min_confidence:
+        if not isfinite(confidence) or confidence < self.policy.min_confidence:
             return False, "CONFIDENCE_BELOW_THRESHOLD"
         if self.RISK_ORDER.get(risk, 3) > self.RISK_ORDER[self.policy.max_risk_level]:
             return False, "RISK_LEVEL_BLOCKED"
@@ -50,6 +51,8 @@ class AtlasExecutionService:
         volume: float,
         stop_loss: float,
         take_profit: float,
+        *, max_cash_risk: float | None = None, expected_entry: float | None = None,
+        max_entry_deviation: float | None = None,
     ) -> dict[str, Any]:
         approved, reason = self.gate(decision)
         if not approved:
@@ -60,6 +63,11 @@ class AtlasExecutionService:
                 "decision": decision.get("decision", "WAIT"),
             }
 
+        bounds = {}
+        if max_cash_risk is not None:
+            bounds["max_cash_risk"] = max_cash_risk
+        if expected_entry is not None:
+            bounds.update(expected_entry=expected_entry, max_entry_deviation=max_entry_deviation)
         return self.broker.market_order(
             symbol=symbol,
             direction=str(decision["decision"]),
@@ -67,6 +75,7 @@ class AtlasExecutionService:
             stop_loss=stop_loss,
             take_profit=take_profit,
             comment="ATLAS",
+            **bounds,
         )
 
     def status(self) -> dict[str, Any]:
@@ -76,3 +85,4 @@ class AtlasExecutionService:
             "max_risk_level": self.policy.max_risk_level,
             "mt5_dry_run": self.broker.config.dry_run,
         }
+

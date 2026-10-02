@@ -22,7 +22,7 @@ class MetricsPayload(BaseModel):
     consistency: float = Field(ge=0.0, le=1.0)
 
     def to_metrics(self) -> AgentMetrics:
-        return AgentMetrics(**self.dict())
+        return AgentMetrics(**(self.model_dump() if hasattr(self, "model_dump") else self.dict()))
 
 
 class RecordPayload(BaseModel):
@@ -35,6 +35,7 @@ class CandidatePayload(BaseModel):
     incumbent: MetricsPayload
     candidate: MetricsPayload
     candidate_prompt: str = Field(min_length=1, max_length=20000)
+    expected_version: int | None = Field(default=None, ge=0)
 
 
 @router.get("/status")
@@ -54,17 +55,21 @@ def score_agent(payload: RecordPayload):
     return {
         "agent": payload.agent,
         **result,
-        "normalized_weights": engine.normalized_weights(),
     }
 
 
 @router.post("/evaluate")
 def evaluate_candidate(payload: CandidatePayload):
     _require_writes_enabled()
-    decision = engine.evaluate_candidate(
-        agent=payload.agent,
-        incumbent_metrics=payload.incumbent.to_metrics(),
-        candidate_metrics=payload.candidate.to_metrics(),
-        candidate_prompt=payload.candidate_prompt,
-    )
+    try:
+        decision = engine.evaluate_candidate(
+            agent=payload.agent,
+            incumbent_metrics=payload.incumbent.to_metrics(),
+            candidate_metrics=payload.candidate.to_metrics(),
+            candidate_prompt=payload.candidate_prompt,
+            expected_version=payload.expected_version,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return decision.as_dict()
+

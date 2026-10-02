@@ -7,7 +7,7 @@ param(
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $EnvFile = Join-Path $Root ".env"
-$Python = "C:\Users\KHAT W TELEPHONE\Trading-ai\.venv\Scripts\python.exe"
+$Python = Join-Path $Root ".venv\Scripts\python.exe"
 
 function Set-EnvValue([string]$Name, [string]$Value) {
   $lines = @()
@@ -23,10 +23,16 @@ function Set-EnvValue([string]$Name, [string]$Value) {
   Set-Content -Path $EnvFile -Value $updated -Encoding UTF8
 }
 function Get-MT5Mode {
+  if (-not (Test-Path $Python)) { throw "Python environment missing: $Python" }
   $code = @"
+import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
 import MetaTrader5 as mt5
-path=r'C:\Program Files\FxPro Markets MT5\terminal64.exe'
-ok=mt5.initialize(path)
+load_dotenv(Path(sys.argv[1]) / '.env', override=False)
+path = os.getenv('MT5_TERMINAL_PATH')
+ok = mt5.initialize(path) if path else mt5.initialize()
 if not ok:
     print(-1)
 else:
@@ -34,20 +40,24 @@ else:
     print(-1 if a is None else int(a.trade_mode))
     mt5.shutdown()
 "@
-  $value = & $Python -c $code 2>$null
+  $value = & $Python -c $code $Root 2>$null
+  if ($LASTEXITCODE -ne 0 -or -not $value) { throw "Unable to inspect MT5 session." }
   return [int]($value | Select-Object -Last 1)
 }
 
 function Stop-AtlasProcesses {
   Get-CimInstance Win32_Process | Where-Object {
-    $_.CommandLine -match "uvicorn app.main:app|atlas_auto_execution.py"
+    ($_.ExecutablePath -eq $Python) -and
+    ($_.CommandLine -match "uvicorn app.main:app|atlas_auto_execution.py")
   } | ForEach-Object {
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
   }
 }
 function Start-Dashboard {
-  $cmd = "Set-Location '$Root'; & '$Python' -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
-  Start-Process powershell -ArgumentList "-NoExit","-Command",$cmd
+  if (-not (Test-Path $Python)) { throw "Python environment missing: $Python" }
+  Start-Process -FilePath $Python -WorkingDirectory $Root -ArgumentList @(
+    "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"
+  )
 }
 
 if ($Mode -eq "STATUS") {
@@ -57,7 +67,7 @@ if ($Mode -eq "STATUS") {
     "MT5_REQUIRE_DEMO","MT5_USE_ACTIVE_SESSION"
   )
   foreach ($name in $names) {
-    $line = Get-Content $EnvFile | Where-Object { $_ -match "^$name=" } | Select-Object -Last 1
+    $line = if (Test-Path $EnvFile) { Get-Content $EnvFile | Where-Object { $_ -match "^$name=" } | Select-Object -Last 1 } else { $null }
     if ($line) { Write-Host $line } else { Write-Host "$name=<unset>" }
   }
   Write-Host "MT5 trade_mode: $(Get-MT5Mode)  (0=Demo, 2=Real)"
@@ -69,6 +79,10 @@ if ($Mode -eq "OFF") {
   Set-EnvValue "ATLAS_LIVE_TRADING" "false"
   Set-EnvValue "ATLAS_AUTO_EXECUTION_ENABLED" "false"
   Set-EnvValue "ATLAS_EVOLUTION_WRITES_ENABLED" "false"
+  Set-EnvValue "ATLAS_DASHBOARD_ONLY" "true"
+  Set-EnvValue "ATLAS_LIVE_DEMO" "false"
+  Set-EnvValue "MT5_REQUIRE_DEMO" "false"
+  Set-EnvValue "MT5_USE_ACTIVE_SESSION" "false"
   Write-Host "ATLAS execution is OFF."
   exit 0
 }
@@ -77,6 +91,10 @@ Set-EnvValue "ATLAS_DASHBOARD_ONLY" "false"
 Set-EnvValue "ATLAS_EVOLUTION_WRITES_ENABLED" ($(if($Evolution){"true"}else{"false"}))
 
 if ($Mode -eq "DASHBOARD") {
+  Set-EnvValue "ATLAS_DASHBOARD_ONLY" ($(if($Evolution){"false"}else{"true"}))
+  Set-EnvValue "ATLAS_LIVE_DEMO" "false"
+  Set-EnvValue "MT5_REQUIRE_DEMO" "false"
+  Set-EnvValue "MT5_USE_ACTIVE_SESSION" "false"
   Set-EnvValue "ATLAS_LIVE_TRADING" "false"
   Set-EnvValue "ATLAS_AUTO_EXECUTION_ENABLED" "false"
   Start-Dashboard
@@ -96,3 +114,4 @@ if ($Mode -eq "DEMO") {
   Write-Host "ATLAS Demo mode active. Broker orders remain disabled."
   exit 0
 }
+

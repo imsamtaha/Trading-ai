@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import os
+import math
+import time
+from datetime import datetime, timezone
+from decimal import Decimal, ROUND_FLOOR
 from dataclasses import dataclass
 from typing import Any
 
@@ -72,8 +76,8 @@ class MT5Broker:
 
         if os.getenv("MT5_REQUIRE_DEMO", "false").lower() == "true":
             if (getattr(account, "trade_mode", None) != mt5.ACCOUNT_TRADE_MODE_DEMO
-                    or (self.config.login and int(account.login) != self.config.login)
-                    or (self.config.server and account.server != self.config.server)):
+                    or (not self.config.use_active_session and self.config.login and int(account.login) != self.config.login)
+                    or (not self.config.use_active_session and self.config.server and account.server != self.config.server)):
                 mt5.shutdown()
                 raise MT5ExecutionError("Configured demo account is not the active MT5 session.")
 
@@ -182,7 +186,7 @@ class MT5Broker:
         self.ensure_connected()
         raw = mt5.positions_get(symbol=symbol) if symbol else mt5.positions_get()
         if raw is None:
-            return []
+            raise MT5ExecutionError(f"MT5 positions unavailable: {mt5.last_error()}")
         return [{
             "ticket": int(p.ticket),
             "symbol": str(p.symbol),
@@ -195,38 +199,104 @@ class MT5Broker:
             "magic": int(p.magic),
         } for p in raw]
 
+    @staticmethod
+    def _positive(value: float, name: str) -> float:
+        value = float(value)
+        if not math.isfinite(value) or value <= 0:
+            raise MT5ExecutionError(f"{name} must be finite and positive.")
+        return value
+
+    def cash_risk(self, symbol: str, entry: float, stop_loss: float, volume: float) -> float:
+        entry = self._positive(entry, "Entry")
+        stop_loss = self._positive(stop_loss, "Stop loss")
+        volume = self._positive(volume, "Volume")
+        side = mt5.ORDER_TYPE_BUY if stop_loss < entry else mt5.ORDER_TYPE_SELL
+        loss = mt5.order_calc_profit(side, symbol, volume, entry, stop_loss)
+        if loss is None or not math.isfinite(float(loss)):
+            raise MT5ExecutionError(f"Cash risk unavailable for {symbol}")
+        return max(0.0, -float(loss))
+
+    @staticmethod
+    def _require_fresh_quote(quote: dict[str, Any]) -> None:
+        timestamp = float(quote.get("time_msc", 0)) / 1000 or float(quote.get("time", 0))
+        max_age = float(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30"))
+        age = time.time() - timestamp
+        if not math.isfinite(timestamp) or not math.isfinite(max_age) or max_age <= 0 or age < -5 or age > max_age:
+            raise MT5ExecutionError("MT5 quote is missing, stale or has an invalid timestamp.")
+
+    def risk_snapshot(self) -> dict[str, Any]:
+        """Read current account-wide risk and today's UTC realized trading P&L."""
+        self.ensure_connected()
+        collected_at = time.time()
+        account = mt5.account_info()
+        if account is None:
+            raise MT5ExecutionError("MT5 account risk state unavailable.")
+        equity = self._positive(account.equity, "Account equity")
+        now = datetime.now(timezone.utc)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        deals = mt5.history_deals_get(start, now)
+        positions = mt5.positions_get()
+        if deals is None or positions is None:
+            raise MT5ExecutionError("MT5 portfolio/history unavailable; execution refused.")
+        trading_types = {mt5.DEAL_TYPE_BUY, mt5.DEAL_TYPE_SELL}
+        for name in ("DEAL_TYPE_CHARGE", "DEAL_TYPE_COMMISSION", "DEAL_TYPE_COMMISSION_DAILY",
+                     "DEAL_TYPE_COMMISSION_MONTHLY", "DEAL_TYPE_COMMISSION_AGENT_DAILY",
+                     "DEAL_TYPE_COMMISSION_AGENT_MONTHLY"):
+            if hasattr(mt5, name):
+                trading_types.add(getattr(mt5, name))
+        pnl = 0.0
+        for deal in deals:
+            if deal.type in trading_types:
+                values = [float(getattr(deal, name, 0.0)) for name in ("profit", "commission", "swap", "fee")]
+                if not all(math.isfinite(v) for v in values):
+                    raise MT5ExecutionError("Non-finite realized P&L.")
+                pnl += sum(values)
+        open_cash_risk = 0.0
+        symbols = []
+        for position in positions:
+            stop = self._positive(position.sl, "Position stop loss")
+            quote = self.quote(position.symbol)
+            self._require_fresh_quote(quote)
+            side = mt5.ORDER_TYPE_BUY if position.type == mt5.POSITION_TYPE_BUY else mt5.ORDER_TYPE_SELL
+            entry = self._positive(quote["bid"] if side == mt5.ORDER_TYPE_BUY else quote["ask"], "Position quote")
+            self._positive(position.volume, "Position volume")
+            loss = mt5.order_calc_profit(side, position.symbol, position.volume, entry, stop)
+            if loss is None or not math.isfinite(float(loss)):
+                raise MT5ExecutionError("Open position cash risk unavailable.")
+            open_cash_risk += max(0.0, -float(loss))
+            symbols.append({"symbol": str(position.symbol)})
+        return {"equity": equity, "daily_realized_pnl": pnl,
+                "open_risk_percent": open_cash_risk / equity * 100.0,
+                "positions": symbols, "timestamp": collected_at}
+
     def volume_for_risk(self, symbol: str, entry: float, stop_loss: float, risk_amount: float) -> float:
-        """Convert a cash-risk budget into MT5 lot volume using symbol tick metadata."""
-        if entry <= 0 or stop_loss <= 0 or risk_amount <= 0:
-            raise MT5ExecutionError("Entry, stop loss, and risk amount must be greater than zero.")
+        self.ensure_connected()
+        risk_amount = self._positive(risk_amount, "Risk amount")
         info = self.symbol_info(symbol)
-        tick_size = float(getattr(info, "trade_tick_size", 0.0) or 0.0)
-        tick_value = float(getattr(info, "trade_tick_value", 0.0) or 0.0)
-        if tick_size <= 0 or tick_value <= 0:
-            raise MT5ExecutionError(f"Risk sizing metadata unavailable for {symbol}")
-        distance = abs(float(entry) - float(stop_loss))
-        ticks_at_risk = distance / tick_size
-        cash_risk_per_lot = ticks_at_risk * tick_value
-        if cash_risk_per_lot <= 0:
-            raise MT5ExecutionError(f"Invalid cash risk per lot for {symbol}")
-        raw_volume = float(risk_amount) / cash_risk_per_lot
-        return self._normalized_volume(symbol, raw_volume)
+        reference = self._positive(info.volume_min, "Minimum volume")
+        reference_loss = self.cash_risk(symbol, entry, stop_loss, reference)
+        if reference_loss <= 0:
+            raise MT5ExecutionError("Invalid cash risk per lot.")
+        raw_volume = round(reference * risk_amount / reference_loss, 12)
+        volume = self._normalized_volume(symbol, raw_volume)
+        if self.cash_risk(symbol, entry, stop_loss, volume) > risk_amount + 1e-8:
+            raise MT5ExecutionError("Normalized volume exceeds cash-risk budget.")
+        return volume
 
     def _normalized_volume(self, symbol: str, volume: float) -> float:
-        if volume <= 0:
-            raise MT5ExecutionError("Order volume must be greater than zero.")
+        volume = self._positive(volume, "Order volume")
         info = self.symbol_info(symbol)
-        minimum = float(info.volume_min)
-        maximum = float(info.volume_max)
-        step = float(info.volume_step)
-        if step <= 0 or maximum < minimum:
-            raise MT5ExecutionError(f"Invalid volume constraints for {symbol}")
-        volume = min(max(volume, minimum), maximum)
-        steps = int(volume / step)
-        normalized = steps * step
-        if normalized < minimum:
-            normalized = minimum
-        return round(normalized, 8)
+        minimum = self._positive(info.volume_min, "Minimum volume")
+        maximum = self._positive(info.volume_max, "Maximum volume")
+        step = self._positive(info.volume_step, "Volume step")
+        if maximum < minimum or volume < minimum:
+            raise MT5ExecutionError(f"Requested volume is below broker minimum or constraints invalid for {symbol}")
+        value = Decimal(str(min(volume, maximum)))
+        increment = Decimal(str(step))
+        normalized = (value / increment).to_integral_value(rounding=ROUND_FLOOR) * increment
+        if normalized < Decimal(str(minimum)):
+            raise MT5ExecutionError("Risk budget cannot support the broker minimum.")
+        return float(normalized)
 
     def _filling_type(self, info: Any) -> int:
         mode = getattr(info, "filling_mode", None)
@@ -236,7 +306,7 @@ class MT5Broker:
                 return int(candidate)
         return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
 
-    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS") -> dict[str, Any]:
+    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, max_cash_risk: float | None = None, expected_entry: float | None = None, max_entry_deviation: float | None = None) -> dict[str, Any]:
         self.ensure_connected()
         direction = direction.upper()
         if direction not in {"LONG", "SHORT", "BUY", "SELL"}:
@@ -246,16 +316,31 @@ class MT5Broker:
         tick = mt5.symbol_info_tick(symbol)
         if tick is None:
             raise MT5ExecutionError(f"No tick available for {symbol}")
-        price = float(tick.ask if side == "BUY" else tick.bid)
+        if max_cash_risk is not None or expected_entry is not None:
+            self._require_fresh_quote({"time": getattr(tick, "time", 0), "time_msc": getattr(tick, "time_msc", 0)})
+        price = self._positive(tick.ask if side == "BUY" else tick.bid, "Final price")
         volume = self._normalized_volume(symbol, volume)
         digits = int(info.digits)
         price = round(price, digits)
-        stop_loss = round(float(stop_loss), digits)
-        take_profit = round(float(take_profit), digits)
+        stop_loss = round(self._positive(stop_loss, "Stop loss"), digits)
+        take_profit = round(self._positive(take_profit, "Take profit"), digits)
         if side == "BUY" and not (stop_loss < price < take_profit):
             raise MT5ExecutionError("BUY requires SL < entry < TP.")
         if side == "SELL" and not (take_profit < price < stop_loss):
             raise MT5ExecutionError("SELL requires TP < entry < SL.")
+
+        if expected_entry is not None:
+            reference = self._positive(expected_entry, "Expected entry")
+            limit = self._positive(max_entry_deviation, "Maximum entry deviation")
+            if abs(price - reference) > limit + 1e-12:
+                raise MT5ExecutionError("Final quote exceeds allowed entry drift.")
+        if max_cash_risk is not None:
+            reward_risk = abs(take_profit - price) / abs(price - stop_loss)
+            if reward_risk < 1.5 and not math.isclose(reward_risk, 1.5, rel_tol=0, abs_tol=1e-12):
+                raise MT5ExecutionError("Final rounded quote violates minimum 1.5 reward/risk.")
+            budget = self._positive(max_cash_risk, "Cash-risk budget")
+            if self.cash_risk(symbol, price, stop_loss, volume) > budget + 1e-8:
+                raise MT5ExecutionError("Final quote exceeds approved cash-risk budget.")
 
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
@@ -319,3 +404,4 @@ class MT5Broker:
             detail = mt5.last_error() if result is None else f"{result.retcode}: {result.comment}"
             raise MT5ExecutionError(f"MT5 close rejected: {detail}")
         return {"status": "CLOSED", "ticket": ticket, "deal": int(result.deal), "price": float(result.price)}
+

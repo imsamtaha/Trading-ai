@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import time
 from pathlib import Path
 import sys
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -46,22 +48,48 @@ def _timeframe(interval: str) -> int:
     return mapping[interval]
 
 
-def _decision(candidate: dict) -> dict:
-    direction = candidate.get("direction")
-    technical_score = {"LONG": 1.0, "SHORT": -1.0}.get(direction, 0.0)
-    data = DecisionInput(
-        technical_score=technical_score,
-        macro_score=0.0,
-        news_score=0.0,
-        geopolitical_score=0.0,
-        cross_asset_score=0.0,
-        reaction_score=0.0,
-        regime=str(candidate.get("regime", "TRANSITION")),
-        conflict_score=0.0,
-        volatility_score=0.0,
-        event_risk_score=0.0,
-    )
-    return UnifiedDecisionEngine().analyze(data)
+def load_runtime_context() -> dict | None:
+    """Read the private analytical provider's snapshot; never synthesize evidence."""
+    path = os.getenv("ATLAS_AUTO_CONTEXT_FILE")
+    if not path:
+        return None
+    snapshot_path = Path(path)
+    if not snapshot_path.is_absolute():
+        snapshot_path = ROOT / snapshot_path
+    try:
+        return json.loads(snapshot_path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+
+
+def _decision(candidate: dict, context: dict | None = None) -> dict:
+    blocked = {"decision": "NO_TRADE", "confidence": 0.0, "risk_level": "EXTREME",
+               "reason": "RUNTIME_CONTEXT_MISSING_INVALID_OR_STALE"}
+    try:
+        if not isinstance(context, dict) or context["symbol"] != candidate["symbol"]:
+            return blocked
+        if not isinstance(context["source"], str) or not context["source"].strip():
+            return blocked
+        timestamp = float(context["as_of"])
+        max_age = float(os.getenv("ATLAS_AUTO_CONTEXT_MAX_AGE_SECONDS", "300"))
+        age = time.time() - timestamp
+        if not math.isfinite(timestamp) or not math.isfinite(max_age) or max_age <= 0 or age < -5 or age > max_age:
+            return blocked
+        fields = ("macro_score", "news_score", "geopolitical_score", "cross_asset_score",
+                  "reaction_score", "conflict_score", "volatility_score", "event_risk_score")
+        scores = {name: float(context[name]) for name in fields}
+        for name, value in scores.items():
+            low = 0.0 if name in {"conflict_score", "volatility_score", "event_risk_score"} else -1.0
+            if not math.isfinite(value) or not low <= value <= 1.0:
+                return blocked
+        technical = {"LONG": 1.0, "SHORT": -1.0}.get(candidate.get("direction"), 0.0)
+        result = UnifiedDecisionEngine().analyze(DecisionInput(
+            technical_score=technical, regime=str(candidate.get("regime", "TRANSITION")), **scores,
+        ))
+        result["context"] = {"source": context["source"], "as_of": timestamp}
+        return result
+    except (KeyError, ValueError, TypeError):
+        return blocked
 
 
 def run_cycle(symbol: str, interval: str, count: int) -> dict:
@@ -92,7 +120,8 @@ def run_cycle(symbol: str, interval: str, count: int) -> dict:
             }
 
         candidate = candidate_obj.to_dict()
-        decision = _decision(candidate)
+        candidate["created_at"] = time.time()
+        decision = _decision(candidate, load_runtime_context())
 
         if not candidate.get("qualified"):
             return {
@@ -123,6 +152,7 @@ def run_cycle(symbol: str, interval: str, count: int) -> dict:
 
 
 def main() -> int:
+    load_dotenv(ROOT / ".env", override=False)
     args = parse_args()
     if os.getenv("ATLAS_AUTO_EXECUTION_ENABLED", "false").lower() != "true":
         print(json.dumps({
@@ -154,3 +184,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

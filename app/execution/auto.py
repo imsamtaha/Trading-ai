@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import math
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,13 +18,30 @@ class AutoExecutionConfig:
     min_confidence: float = 55.0
     max_risk_level: str = "MEDIUM"
     one_position_per_symbol: bool = True
+    max_entry_drift_points: float = 20.0
+    max_candidate_age_seconds: float = 60.0
+    max_quote_age_seconds: float = 30.0
+
+    def __post_init__(self):
+        for name in ("risk_percent", "min_confidence", "max_entry_drift_points",
+                     "max_candidate_age_seconds", "max_quote_age_seconds"):
+            value = getattr(self, name)
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and positive.")
+        if self.risk_percent > 2 or self.min_confidence > 100:
+            raise ValueError("Risk/confidence configuration exceeds its allowed range.")
+        if self.max_risk_level not in AtlasExecutionService.RISK_ORDER:
+            raise ValueError("Unknown maximum risk level.")
 
     @classmethod
     def from_env(cls) -> "AutoExecutionConfig":
         risk_percent = float(os.getenv("ATLAS_AUTO_RISK_PERCENT", "1.0"))
         return cls(
             enabled=os.getenv("ATLAS_AUTO_EXECUTION_ENABLED", "false").lower() == "true",
-            risk_percent=min(max(risk_percent, 0.01), 2.0),
+            risk_percent=risk_percent,
+            max_entry_drift_points=float(os.getenv("ATLAS_AUTO_MAX_ENTRY_DRIFT_POINTS", "20")),
+            max_candidate_age_seconds=float(os.getenv("ATLAS_AUTO_MAX_CANDIDATE_AGE_SECONDS", "60")),
+            max_quote_age_seconds=float(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")),
             min_confidence=float(os.getenv("ATLAS_AUTO_MIN_CONFIDENCE", "55")),
             max_risk_level=os.getenv("ATLAS_AUTO_MAX_RISK_LEVEL", "MEDIUM").upper(),
             one_position_per_symbol=os.getenv(
@@ -87,67 +106,63 @@ class AutoExecutionCoordinator:
         if str(decision.get("decision", "WAIT")).upper() != expected_action:
             return {"status": "BLOCKED", "reason": "DECISION_DIRECTION_MISMATCH"}
 
-        if self.config.one_position_per_symbol and self.broker.positions(symbol):
-            return {"status": "BLOCKED", "reason": "POSITION_ALREADY_OPEN"}
-
-        quote = self.broker.quote(symbol)
-        entry = float(quote["ask"] if expected_action == "BUY" else quote["bid"])
-        source_entry = float(candidate["entry"])
-        stop_distance = abs(source_entry - float(candidate["stop_loss"]))
-        target_distance = abs(float(candidate["take_profit"]) - source_entry)
-        if stop_distance <= 0 or target_distance <= 0:
-            return {"status": "BLOCKED", "reason": "INVALID_STOP_TARGET_DISTANCE"}
-
-        if expected_action == "BUY":
-            stop_loss = entry - stop_distance
-            take_profit = entry + target_distance
-            risk_direction = "LONG"
-        else:
-            stop_loss = entry + stop_distance
-            take_profit = entry - target_distance
-            risk_direction = "SHORT"
-
-        balance = float(account.get("equity") or account.get("balance") or 0.0)
-        risk = calculate_risk(
-            direction=risk_direction,
-            entry=entry,
-            stop_loss=stop_loss,
-            take_profit=take_profit,
-            account_balance=balance,
-            risk_percent=self.config.risk_percent,
-        )
-        if not risk.get("approved"):
-            return {
-                "status": "BLOCKED",
-                "reason": "RISK_REJECTED",
-                "risk": risk,
-            }
-
-        risk_amount = float(risk.get("actual_risk_amount") or 0.0)
-        volume = self.broker.volume_for_risk(
-            symbol,
-            entry=entry,
-            stop_loss=stop_loss,
-            risk_amount=risk_amount,
-        )
-
-        execution_decision = {
-            "decision": expected_action,
-            "confidence": float(decision.get("confidence") or candidate.get("confidence") or 0.0),
-            "risk_level": str(decision.get("risk_level") or "LOW").upper(),
-        }
-
-        result = self.execution.execute(
-            symbol=symbol,
-            decision=execution_decision,
-            volume=volume,
-            stop_loss=stop_loss,
-            take_profit=take_profit,
-        )
-        return {
-            **result,
-            "risk": risk,
-            "volume": volume,
-            "entry": entry,
-            "auto_execution": True,
-        }
+        try:
+            if self.config.one_position_per_symbol and self.broker.positions(symbol):
+                return {"status": "BLOCKED", "reason": "POSITION_ALREADY_OPEN"}
+            if candidate.get("qualified") is not True:
+                return {"status": "BLOCKED", "reason": "CANDIDATE_NOT_QUALIFIED"}
+            if candidate.get("symbol", symbol) != symbol:
+                return {"status": "BLOCKED", "reason": "CANDIDATE_SYMBOL_MISMATCH"}
+            created = float(candidate["created_at"])
+            age = time.time() - created
+            if not math.isfinite(created) or age < -5 or age > self.config.max_candidate_age_seconds:
+                return {"status": "BLOCKED", "reason": "CANDIDATE_STALE"}
+            strategy_risk = candidate["metadata"]["risk"]
+            requested_risk = float(strategy_risk["risk_percent"])
+            if strategy_risk.get("approved") is not True or not math.isfinite(requested_risk) or not 0 < requested_risk <= 2:
+                return {"status": "BLOCKED", "reason": "INVALID_STRATEGY_RISK_BUDGET"}
+            risk_percent = min(self.config.risk_percent, requested_risk)
+            source_entry = float(candidate["entry"])
+            stop_loss = float(candidate["stop_loss"])
+            take_profit = float(candidate["take_profit"])
+            confidence = float(decision["confidence"])
+            if not all(math.isfinite(v) and v > 0 for v in (source_entry, stop_loss, take_profit, confidence)):
+                return {"status": "BLOCKED", "reason": "INVALID_CANDIDATE_VALUES"}
+            if not (stop_loss < source_entry < take_profit if expected_action == "BUY"
+                    else take_profit < source_entry < stop_loss):
+                return {"status": "BLOCKED", "reason": "INVALID_STOP_TARGET_DISTANCE"}
+            quote = self.broker.quote(symbol)
+            quote_time = float(quote.get("time_msc", 0)) / 1000 or float(quote.get("time", 0))
+            quote_age = time.time() - quote_time
+            if not math.isfinite(quote_time) or quote_age < -5 or quote_age > self.config.max_quote_age_seconds:
+                return {"status": "BLOCKED", "reason": "QUOTE_STALE"}
+            entry = float(quote["ask"] if expected_action == "BUY" else quote["bid"])
+            point = float(quote["point"])
+            if not math.isfinite(entry) or entry <= 0 or not math.isfinite(point) or point <= 0:
+                return {"status": "BLOCKED", "reason": "INVALID_QUOTE"}
+            allowed_drift = point * self.config.max_entry_drift_points
+            if abs(entry - source_entry) > allowed_drift + 1e-12:
+                return {"status": "BLOCKED", "reason": "ENTRY_DRIFT"}
+            # Retain the qualified strategy levels. Recheck reward/risk at the current quote.
+            portfolio = self.broker.risk_snapshot()
+            snapshot_age = time.time() - float(portfolio["timestamp"])
+            if not math.isfinite(snapshot_age) or snapshot_age < -5 or snapshot_age > self.config.max_quote_age_seconds:
+                return {"status": "BLOCKED", "reason": "PORTFOLIO_STALE"}
+            risk = calculate_risk(
+                direction=candidate["direction"], entry=entry, stop_loss=stop_loss,
+                take_profit=take_profit, account_balance=float(portfolio["equity"]),
+                risk_percent=risk_percent, daily_realized_pnl=float(portfolio["daily_realized_pnl"]),
+                open_risk_percent=float(portfolio["open_risk_percent"]),
+            )
+            if not risk.get("approved"):
+                return {"status": "BLOCKED", "reason": "RISK_REJECTED", "risk": risk}
+            risk_amount = float(risk["actual_risk_amount"])
+            volume = self.broker.volume_for_risk(symbol, entry=entry, stop_loss=stop_loss, risk_amount=risk_amount)
+            result = self.execution.execute(
+                symbol=symbol, decision=decision, volume=volume, stop_loss=stop_loss,
+                take_profit=take_profit, max_cash_risk=risk_amount,
+                expected_entry=source_entry, max_entry_deviation=allowed_drift,
+            )
+            return {**result, "risk": risk, "volume": volume, "entry": entry, "auto_execution": True}
+        except (MT5ExecutionError, ValueError, TypeError, KeyError) as exc:
+            return {"status": "BLOCKED", "reason": "EXECUTION_INPUT_UNAVAILABLE", "detail": str(exc)}
