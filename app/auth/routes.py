@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app.auth.supabase_auth import require_user, verify_access_token, supabase_publishable_key
+from app.runtime_control.analytics import record_sign_in, record_sign_out
 
 router = APIRouter(tags=["auth"])
 
@@ -64,7 +65,10 @@ def auth_config() -> dict[str, str]:
 
 @router.post("/auth/session")
 def create_session(payload: SessionPayload) -> JSONResponse:
-    verify_access_token(payload.access_token)
+    user = verify_access_token(payload.access_token)
+    owner_email = os.getenv("ATLAS_OWNER_EMAIL", "").strip().lower()
+    is_owner = bool(owner_email and user.email and user.email.strip().lower() == owner_email)
+    record_sign_in(user.user_id, is_owner=is_owner)
     response = JSONResponse({"status": "ok"})
     response.set_cookie(
         "atlas_session",
@@ -80,6 +84,7 @@ def create_session(payload: SessionPayload) -> JSONResponse:
 
 @router.post("/logout")
 def logout() -> RedirectResponse:
+    record_sign_out()
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("atlas_session", path="/")
     return response

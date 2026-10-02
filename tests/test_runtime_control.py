@@ -8,13 +8,18 @@ from app.runtime_control import routes
 class FakeRuntime:
     def __init__(self):
         self.demo_enabled = False
+        self.learned_enabled = False
         self.restarted = False
 
     def status(self):
-        return {"backend": "ONLINE", "demo_execution": self.demo_enabled, "live_execution": "LOCKED", "restart_supported": True}
+        return {"backend": "ONLINE", "demo_execution": self.demo_enabled, "learned_council_enabled": self.learned_enabled, "live_execution": "LOCKED", "restart_supported": True}
 
     def set_demo_execution(self, enabled: bool):
         self.demo_enabled = enabled
+        return self.status()
+
+    def set_learned_council(self, enabled: bool):
+        self.learned_enabled = enabled
         return self.status()
 
     def restart(self):
@@ -45,9 +50,35 @@ def test_owner_can_toggle_demo_execution(monkeypatch):
     assert fake.demo_enabled is True
 
 
+def test_learned_council_requires_owner_and_auto_enables_demo(monkeypatch):
+    client, fake = make_client(monkeypatch, "customer@example.com")
+    assert client.post("/api/runtime/learned-council", json={"enabled": True}).status_code == 403
+    client, fake = make_client(monkeypatch, "owner@example.com")
+    response = client.post("/api/runtime/learned-council", json={"enabled": True})
+    assert response.status_code == 200
+    assert response.json()["learned_council_enabled"] is True
+    assert fake.demo_enabled is True
+
+
 def test_owner_can_request_backend_restart(monkeypatch):
     client, fake = make_client(monkeypatch, "owner@example.com")
     response = client.post("/api/runtime/restart")
     assert response.status_code == 202
     assert response.json()["status"] == "RESTARTING"
     assert fake.restarted is True
+
+
+def test_runtime_instance_is_stable_in_process_and_changes_after_restart():
+    import subprocess
+    import sys
+    from app.runtime_control.service import RuntimeControlService
+
+    instance = RuntimeControlService().status()["instance_id"]
+    assert isinstance(instance, str) and len(instance) == 32
+    assert RuntimeControlService().status()["instance_id"] == instance
+    child = subprocess.check_output([
+        sys.executable, "-c",
+        "from app.runtime_control.service import RuntimeControlService; "
+        "print(RuntimeControlService().status()['instance_id'])",
+    ], text=True).strip()
+    assert child != instance

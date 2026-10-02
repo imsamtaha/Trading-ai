@@ -13,11 +13,11 @@ class SubscriptionPlan:
 PLANS: dict[str, SubscriptionPlan] = {
     "free": SubscriptionPlan(
         id="free", name="ATLAS Free", monthly_price=0, trial_days=0,
-        features=("Private account", "FxPro MT5 Demo or Real connection", "Read-only account telemetry", "Public market preview"),
+        features=("Private account", "FxPro MT5 Demo connection", "Read-only account telemetry", "Public market preview"),
     ),
     "starter": SubscriptionPlan(
         id="starter", name="ATLAS Starter", monthly_price=99, trial_days=0,
-        features=("Everything in Free", "Live Demo Executive simulation", "Alerts", "Extended analytics"),
+        features=("Everything in Free", "Verified real-account connection (read-only)", "Alerts", "Extended analytics"),
     ),
     "pro": SubscriptionPlan(
         id="pro", name="ATLAS Pro", monthly_price=149, trial_days=0,

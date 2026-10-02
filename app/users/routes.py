@@ -109,11 +109,11 @@ def user_chart_data(request: Request, symbol: str = "XAUUSD", interval: str = "1
 
 
 @router.get("/api/user/market-briefing")
-def user_market_briefing(request: Request) -> dict[str, Any]:
+def user_market_briefing(request: Request, language: str = "en") -> dict[str, Any]:
     user = require_user(request)
     if not (_is_owner(user) or paid_access(_repository().get_subscription(user.user_id))):
         raise HTTPException(status_code=403, detail="An active ATLAS subscription is required.")
-    return get_market_briefing()
+    return get_market_briefing(language="ar" if language.lower().startswith("ar") else "en")
 
 
 @router.get("/api/user/dashboard")
@@ -134,6 +134,18 @@ def user_dashboard(request: Request) -> dict[str, Any]:
             current_attacher(user.user_id)
         except MT5DemoError:
             pass
+    dashboard = mt5.get_dashboard_state(user.user_id)
+    session = session_getter(user.user_id) if callable(session_getter) else None
+    if owner and session and session.get("login") == 592031391 and session.get("server") == "FxPro-MT5 Demo":
+        # History archived on 2026-10-02 at 23:10:28 UTC; open positions stay visible.
+        history_start_ticket = 323402062
+        dashboard["recent_trades"] = [
+            trade for trade in dashboard.get("recent_trades", [])
+            if int(trade.get("time", 0) or 0) >= 1790880044
+            and int(trade.get("ticket", 0) or 0) >= history_start_ticket
+        ]
+        dashboard["history_start_ticket"] = history_start_ticket
+        dashboard["history_time_offset_seconds"] = 10800
     return {
         "user": {"user_id": user.user_id, "email": user.email, "role": "OWNER" if owner else "CUSTOMER"},
         "plan": "OWNER" if owner else str(subscription.get("plan", "FREE")).upper(),
@@ -141,6 +153,6 @@ def user_dashboard(request: Request) -> dict[str, Any]:
                      "trading_intelligence": owner or paid_access(subscription),
                      "demo_executive": owner or paid_access(subscription),
                      "execution_guard": owner or paid_access(subscription)},
-        "mt5": mt5.get_dashboard_state(user.user_id),
+        "mt5": dashboard,
         "execution_guard": execution_guard_service().status(user.user_id),
     }

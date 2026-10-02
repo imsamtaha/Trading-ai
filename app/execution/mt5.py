@@ -75,15 +75,13 @@ class MT5Broker:
                 "MetaTrader5 package is unavailable. Run ATLAS execution on Windows."
             )
 
-        initialized = mt5.initialize(self.config.terminal_path) if self.config.terminal_path else mt5.initialize()
+        credentials = {}
+        if self.config.login and self.config.password and self.config.server:
+            credentials = {"login": self.config.login, "password": self.config.password, "server": self.config.server}
+        initialized = (mt5.initialize(self.config.terminal_path, **credentials)
+                       if self.config.terminal_path else mt5.initialize(**credentials))
         if not initialized:
             raise MT5ExecutionError(f"MT5 initialize failed: {mt5.last_error()}")
-
-        if self.config.login and self.config.password and self.config.server:
-            if not mt5.login(self.config.login, password=self.config.password, server=self.config.server):
-                code = mt5.last_error()
-                mt5.shutdown()
-                raise MT5ExecutionError(f"MT5 login failed: {code}")
 
         account = mt5.account_info()
         if account is None:
