@@ -52,6 +52,8 @@ jobs:
       - name: Validate public website
         run: |
           node --check web/assets/site.js
+          node --check web/assets/atlas-news.js
+          node --test tests/test_atlas_news.cjs
           node --test tests/test_demo_model.cjs
           node --test tests/test_google_auth.mjs
           node --check web/assets/google-auth.js
