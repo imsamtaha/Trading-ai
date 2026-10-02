@@ -730,6 +730,39 @@ html{scroll-behavior:smooth}
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:10px;
 }
+.atlas-runtime-metrics-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+}
+.atlas-runtime-event-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:10px;
+}
+.atlas-runtime-event-grid span{
+  display:grid;
+  gap:4px;
+  padding:10px 12px;
+  border:1px solid var(--atlas-border);
+  border-radius:11px;
+  color:var(--atlas-muted);
+  font-size:.72rem;
+  background:rgba(255,255,255,.015);
+}
+.atlas-runtime-event-grid strong{
+  color:var(--atlas-text);
+  font-size:.76rem;
+  overflow-wrap:anywhere;
+}
+.atlas-runtime-signin{
+  grid-column:1/-1;
+  justify-self:start;
+  display:inline-flex;
+  width:auto;
+  margin-top:2px;
+}
 .atlas-runtime-info-item{
   padding:13px;
   border:1px solid var(--atlas-border);
@@ -819,6 +852,8 @@ html{scroll-behavior:smooth}
     min-height:70px;
   }
   .atlas-runtime-info-grid,
+  .atlas-runtime-metrics-grid,
+  .atlas-runtime-event-grid,
   .atlas-runtime-links{
     grid-template-columns:1fr;
   }

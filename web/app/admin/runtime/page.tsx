@@ -2,14 +2,33 @@
 import { useEffect, useRef, useState } from "react";
 import { atlasFetch, AtlasApiError } from "@/lib/api/client";
 import { apiPath } from "@/lib/api/config";
+type RuntimeAnalytics = {
+  page_views: number; unique_visitors: number; authenticated_traders: number; sign_ins: number; sign_outs: number;
+  last_visit_at?: string | null; last_sign_in_at?: string | null; last_sign_out_at?: string | null;
+};
 type RuntimeState = {
   backend: string; demo_execution: boolean; learned_council_enabled: boolean; live_execution: string; restart_supported: boolean; instance_id?: string;
+  started_at?: string; server_time?: string; uptime_seconds?: number; analytics?: RuntimeAnalytics;
 };
+function formatDuration(seconds: number) {
+  const safe = Math.max(0, Math.floor(seconds));
+  const days = Math.floor(safe / 86400);
+  const hours = Math.floor((safe % 86400) / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  return [days ? `${days}d` : "", hours ? `${hours}h` : "", `${minutes}m`, `${secs}s`].filter(Boolean).join(" ");
+}
+function formatTimestamp(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+}
 export default function RuntimePage() {
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Checking backend…");
   const [error, setError] = useState("");
+  const [clockTick, setClockTick] = useState(() => Date.now());
   const alive = useRef(true);
   const mutating = useRef(false);
   const checking = useRef(false);
@@ -49,7 +68,8 @@ export default function RuntimePage() {
     alive.current = true;
     void refresh();
     const interval = setInterval(() => { void refresh(); }, 5000);
-    return () => { alive.current = false; clearInterval(interval); controller.current?.abort(); };
+    const clock = setInterval(() => setClockTick(Date.now()), 1000);
+    return () => { alive.current = false; clearInterval(interval); clearInterval(clock); controller.current?.abort(); };
   }, []);
   async function change(action: "demo-execution" | "learned-council" | "restart") {
     if (!runtime || mutating.current || (action === "restart" && !runtime.instance_id)) return;
@@ -77,6 +97,10 @@ export default function RuntimePage() {
     } finally { mutating.current = false; if (alive.current) setBusy(false); }
   }
   const ownerReady = Boolean(runtime) && !error;
+  const calculatedUptime = runtime?.started_at
+    ? Math.max(0, Math.floor((clockTick - new Date(runtime.started_at).getTime()) / 1000))
+    : (runtime?.uptime_seconds ?? 0);
+  const analytics = runtime?.analytics;
   return <main className="atlas-runtime-page" lang="en">
     <section className="atlas-card atlas-runtime-box atlas-runtime-hero">
       <div>
@@ -93,6 +117,38 @@ export default function RuntimePage() {
       </div>
       <p className="atlas-runtime-message" role="status" aria-live="polite">{message}</p>
       {error && <p className="atlas-runtime-error" role="alert">{error}</p>}
+      {!ownerReady && <a className="atlas-primary-button atlas-runtime-signin" href="/login?returnTo=/admin/runtime">Owner sign-in</a>}
+    </section>
+
+    <section className="atlas-card atlas-runtime-box">
+      <div className="atlas-runtime-section-head">
+        <div><span className="atlas-runtime-kicker">CLOCK</span><h2>Runtime Clock</h2></div>
+        <span className="atlas-runtime-live-pill">{runtime?.backend ?? "OFFLINE"}</span>
+      </div>
+      <div className="atlas-runtime-info-grid">
+        <div className="atlas-runtime-info-item"><span>Web app started</span><strong>{formatTimestamp(runtime?.started_at)}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Server time</span><strong>{formatTimestamp(runtime?.server_time)}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Uptime</span><strong>{formatDuration(calculatedUptime)}</strong></div>
+      </div>
+    </section>
+
+    <section className="atlas-card atlas-runtime-box">
+      <div className="atlas-runtime-section-head">
+        <div><span className="atlas-runtime-kicker">ACTIVITY</span><h2>Visitors & Sign-ins</h2></div>
+        <span className="atlas-runtime-section-note">Privacy-safe counters</span>
+      </div>
+      <div className="atlas-runtime-metrics-grid">
+        <div className="atlas-runtime-info-item"><span>Page views</span><strong>{analytics?.page_views ?? 0}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Visitors</span><strong>{analytics?.unique_visitors ?? 0}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Traders</span><strong>{analytics?.authenticated_traders ?? 0}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Sign-ins</span><strong>{analytics?.sign_ins ?? 0}</strong></div>
+        <div className="atlas-runtime-info-item"><span>Sign-outs</span><strong>{analytics?.sign_outs ?? 0}</strong></div>
+      </div>
+      <div className="atlas-runtime-event-grid">
+        <span>Last visit <strong>{formatTimestamp(analytics?.last_visit_at)}</strong></span>
+        <span>Last sign-in <strong>{formatTimestamp(analytics?.last_sign_in_at)}</strong></span>
+        <span>Last sign-out <strong>{formatTimestamp(analytics?.last_sign_out_at)}</strong></span>
+      </div>
     </section>
 
     <section className="atlas-card atlas-runtime-box">
@@ -109,7 +165,7 @@ export default function RuntimePage() {
         </button>
         <button className="atlas-primary-button atlas-runtime-action" type="button"
           aria-label="Learned Demo council" aria-pressed={runtime?.learned_council_enabled ?? false}
-          disabled={busy || !runtime?.demo_execution} onClick={() => void change("learned-council")}>
+          disabled={busy || !runtime} onClick={() => void change("learned-council")}>
           <span>{runtime?.learned_council_enabled ? "Stop learned Demo council" : "Start learned Demo council"}</span>
           <small>Controls the scheduled council worker</small>
         </button>
@@ -152,7 +208,7 @@ export default function RuntimePage() {
     <section className="atlas-card atlas-runtime-box atlas-runtime-footer">
       <a href="/dashboard">Dashboard</a>
       <span>•</span>
-      <a href="/login">Owner sign-in</a>
+      <a href="/login?returnTo=/admin/runtime">Owner sign-in</a>
     </section>
   </main>;
 }

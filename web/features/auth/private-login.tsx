@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Script from "next/script";
-import { createBackendSession, startGoogleOAuth } from "./session";
+import { createBackendSession, safeReturnTo, startGoogleOAuth } from "./session";
 
 type AuthClient = {
   auth: {
@@ -22,6 +22,7 @@ type AuthWindow = Window & {
   } } };
 };
 export function PrivateLogin() {
+  const currentReturnTo = () => safeReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
@@ -60,7 +61,7 @@ export function PrivateLogin() {
           const token = result.data.session?.access_token;
           if (!token) throw new Error("Google sign-in did not create a session.");
           await createBackendSession(token);
-          window.location.assign("/dashboard");
+          window.location.assign(currentReturnTo());
         } catch { if (active) setStatus("Sign-in failed. Please try again."); }
       },
     });
@@ -75,7 +76,7 @@ export function PrivateLogin() {
       if (!active) return;
       const token = data.session?.access_token;
       if (token && (new URLSearchParams(window.location.search).has("code") || new URLSearchParams(window.location.search).get("auth") === "callback")) {
-        try { await createBackendSession(token); window.location.assign("/dashboard"); }
+        try { await createBackendSession(token); window.location.assign(currentReturnTo()); }
         catch { if (active) setStatus("Sign-in failed. Please try again."); }
       } else setSignedIn(Boolean(token));
     }).catch(() => { if (active) setStatus("Unable to restore sign-in."); });
@@ -85,7 +86,7 @@ export function PrivateLogin() {
     if (!clientRef.current || !config) return;
     setStatus("Redirecting to Google…");
     try {
-      const url = await startGoogleOAuth(clientRef.current.auth, window.location.origin, config.url);
+      const url = await startGoogleOAuth(clientRef.current.auth, window.location.origin, config.url, currentReturnTo());
       window.location.assign(url);
     } catch { setStatus("Google sign-in unavailable. Please try again."); }
   }
@@ -94,7 +95,8 @@ export function PrivateLogin() {
     const client = clientRef.current;
     if (!client) return;
     const email = String(new FormData(event.currentTarget).get("email") || "");
-    const result = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + "/?auth=callback" } });
+    const callback = new URL("/login", window.location.origin); callback.searchParams.set("auth", "callback"); callback.searchParams.set("returnTo", currentReturnTo());
+    const result = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: callback.href } });
     setStatus(result.error?.message ?? "Check your email for the sign-in link.");
   }
   async function signOut() {

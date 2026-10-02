@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBackendSession, startGoogleOAuth } from "@/features/auth/session";
+import { createBackendSession, safeReturnTo, startGoogleOAuth } from "@/features/auth/session";
 
 describe("private auth session", () => {
   it("exchanges a Supabase access token for an HttpOnly backend cookie", async () => {
@@ -10,10 +10,11 @@ describe("private auth session", () => {
       body: JSON.stringify({ access_token: "access-token" }),
     });
   });
-  it("starts Supabase Google OAuth with the existing root callback", async () => {
+  it("returns Google OAuth to the requested internal page", async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ data: { url: "https://example.supabase.co/auth/v1/authorize" }, error: null });
-    expect(await startGoogleOAuth({ signInWithOAuth }, "https://justai-atlas.online", "https://example.supabase.co")).toBe("https://example.supabase.co/auth/v1/authorize");
-    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "https://justai-atlas.online/?auth=callback" } });
+    expect(await startGoogleOAuth({ signInWithOAuth }, "https://justai-atlas.online", "https://example.supabase.co", "/admin/runtime")).toBe("https://example.supabase.co/auth/v1/authorize");
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "https://justai-atlas.online/login?auth=callback&returnTo=%2Fadmin%2Fruntime" } });
+    expect(safeReturnTo("https://evil.example")).toBe("/dashboard");
   });
   it("rejects an OAuth redirect outside the configured Supabase origin", async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ data: { url: "https://evil.example/auth/v1/authorize" }, error: null });
