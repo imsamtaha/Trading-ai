@@ -39,7 +39,7 @@ def test_stale_quotes_are_excluded_from_breadth(monkeypatch):
         {"available": True, "fresh": False, "change_percent": 9.0},
     ]
     monkeypatch.setattr(service, "market_board", lambda: board)
-    monkeypatch.setattr(service, "headlines", lambda: [])
+    monkeypatch.setattr(service, "headlines", lambda **kwargs: [])
 
     result = service.briefing()
     analysis = result["market_analysis"]
@@ -56,7 +56,7 @@ def test_all_stale_quotes_degrade_status_and_hide_breadth(monkeypatch):
     service = MarketBriefingService()
     board = [{"available": True, "fresh": False, "change_percent": 5.0}]
     monkeypatch.setattr(service, "market_board", lambda: board)
-    monkeypatch.setattr(service, "headlines", lambda: [])
+    monkeypatch.setattr(service, "headlines", lambda **kwargs: [])
 
     result = service.briefing()
 
@@ -64,3 +64,4 @@ def test_all_stale_quotes_degrade_status_and_hide_breadth(monkeypatch):
     assert result["market_analysis"]["breadth"] == "UNAVAILABLE"
     assert result["market_analysis"]["usable"] == 0
     assert result["market_analysis"]["stale"] == 1
+

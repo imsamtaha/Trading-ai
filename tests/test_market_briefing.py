@@ -5,6 +5,7 @@ from app.dashboard.market_briefing import MarketBriefingService
 
 class FakeResponse:
     def __init__(self, payload=None, content=b""):
+        self.status_code = 200
         self.payload = payload
         self.content = content
 
@@ -35,9 +36,9 @@ class FakeSession:
                     }
                 }
             )
-        return FakeResponse(
-            content=b"<rss><channel><item><title>Market headline</title><link>https://example.com/story</link><pubDate>Today</pubDate></item></channel></rss>"
-        )
+        from email.utils import format_datetime
+        link = 'https://www.bbc.com/arabic/articles/story' if 'bbci' in url else url.replace('/rss/press.html', '/press/story').replace('/feeds/press_monetary.xml', '/newsevents/story')
+        return FakeResponse(content=f"<rss><channel><item><title>Market headline</title><link>{link}</link><pubDate>{format_datetime(datetime.now(timezone.utc))}</pubDate></item></channel></rss>".encode())
 
 
 def test_briefing_keeps_market_context_separate_from_execution():
@@ -50,3 +51,4 @@ def test_briefing_keeps_market_context_separate_from_execution():
     assert data["headlines"][0]["title"] == "Market headline"
     assert data["market_analysis"]["execution"] == "DISABLED"
     assert "never used by the execution gate" in data["disclaimer"]
+

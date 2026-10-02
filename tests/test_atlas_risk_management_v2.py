@@ -68,3 +68,10 @@ def test_minimum_reward_risk_gate_is_preserved():
 
     assert result["approved"] is False
     assert result["reason"] == "Risk/reward is below the minimum 1.5:1."
+
+
+
+def test_risk_accepts_exact_reward_risk_boundary():
+    result = calculate_risk(direction="LONG", entry=1.1002, stop_loss=1.099,
+                            take_profit=1.102, account_balance=10000, risk_percent=0.25)
+    assert result["approved"] is True

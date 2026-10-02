@@ -18,6 +18,7 @@ from app.strategies.trade import create_trade_candidate
 from app.ai.analyst import analyze_market
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.execution.auto import AutoExecutionCoordinator
 from app.execution.live_gate import LiveAuthorizationError, authorize_live_order
 from app.execution.mt5_state import MT5CockpitAdapter
 from app.database.repository import get_account, get_trades
@@ -27,12 +28,13 @@ from app.subscription import router as subscription_router
 from app.billing import router as billing_router
 from app.dashboard.preferences import router as preferences_router
 from app.agent.api import router as agent_router
+from app.evolution.api import router as evolution_router, engine as evolution_engine
 
 
 app = FastAPI(
     title="ATLAS ULTIMATE",
     description="Unified multi-asset AI trading intelligence, decision support, and MT5 gateway",
-    version="1.7.0",
+    version="1.8.1",
 )
 
 app.include_router(dashboard_router)
@@ -40,6 +42,7 @@ app.include_router(subscription_router)
 app.include_router(billing_router)
 app.include_router(preferences_router)
 app.include_router(agent_router)
+app.include_router(evolution_router)
 app.include_router(website_router)
 
 
@@ -58,6 +61,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
+            "/evolution/status", "/runtime/status",
             "/docs", "/openapi.json",
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
@@ -121,7 +125,7 @@ def root():
         "system": "ATLAS ULTIMATE",
         "status": "online",
         "mode": mode,
-        "version": "1.7.0",
+        "version": "1.8.1",
         "main_ui": "/",
         "mt5_cockpit": "/mt5/cockpit-state",
         "market_briefing": "/dashboard/market-briefing",
@@ -129,12 +133,34 @@ def root():
         "right_hand": "/agent/right-hand/capabilities",
         "right_hand_chat": "/agent/right-hand/chat",
         "right_hand_tools": "/agent/right-hand/tools",
+        "evolution": "/evolution/status",
+        "runtime_status": "/runtime/status",
     }
 
 
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "atlas-ultimate-api"}
+
+
+@app.get("/runtime/status")
+def runtime_status():
+    auto = AutoExecutionCoordinator()
+    return {
+        "status": "online",
+        "version": "1.8.1",
+        "auto_execution": auto.status(),
+        "evolution": evolution_engine.status(),
+        "evolution_influences_decisions": False,
+        "pipeline": [
+            "atlas_decision",
+            "risk_manager",
+            "execution_gate",
+            "mt5",
+        ],
+    }
+
+
 
 
 @app.get("/market/{symbol}")
@@ -302,3 +328,4 @@ def performance(account_id: int):
         "metrics": metrics,
         "trades": trades,
     }
+

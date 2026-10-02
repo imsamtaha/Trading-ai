@@ -21,7 +21,8 @@ def website_asset(name: str):
     # Explicit public allowlist; never expose a source directory or .env.
     if name not in {
         "site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
-        "atlas-brand.css", "atlas-main-logo.svg",
+        "atlas-brand.css", "atlas-main-logo.svg", "atlas-news.js",
     }:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(WEB_ROOT / "assets" / name)
+

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 try:
     import MetaTrader5 as mt5
@@ -150,8 +150,8 @@ def chart_data(symbol: str = "XAUUSD", interval: str = "15m", limit: int = 120) 
 
 
 @router.get("/market-briefing")
-def market_briefing() -> dict[str, Any]:
-    return get_market_briefing()
+def market_briefing(language: Literal["ar", "en"] = "ar") -> dict[str, Any]:
+    return get_market_briefing(language=language)
 
 
 @router.get("/state")
@@ -262,3 +262,4 @@ def atlas_dashboard_state() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc))
     finally:
         broker.disconnect()
+
