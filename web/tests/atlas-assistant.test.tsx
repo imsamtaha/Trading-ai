@@ -15,6 +15,13 @@ describe("AtlasAssistant", () => {
     fireEvent.click(screen.getByRole("button", { name: "إرسال" }));
     expect(screen.getByRole("button", { name: "جارٍ الإرسال…" })).toBeDisabled();
     expect(await screen.findByText("Risk is within configured limits.")).toBeInTheDocument();
+    expect(screen.getByLabelText("اسأل ATLAS")).toHaveValue("");
+  });
+  it("keeps ATLAS AI inside the assistant heading in both languages", () => {
+    const { rerender } = render(<AtlasAssistant sendMessage={vi.fn()} language="ar" />);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("ATLAS AI");
+    rerender(<AtlasAssistant sendMessage={vi.fn()} language="en" />);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("ATLAS AI");
   });
   it("shows failure and preserves the prompt", async () => {
     const send = vi.fn().mockRejectedValue(new Error("offline"));

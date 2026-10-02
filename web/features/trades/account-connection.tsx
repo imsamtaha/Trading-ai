@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { atlasFetch } from "@/lib/api/client";
 import { apiPath } from "@/lib/api/config";
 
@@ -13,8 +13,22 @@ export function AccountConnection({ onConnected, language = "ar" }: { onConnecte
   const [server, setServer] = useState("FxPro-MT5 Demo");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [liveEligible, setLiveEligible] = useState(false);
+  useEffect(() => {
+    let active = true;
+    atlasFetch<{ user: { role?: string }; subscription?: { plan?: string; status?: string; expires_at?: string; billing_reference?: string } }>(apiPath("/api/me"), { credentials: "same-origin" })
+      .then(({ user, subscription }) => {
+        if (!active) return;
+        const paid = subscription?.status === "ACTIVE" && ["STARTER", "PRO", "ELITE"].includes((subscription.plan || "").toUpperCase())
+          && (subscription.billing_reference || "").startsWith("ATLAS-") && Date.parse(subscription.expires_at || "") > Date.now();
+        setLiveEligible(user.role === "OWNER" || paid);
+      }).catch(() => { if (active) setLiveEligible(false); });
+    return () => { active = false; };
+  }, []);
   async function connect(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setStatus("");
+    event.preventDefault();
+    if (type === "REAL" && !liveEligible) { setStatus(ar ? "الحساب الحقيقي يتطلب اشتراكاً مؤكداً وسارياً." : "A verified active subscription is required for a live account."); return; }
+    setBusy(true); setStatus("");
     try {
       await atlasFetch(apiPath(type === "REAL" ? "/api/mt5-demo/connect-real" : "/api/mt5-demo/connect"), {
         method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
@@ -34,7 +48,8 @@ export function AccountConnection({ onConnected, language = "ar" }: { onConnecte
       <label>{ar ? "رقم MT5" : "MT5 login"}<input aria-label={ar ? "رقم MT5" : "MT5 login"} type="number" inputMode="numeric" required value={login} onChange={(e) => setLogin(e.target.value)} placeholder={ar ? "أدخل رقم MT5" : "Enter MT5 login"} /></label>
       <label>{ar ? "كلمة المرور" : "MT5 password"}<input aria-label={ar ? "كلمة المرور" : "MT5 password"} type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={ar ? "أدخل كلمة المرور" : "Enter password"} /></label>
       <label>{ar ? "الخادم" : "MT5 server"}<input aria-label={ar ? "الخادم" : "MT5 server"} required value={server} onChange={(e) => setServer(e.target.value)} placeholder="FxPro-MT5 Demo" /></label>
-      <button className="atlas-primary-button atlas-connect-button" type="submit" disabled={busy}>{busy ? (ar ? "جارٍ الربط…" : "Connecting…") : (ar ? "ربط MT5" : "Connect MT5")}</button>
+      {type === "REAL" && !liveEligible && <p><a href="/subscribe">{ar ? "راجع خطط الاشتراك واطلب التفعيل" : "View subscription plans and request activation"}</a></p>}
+      <button className="atlas-primary-button atlas-connect-button" type="submit" disabled={busy || (type === "REAL" && !liveEligible)}>{busy ? (ar ? "جارٍ الربط…" : "Connecting…") : (ar ? "ربط MT5" : "Connect MT5")}</button>
     </form>
     {status && <p role="status" className="atlas-connect-status">{status}</p>}
   </section>;

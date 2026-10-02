@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { OfflineReady } from "./offline-ready";
+import { VisitTracker } from "./visit-tracker";
 
 export const metadata: Metadata = {
   title: "ATLAS THE ULTIMATE",
@@ -9,7 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><OfflineReady /><VisitTracker />{children}</body>
     </html>
   );
 }

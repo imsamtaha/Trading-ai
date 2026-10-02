@@ -9,10 +9,14 @@ function SectorIcon({ kind }: { kind: SectorKind }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>;
 }
 
-export function SectorHeader({ title, kind }: { title: string; kind: SectorKind }) {
-  return <div className="atlas-reference-header">
+export function SectorHeader({ title, titleAr, kind, language = "en" }: { title: string; titleAr?: string; kind: SectorKind; language?: "ar" | "en" }) {
+  const ar = language === "ar";
+  const label = ar ? (titleAr ?? title) : title;
+  return <div className={`atlas-reference-header atlas-reference-header--${language}`}>
     <span className={`atlas-sector-icon atlas-sector-icon--${kind}`}><SectorIcon kind={kind} /></span>
-    <div className="atlas-reference-title"><AgentBadge /><h2>{title}</h2></div>
+    <div className="atlas-reference-title" dir={ar ? "rtl" : "ltr"}>
+      {ar ? <><h2>{label}</h2><AgentBadge /></> : <><AgentBadge /><h2>{label}</h2></>}
+    </div>
     <span className="atlas-sector-chevron" aria-hidden="true">›</span>
   </div>;
 }
