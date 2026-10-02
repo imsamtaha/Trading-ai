@@ -294,6 +294,9 @@ html{scroll-behavior:smooth}
 .atlas-ai-featured{width:100%}
 .atlas-ai-featured .atlas-assistant{padding:20px;border-color:rgba(255,116,23,.3);background:radial-gradient(circle at 92% 8%,rgba(255,116,23,.12),transparent 28%),linear-gradient(145deg,rgba(20,25,33,.98),rgba(10,13,18,.98))}
 .atlas-assistant-logo{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 0 18px rgba(255,116,23,.22))}
+.atlas-assistant-head > div{min-width:0}
+.atlas-dashboard .atlas-assistant-title{flex-wrap:wrap;gap:.4rem;max-width:100%;font-size:clamp(.9rem,3.4vw,1.3rem)}
+.atlas-assistant-name{font-size:.75em;letter-spacing:.08em;white-space:nowrap}
 .atlas-workspace-grid--two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .atlas-bottom-actions--four{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .atlas-bottom-actions--four a{min-width:0;padding:8px 6px;text-align:center;font-size:.82rem;transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease}
