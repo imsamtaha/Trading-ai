@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_FLOOR
 from dataclasses import dataclass
 from typing import Any
+from app.execution.portfolio_lock import portfolio_lock, ExecutionBusy
+from app.execution.submission_journal import SubmissionJournal, SubmissionJournalError
 
 try:
     import MetaTrader5 as mt5
@@ -263,8 +265,13 @@ class MT5Broker:
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         deals = mt5.history_deals_get(start, now)
         positions = mt5.positions_get()
-        if deals is None or positions is None:
+        orders = mt5.orders_get()
+        if deals is None or positions is None or orders is None:
             raise MT5ExecutionError("MT5 portfolio/history unavailable; execution refused.")
+        if orders:
+            # Pending orders can add exposure at any time. Their unfilled risk
+            # is not part of this calculator, so refuse automatic sizing.
+            raise MT5ExecutionError("Pending orders exist; automatic portfolio risk is unresolved.")
         trading_types = {mt5.DEAL_TYPE_BUY, mt5.DEAL_TYPE_SELL}
         for name in ("DEAL_TYPE_CHARGE", "DEAL_TYPE_COMMISSION", "DEAL_TYPE_COMMISSION_DAILY",
                      "DEAL_TYPE_COMMISSION_MONTHLY", "DEAL_TYPE_COMMISSION_AGENT_DAILY",
@@ -308,7 +315,14 @@ class MT5Broker:
         return {**identity, "equity": equity, "daily_realized_pnl": pnl,
                 "daily_start_capital": daily_start_capital,
                 "open_risk_percent": open_cash_risk / equity * 100.0,
-                "positions": symbols, "timestamp": collected_at}
+                "positions": symbols, "position_fingerprint": self.position_fingerprint(positions),
+                "timestamp": collected_at}
+
+    @staticmethod
+    def position_fingerprint(positions):
+        # Fields affecting exposure, independent of floating P&L/quotes.
+        return sorted((str(p.symbol), int(p.type), float(p.volume), float(p.sl),
+                       int(getattr(p, 'ticket', 0))) for p in positions)
 
     def volume_for_risk(self, symbol: str, entry: float, stop_loss: float, risk_amount: float) -> float:
         self.ensure_connected()
@@ -347,7 +361,22 @@ class MT5Broker:
                 return int(candidate)
         return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
 
-    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, max_cash_risk: float | None = None, expected_entry: float | None = None, max_entry_deviation: float | None = None, expected_account: dict | None = None) -> dict[str, Any]:
+    def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, max_cash_risk: float | None = None, expected_entry: float | None = None, max_entry_deviation: float | None = None, expected_account: dict | None = None, one_position_per_symbol: bool | None = None, expected_position_fingerprint: list | None = None) -> dict[str, Any]:
+        try:
+            with portfolio_lock():
+                return self._market_order_locked(symbol, direction, volume, stop_loss, take_profit, comment,
+                    max_cash_risk=max_cash_risk, expected_entry=expected_entry,
+                    max_entry_deviation=max_entry_deviation, expected_account=expected_account,
+                    one_position_per_symbol=one_position_per_symbol,
+                    expected_position_fingerprint=expected_position_fingerprint)
+        except (ExecutionBusy, OSError) as exc:
+            raise MT5ExecutionError('Execution busy; no order submitted.') from exc
+        except SubmissionJournalError as exc:
+            raise MT5ExecutionError(str(exc)) from exc
+
+    def _market_order_locked(self, symbol, direction, volume, stop_loss, take_profit, comment, *,
+                             max_cash_risk, expected_entry, max_entry_deviation, expected_account,
+                             one_position_per_symbol, expected_position_fingerprint):
         self.ensure_connected()
         direction = direction.upper()
         if direction not in {"LONG", "SHORT", "BUY", "SELL"}:
@@ -406,15 +435,127 @@ class MT5Broker:
         account = self._validate_account(target) if target is not None else mt5.account_info()
         if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
-        result = mt5.order_send(request)
-        if result is None:
-            raise MT5ExecutionError(f"MT5 order_send returned None: {mt5.last_error()}")
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            raise MT5ExecutionError(f"MT5 order rejected: retcode={result.retcode}, comment={result.comment}")
-        return {"status": "FILLED", "ticket": int(result.order), "deal": int(result.deal), "symbol": symbol, "side": side, "volume": float(result.volume), "price": float(result.price), "sl": stop_loss, "tp": take_profit, "comment": str(result.comment)}
+        identity = self.account_identity(account)
+        guard_symbol = (os.getenv('ATLAS_ONE_POSITION_PER_SYMBOL', 'true').lower() == 'true'
+                        if one_position_per_symbol is None else one_position_per_symbol)
+        journal = SubmissionJournal()
+        if journal.status(identity)['blocked']:
+            raise MT5ExecutionError('Unresolved MT5 submission; reconcile before further execution.')
+        identifier, request = journal.begin(identity, request)
+        # Keep these reads at the last boundary. No pricing/sizing work follows.
+        # External terminals still cannot be locked by this local process.
+        try:
+            positions = mt5.positions_get()
+            orders = mt5.orders_get()
+            if positions is None or orders is None:
+                raise MT5ExecutionError('Final portfolio unavailable; execution refused.')
+            if (expected_position_fingerprint is not None
+                    and self.position_fingerprint(positions) != expected_position_fingerprint):
+                raise MT5ExecutionError('Portfolio exposure changed after risk approval.')
+            if guard_symbol and any(p.symbol == symbol for p in positions):
+                raise MT5ExecutionError('Position already open at final submission boundary.')
+            if any(o.symbol == symbol for o in orders) or (max_cash_risk is not None and orders):
+                raise MT5ExecutionError('Pending order exposure at final submission boundary.')
+            self._validate_account(identity)
+        except MT5ExecutionError:
+            # No delivery took place. Retain a NOT_SENT audit record.
+            journal.cancel_before_send(identifier)
+            raise
+        result = self._send_reserved(journal, identifier, request)
+        return {"status": "FILLED", "ticket": int(result.order), "deal": int(result.deal), "symbol": symbol, "side": side, "volume": float(result.volume), "price": float(result.price), "sl": stop_loss, "tp": take_profit, "comment": str(result.comment), "submission_id": identifier}
+
+    def _send_reserved(self, journal, identifier, request):
+        try:
+            result = mt5.order_send(request)
+            if (result is None or result.retcode != mt5.TRADE_RETCODE_DONE
+                    or not math.isfinite(float(result.volume))
+                    or not math.isclose(float(result.volume), request['volume'], rel_tol=0, abs_tol=1e-10)):
+                raise MT5ExecutionError(f'Uncertain MT5 delivery: retcode={getattr(result, "retcode", None)}, '
+                                        f'order={getattr(result, "order", None)}, deal={getattr(result, "deal", None)}, '
+                                        f'volume={getattr(result, "volume", None)}; reconcile before retrying.')
+            ticket, deal = int(result.order), int(result.deal)
+            if ticket <= 0 or deal <= 0:
+                raise MT5ExecutionError('Uncertain MT5 fill identity; reconcile before retrying.')
+            self._positive(result.price, 'Filled price')
+        except Exception as exc:
+            # Includes transport errors and partial fills. Even an exception
+            # cannot prove that the broker did not receive the request.
+            journal.finish(identifier, 'UNCERTAIN', detail=str(exc))
+            raise MT5ExecutionError('Uncertain MT5 delivery; account blocked pending reconciliation.') from exc
+        journal.finish(identifier, 'FILLED', ticket=ticket, deal=deal)
+        return result
+
+    def submission_status(self):
+        self.ensure_connected()
+        try:
+            return SubmissionJournal().status(self.account_identity(mt5.account_info()))
+        except SubmissionJournalError as exc:
+            raise MT5ExecutionError(str(exc)) from exc
+
+    def reconcile_submissions(self):
+        """Read broker evidence; never resend, and never infer rejection from absence."""
+        self.ensure_connected()
+        try:
+            with portfolio_lock():
+                identity = self.account_identity(mt5.account_info())
+                journal = SubmissionJournal()
+                report = journal.status(identity)
+                for row in report['attempts']:
+                    if row['state'] not in {'SUBMITTING', 'UNCERTAIN'}:
+                        continue
+                    start = datetime.fromtimestamp(row['created_at'] - 60, timezone.utc)
+                    deals = mt5.history_deals_get(start, datetime.now(timezone.utc))
+                    orders = mt5.orders_get()
+                    if deals is None or orders is None:
+                        raise MT5ExecutionError('Reconciliation history/orders unavailable.')
+                    request = row['request']
+                    entry_type = mt5.DEAL_ENTRY_OUT if 'position' in request else mt5.DEAL_ENTRY_IN
+                    matching = [d for d in deals if d.comment == request['comment']
+                                and d.symbol == row['symbol'] and d.magic == request['magic']
+                                and d.type == request['type'] and d.entry == entry_type
+                                and ('position' not in request or d.position_id == row['position_identifier'])]
+                    if any(o.comment == request['comment'] for o in orders):
+                        continue
+                    # Full fills only. Partial fills, altered comments and
+                    # empty history remain blocked for owner investigation.
+                    if (matching and len({d.ticket for d in matching}) == len(matching)
+                            and len({d.order for d in matching}) == 1
+                            and all(int(d.ticket) > 0 and int(d.order) > 0 for d in matching)
+                            and all(math.isfinite(float(d.volume)) and d.volume > 0 for d in matching)
+                            and math.isclose(sum(d.volume for d in matching), row['requested_volume'],
+                                             rel_tol=0, abs_tol=1e-10)):
+                        completed = mt5.history_orders_get(ticket=int(matching[0].order))
+                        if completed is None:
+                            raise MT5ExecutionError('Completed broker order history unavailable.')
+                        if len(completed) != 1:
+                            continue
+                        order = completed[0]
+                        if not (order.ticket == matching[0].order and order.state == mt5.ORDER_STATE_FILLED
+                                and order.symbol == row['symbol'] and order.type == request['type']
+                                and order.magic == request['magic'] and order.comment == request['comment']
+                                and math.isclose(order.volume_initial, row['requested_volume'], rel_tol=0, abs_tol=1e-10)
+                                and order.volume_current == 0):
+                            continue
+                        self._validate_account(identity)
+                        journal.finish(row['id'], 'FILLED', ticket=int(matching[0].order),
+                                       deal=int(matching[0].ticket), detail='Reconciled from exact deals and completed order.')
+                self._validate_account(identity)
+                return journal.status(identity)
+        except (ExecutionBusy, OSError, SubmissionJournalError) as exc:
+            raise MT5ExecutionError('Submission reconciliation unavailable: ' + str(exc)) from exc
 
     def close_position(self, ticket: int) -> dict[str, Any]:
+        try:
+            with portfolio_lock():
+                return self._close_position_locked(ticket)
+        except (ExecutionBusy, OSError, SubmissionJournalError) as exc:
+            raise MT5ExecutionError(str(exc)) from exc
+
+    def _close_position_locked(self, ticket):
         self.ensure_connected()
+        account = (self._validate_account(self._connected_account)
+                   if self._connected_account is not None else mt5.account_info())
+        identity = self.account_identity(account)
         raw = mt5.positions_get(ticket=ticket)
         if not raw:
             raise MT5ExecutionError(f"Position not found: {ticket}")
@@ -426,12 +567,13 @@ class MT5Broker:
         if info is None:
             raise MT5ExecutionError(f"Unknown symbol: {position.symbol}")
         close_type = mt5.ORDER_TYPE_SELL if position.type == mt5.POSITION_TYPE_BUY else mt5.ORDER_TYPE_BUY
-        price = float(tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask)
+        self._require_fresh_quote({'time': getattr(tick, 'time', 0), 'time_msc': getattr(tick, 'time_msc', 0)})
+        price = self._positive(tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask, 'Close price')
         price = round(price, int(info.digits))
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": position.symbol,
-            "volume": float(position.volume),
+            "volume": self._positive(position.volume, 'Close volume'),
             "type": close_type,
             "position": int(position.ticket),
             "price": price,
@@ -443,9 +585,19 @@ class MT5Broker:
         }
         if self.config.dry_run:
             return {"status": "DRY_RUN_CLOSE", "ticket": ticket, "symbol": position.symbol, "price": price}
-        result = mt5.order_send(request)
-        if result is None or result.retcode != mt5.TRADE_RETCODE_DONE:
-            detail = mt5.last_error() if result is None else f"{result.retcode}: {result.comment}"
-            raise MT5ExecutionError(f"MT5 close rejected: {detail}")
-        return {"status": "CLOSED", "ticket": ticket, "deal": int(result.deal), "price": float(result.price)}
-
+        journal = SubmissionJournal()
+        identifier, request = journal.begin(identity, request, position_identifier=int(position.identifier))
+        try:
+            latest = mt5.positions_get(ticket=ticket)
+            if (latest is None or len(latest) != 1
+                    or self.position_fingerprint(latest) != self.position_fingerprint(raw)):
+                raise MT5ExecutionError('Position changed before close submission.')
+            current = self._validate_account(identity)
+            if not bool(current.trade_allowed):
+                raise MT5ExecutionError('MT5 account does not allow trading.')
+        except MT5ExecutionError:
+            journal.cancel_before_send(identifier)
+            raise
+        result = self._send_reserved(journal, identifier, request)
+        return {"status": "CLOSED", "ticket": ticket, "deal": int(result.deal), "price": float(result.price),
+                "submission_id": identifier}

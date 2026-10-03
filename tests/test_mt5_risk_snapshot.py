@@ -25,6 +25,7 @@ def terminal(monkeypatch):
         TRADE_ACTION_DEAL=1, ORDER_TIME_GTC=0, ORDER_FILLING_IOC=1,
         DEAL_TYPE_BUY=0, DEAL_TYPE_SELL=1,
         account_info=lambda: state.account, positions_get=lambda **kwargs: state.positions,
+        orders_get=lambda **kwargs: [],
         history_deals_get=history,
         symbol_info_tick=lambda symbol: SimpleNamespace(bid=1.1, ask=1.1002, time=int(now), time_msc=int(now*1000)),
         order_calc_profit=lambda side, symbol, volume, entry, stop: ((stop-entry) if side==0 else (entry-stop))*100000*volume,

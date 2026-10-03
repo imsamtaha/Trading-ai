@@ -53,6 +53,8 @@ class AtlasExecutionService:
         take_profit: float,
         *, max_cash_risk: float | None = None, expected_entry: float | None = None,
         max_entry_deviation: float | None = None, expected_account: dict | None = None,
+        one_position_per_symbol: bool | None = None,
+        expected_position_fingerprint: list | None = None,
     ) -> dict[str, Any]:
         approved, reason = self.gate(decision)
         if not approved:
@@ -70,6 +72,10 @@ class AtlasExecutionService:
             bounds.update(expected_entry=expected_entry, max_entry_deviation=max_entry_deviation)
         if expected_account is not None:
             bounds["expected_account"] = expected_account
+        if one_position_per_symbol is not None:
+            bounds["one_position_per_symbol"] = one_position_per_symbol
+        if expected_position_fingerprint is not None:
+            bounds["expected_position_fingerprint"] = expected_position_fingerprint
         return self.broker.market_order(
             symbol=symbol,
             direction=str(decision["decision"]),
@@ -87,4 +93,3 @@ class AtlasExecutionService:
             "max_risk_level": self.policy.max_risk_level,
             "mt5_dry_run": self.broker.config.dry_run,
         }
-

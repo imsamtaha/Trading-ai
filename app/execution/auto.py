@@ -180,6 +180,8 @@ class AutoExecutionCoordinator:
                 take_profit=take_profit, max_cash_risk=risk_amount,
                 expected_entry=source_entry, max_entry_deviation=allowed_drift,
                 expected_account=expected_account,
+                one_position_per_symbol=self.config.one_position_per_symbol,
+                expected_position_fingerprint=portfolio['position_fingerprint'],
             )
             return {**result, "risk": risk, "volume": volume, "entry": entry, "auto_execution": True}
         except (MT5ExecutionError, ValueError, TypeError, KeyError) as exc:
