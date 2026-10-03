@@ -16,7 +16,7 @@ class FakeBroker:
 
     def risk_snapshot(self):
         return {"login":123,"server":"Test","trade_mode":0,"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": 0.0, "open_risk_percent": 0.0,
-                "positions": self._positions, "timestamp": time.time()}
+                "positions": self._positions, "position_fingerprint": [], "timestamp": time.time()}
 
     def quote(self, symbol):
         return {"bid": 1.1000, "ask": 1.1002, "point": 0.00001, "time": int(time.time())}
@@ -168,7 +168,7 @@ class PortfolioBroker(FakeBroker):
         if self.snapshot_error:
             raise MT5ExecutionError("History unavailable")
         return {"login":123,"server":"Test","trade_mode":0,"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": self.daily_pnl,
-                "open_risk_percent": self.open_risk, "positions": [], "timestamp": time.time()}
+                "open_risk_percent": self.open_risk, "positions": [], "position_fingerprint": [], "timestamp": time.time()}
 
     def quote(self, symbol):
         return {"bid": self.quote_entry - 0.0002, "ask": self.quote_entry,

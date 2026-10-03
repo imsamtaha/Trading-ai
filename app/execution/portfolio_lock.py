@@ -2,7 +2,7 @@
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import gettempdir
-from threading import Lock
+from threading import RLock, local
 import os
 
 
@@ -10,7 +10,8 @@ class ExecutionBusy(RuntimeError):
     pass
 
 
-_THREAD_LOCK = Lock()
+_THREAD_LOCK = RLock()
+_LOCAL = local()
 # Same user/host MT5 sessions share this path across checkouts and symbols.
 _LOCK_PATH = Path(gettempdir()) / 'atlas-mt5-portfolio.lock'
 
@@ -19,6 +20,14 @@ _LOCK_PATH = Path(gettempdir()) / 'atlas-mt5-portfolio.lock'
 def portfolio_lock():
     if not _THREAD_LOCK.acquire(blocking=False):
         raise ExecutionBusy('Another automatic execution is in progress.')
+    # The coordinator holds this lock while sizing; the broker also takes it
+    # for manual/service callers. Reentrant entry must retain the OS lock.
+    if getattr(_LOCAL, 'held', False):
+        try:
+            yield
+        finally:
+            _THREAD_LOCK.release()
+        return
     handle = None
     acquired = False
     try:
@@ -37,8 +46,10 @@ def portfolio_lock():
             acquired = True
         except OSError as exc:
             raise ExecutionBusy('Automatic execution lock unavailable.') from exc
+        _LOCAL.held = True
         yield
     finally:
+        _LOCAL.held = False
         if handle is not None:
             try:
                 if acquired:
