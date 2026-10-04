@@ -5,6 +5,19 @@ const story = {title:'Rates unchanged',title_en:'Rates unchanged',title_ar:'ال
  url:'https://www.ecb.europa.eu/press/story',source:'ECB',source_ar:'البنك المركزي الأوروبي',
  published_at:'2026-10-02T13:00:00+00:00',translation_status:'TRANSLATED',freshness:'FRESH'};
 
+test('market routing labels follow display language and reject unknown markup',()=>{
+ const target={};
+ const routed={...story,routing:{category:'COMMODITIES',agent:'commodities_analyst'}};
+ news.render(target,[routed],'ar');
+ assert.ok(target.innerHTML.includes('السلع'));
+ news.render(target,[routed],'en');
+ assert.ok(target.innerHTML.includes('Commodities'));
+ news.render(target,[{...story,routing:{category:'<script>unsafe</script>'}}],'ar');
+ assert.ok(!target.innerHTML.includes('unsafe'));
+ news.render(target,[story],'en');
+ assert.ok(target.innerHTML.includes('Rates unchanged'));
+});
+
 test('news replaces previous content with at most three rows',()=>{
  const target = {innerHTML:'old headlines'};
  news.render(target,Array(8).fill(story),'ar');
