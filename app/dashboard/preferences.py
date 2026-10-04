@@ -10,6 +10,14 @@ def preferences_script():
 SCRIPT = r"""
 (()=>{
 const translations={
+ 'Risk':'المخاطر','LOW':'منخفض','MEDIUM':'متوسط','HIGH':'مرتفع','EXTREME':'شديد جداً',
+ 'PASSED':'مقبول','REJECTED':'مرفوض','BLOCKED':'محظور','N/A':'غير متوفر',
+ 'Risk: PASSED':'المخاطر: مقبول','Risk: BLOCKED':'المخاطر: محظور',
+ 'Risk: REJECTED':'المخاطر: مرفوض','Stop Loss':'وقف الخسارة','Take Profit':'جني الأرباح',
+ 'Risk Percent':'نسبة المخاطرة','Daily Loss':'الخسارة اليومية','Open Risk':'المخاطر المفتوحة',
+ 'Decision':'القرار','Confidence':'درجة الثقة','Trend':'الاتجاه','Analyze':'تحليل','Analyzing…':'جارٍ التحليل…',
+ 'AI Chart':'الرسم البياني الذكي','ATLAS Agent · Market Analysis':'ATLAS · تحليل السوق',
+ 'DEMO_BROKER':'تنفيذ على حساب تجريبي','DEMO_SIMULATED':'تجريبي محاكى',
  'JUST AI · Unified Trading Intelligence':'JUST AI · منظومة متكاملة لذكاء الأسواق',
  'Markets':'الأسواق','Reader plans':'خطط الاشتراك','Plans':'خطط الاشتراك','Refresh All':'تحديث الكل','Refresh':'تحديث','Refreshing…':'جارٍ التحديث…','Updated':'آخر تحديث',
  'CONNECTING':'جارٍ الاتصال','OFFLINE':'غير متصل','ONLINE':'متصل','VERIFIED LIVE':'حساب حقيقي موثّق',

@@ -43,6 +43,10 @@ HUB_HEADER = r"""
     <a class="atlas-3d" href="#hub-overview" data-hub-en="Overview" data-hub-ar="الرئيسية">Overview</a>
     <a class="atlas-3d" href="#hub-account" data-hub-en="Account" data-hub-ar="الحساب">Account</a>
     <a class="atlas-3d" href="#hub-markets" data-hub-en="Markets & News" data-hub-ar="الأسواق والأخبار">Markets & News</a>
+    <a class="atlas-3d" href="#atlas-agent-panel" data-hub-en="Analysis & Risk" data-hub-ar="التحليل والمخاطر">Analysis & Risk</a>
+    <a class="atlas-3d" href="#atlas-chart-panel" data-hub-en="Chart" data-hub-ar="الرسم البياني">Chart</a>
+    <a class="atlas-3d" href="#atlas-chat-panel" data-hub-en="ATLAS AI" data-hub-ar="أطلس الذكي">ATLAS AI</a>
+    <a class="atlas-3d" href="#active-setups" data-hub-en="Setups" data-hub-ar="فرص التداول">Setups</a>
     <a class="atlas-3d" href="#demo-session" data-hub-en="Live Demo" data-hub-ar="تجريبي مباشر">Live Demo</a>
     <a class="atlas-3d" href="#plans" data-hub-en="Plans" data-hub-ar="الاشتراكات">Plans</a>
   </nav>
@@ -71,3 +75,4 @@ def enhance_atlas_html(html: str) -> str:
     html = html.replace("</head>", HUB_STYLE + "</head>")
     html = html.replace("<body>", "<body>" + HUB_HEADER, 1)
     return html.replace("</body>", HUB_SCRIPT + "</body>")
+

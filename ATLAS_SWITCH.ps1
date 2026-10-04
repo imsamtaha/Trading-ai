@@ -1,8 +1,10 @@
 param(
-  [ValidateSet("STATUS","OFF","DASHBOARD","DEMO")]
+  [ValidateSet("STATUS","OFF","DASHBOARD","DEMO","DEMO_TRADE")]
   [string]$Mode = "STATUS",
   [string]$Symbol = "EURUSD",
-  [switch]$Evolution
+  [switch]$Evolution,
+  [ValidateRange(1,15)][int]$DailyTrades = 15,
+  [ValidateRange(1,5)][int]$OpenPositions = 5
 )
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -61,11 +63,18 @@ function Start-Dashboard {
   )
 }
 
+function Start-DemoWorker {
+  Start-Process -FilePath $Python -WorkingDirectory $Root -ArgumentList @(
+    "scripts/atlas_auto_execution.py", "--demo-only", "--forever", "--symbol", $Symbol
+  )
+}
+
 if ($Mode -eq "STATUS") {
   $names = @(
     "ATLAS_DASHBOARD_ONLY","ATLAS_LIVE_DEMO","ATLAS_LIVE_TRADING",
     "ATLAS_AUTO_EXECUTION_ENABLED","ATLAS_EVOLUTION_WRITES_ENABLED",
-    "MT5_REQUIRE_DEMO","MT5_USE_ACTIVE_SESSION"
+    "MT5_REQUIRE_DEMO","MT5_USE_ACTIVE_SESSION",
+    "ATLAS_DEMO_MAX_DAILY_ENTRIES","ATLAS_DEMO_MAX_OPEN_POSITIONS"
   )
   foreach ($name in $names) {
     $line = if (Test-Path $EnvFile) { Get-Content $EnvFile | Where-Object { $_ -match "^$name=" } | Select-Object -Last 1 } else { $null }
@@ -104,6 +113,22 @@ if ($Mode -eq "DASHBOARD") {
 }
 
 $mt5Mode = Get-MT5Mode
+if ($Mode -eq "DEMO_TRADE") {
+  if ($mt5Mode -ne 0) { throw "DEMO_TRADE refused: active MT5 account is not Demo." }
+  Set-EnvValue "ATLAS_EVOLUTION_WRITES_ENABLED" "false"
+  Set-EnvValue "MT5_REQUIRE_DEMO" "true"
+  Set-EnvValue "MT5_USE_ACTIVE_SESSION" "true"
+  Set-EnvValue "ATLAS_LIVE_DEMO" "true"
+  Set-EnvValue "ATLAS_DEMO_MAX_DAILY_ENTRIES" "$DailyTrades"
+  Set-EnvValue "ATLAS_DEMO_MAX_OPEN_POSITIONS" "$OpenPositions"
+  # This flag enables broker delivery; MT5_REQUIRE_DEMO and --demo-only restrict it to demo.
+  Set-EnvValue "ATLAS_LIVE_TRADING" "true"
+  Set-EnvValue "ATLAS_AUTO_EXECUTION_ENABLED" "true"
+  Start-Dashboard
+  Start-DemoWorker
+  Write-Host "ATLAS broker demo worker launched. Limits: $DailyTrades daily entries, $OpenPositions open positions. Valid analytical context remains required."
+  exit 0
+}
 if ($Mode -eq "DEMO") {
   Set-EnvValue "ATLAS_EVOLUTION_WRITES_ENABLED" "false"
   if ($mt5Mode -ne 0) { throw "DEMO refused: active MT5 account is not Demo." }
@@ -116,4 +141,3 @@ if ($Mode -eq "DEMO") {
   Write-Host "ATLAS Demo mode active. Broker orders remain disabled."
   exit 0
 }
-
