@@ -13,6 +13,7 @@ from urllib.parse import quote, urlsplit
 from xml.etree import ElementTree
 
 import requests
+from app.dashboard.news_routing import route_headlines
 
 class MarketBriefingError(RuntimeError): pass
 
@@ -224,7 +225,7 @@ class MarketBriefingService:
             if len(native) >= needed:
                 # Keep valid official translations, then fill gaps with publisher Arabic.
                 stories = ready+_arabic_headlines(native[:needed], language=language)
-        return stories
+        return route_headlines(stories)
 
     def briefing(self, language="ar"):
         now=datetime.now(timezone.utc).isoformat()
