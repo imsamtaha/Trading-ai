@@ -31,8 +31,6 @@ The backend restarted into a new process and the public proxied health returned 
 The public owner panel served the matching BUILD_ID. Windows -Action Start returned Backend=true and Frontend=true without duplicating healthy services.
 No authenticated broker order or real-money execution was submitted.
 
-## Rollback
-
 ## Verified rebuild, 2026-10-05
 
 Rebuilt the existing deployed frontend into `.next-recovery-20261005` without
