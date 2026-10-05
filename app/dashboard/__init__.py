@@ -92,10 +92,11 @@ def mt5_state():
     from app.dashboard import api as dashboard_api
     state = dashboard_api.atlas_dashboard_state()
     live_demo = os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true"
-    state["mode"] = "LIVE_DEMO" if live_demo else "READ_ONLY"
-    state["execution"] = "simulated_demo" if live_demo else "disabled"
+    broker_demo = state.get("mode") == "BROKER_DEMO_CONFIGURED" or (state.get("services") or {}).get("execution_gate") == "DEMO_BROKER"
+    state["mode"] = "BROKER_DEMO_CONFIGURED" if broker_demo else ("LIVE_DEMO" if live_demo else "READ_ONLY")
+    state["execution"] = "broker_demo" if broker_demo else ("simulated_demo" if live_demo else "disabled")
     services = dict(state.get("services") or {})
-    services["execution_gate"] = "DEMO_SIMULATED" if live_demo else "DISABLED"
+    services["execution_gate"] = "DEMO_BROKER" if broker_demo else ("DEMO_SIMULATED" if live_demo else "DISABLED")
     services["subscriber_access"] = "LIVE_DEMO" if live_demo else "READ_ONLY"
     state["services"] = services
     return state
