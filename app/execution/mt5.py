@@ -444,8 +444,10 @@ class MT5Broker:
         demo_account = identity['trade_mode'] == 0
         daily_limit = int(os.getenv('ATLAS_DEMO_MAX_DAILY_ENTRIES', '15')) if demo_account else None
         open_limit = int(os.getenv('ATLAS_DEMO_MAX_OPEN_POSITIONS', '5')) if demo_account else None
-        if demo_account and (daily_limit <= 0 or open_limit <= 0):
-            raise MT5ExecutionError('Invalid demo entry limits.')
+        if demo_account and (
+            daily_limit <= 0 or open_limit <= 0 or daily_limit > 15 or open_limit > 5
+        ):
+            raise MT5ExecutionError('Invalid demo entry limits; maximums are 15 daily entries and 5 open positions.')
         identifier, request = journal.begin(identity, request, max_daily_entries=daily_limit)
         # Keep these reads at the last boundary. No pricing/sizing work follows.
         # External terminals still cannot be locked by this local process.
