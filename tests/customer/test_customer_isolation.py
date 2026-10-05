@@ -10,6 +10,8 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def _fake_auth(monkeypatch):
+    # Exercise private-route identity isolation independently of the public guard.
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "false")
     def verify(value):
         if not value or not value.startswith("Bearer "):
             raise ValueError("missing bearer token")
@@ -41,6 +43,13 @@ def test_positions_and_alerts_are_scoped_to_request_identity():
 def test_valid_trace_owned_by_other_customer_is_not_disclosed():
     response = client.get("/api/v2/internal/audit/trace-c1", headers=_h("c2", "a2"))
     assert response.status_code == 404
+
+
+def test_dashboard_only_mode_blocks_internal_audit_even_for_owner(monkeypatch):
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
+    response = client.get("/api/v2/internal/audit/trace-c1", headers=_h("c1", "a1"))
+    assert response.status_code == 403
+    assert "ONLY_C1" not in response.text
 
 
 def test_mismatched_account_identity_is_rejected():
