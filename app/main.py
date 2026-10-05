@@ -105,7 +105,8 @@ def root():
 
 
 @app.get("/health")
-def health():
+async def health():
+    # Liveness must not wait for the worker pool used by broker/provider reads.
     return {"status": "healthy", "service": "atlas-trading-api"}
 
 

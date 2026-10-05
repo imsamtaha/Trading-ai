@@ -31,3 +31,37 @@ def test_future_heartbeat_is_not_active(tmp_path):
     path.write_text(json.dumps({"checked_at_utc": "2026-10-01T00:00:00Z", "components": {}}))
     assert read_server_health(path, now=1790810000)["state"] == "STALE"
 
+def test_health_responds_when_sync_worker_pool_is_exhausted():
+    import threading
+    import anyio
+    import httpx
+    from app.main import app
+
+    async def scenario():
+        limiter = anyio.to_thread.current_default_thread_limiter()
+        original_limit = limiter.total_tokens
+        limiter.total_tokens = 1
+        release = threading.Event()
+        occupied = anyio.Event()
+
+        def blocked_provider():
+            anyio.from_thread.run_sync(occupied.set)
+            release.wait(timeout=5)
+
+        try:
+            async with anyio.create_task_group() as tasks:
+                tasks.start_soon(anyio.to_thread.run_sync, blocked_provider)
+                await occupied.wait()
+                try:
+                    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                        with anyio.fail_after(1):
+                            response = await client.get("/health")
+                        assert response.status_code == 200
+                        assert response.json()["service"] == "atlas-trading-api"
+                finally:
+                    release.set()
+        finally:
+            limiter.total_tokens = original_limit
+
+    anyio.run(scenario)
+
