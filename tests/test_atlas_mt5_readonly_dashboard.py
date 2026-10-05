@@ -36,3 +36,31 @@ def test_dashboard_source_has_no_merge_conflict_markers():
     assert "<<<<<<<" not in text
     assert ">>>>>>>" not in text
     assert "=======" not in text
+
+
+def test_mt5_state_preserves_broker_demo_telemetry(monkeypatch):
+    import app.dashboard.api as dashboard_api
+
+    monkeypatch.setenv("ATLAS_LIVE_DEMO", "true")
+    monkeypatch.setattr(
+        dashboard_api,
+        "atlas_dashboard_state",
+        lambda: {
+            "mode": "BROKER_DEMO_CONFIGURED",
+            "services": {
+                "mt5": "ONLINE",
+                "execution_gate": "DEMO_BROKER",
+            },
+            "account": {"account_type": "DEMO"},
+            "symbols": [],
+            "positions": [],
+            "open_positions": 0,
+        },
+    )
+
+    state = dashboard_module.mt5_state()
+
+    assert state["mode"] == "BROKER_DEMO_CONFIGURED"
+    assert state["execution"] == "broker_demo"
+    assert state["services"]["execution_gate"] == "DEMO_BROKER"
+    assert state["services"]["subscriber_access"] == "LIVE_DEMO"
