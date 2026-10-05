@@ -12,7 +12,9 @@ def test_history_cutoff_is_owner_and_account_scoped(monkeypatch, owner, login, e
     monkeypatch.setattr(routes, "_is_owner", lambda user: owner)
     monkeypatch.setattr(routes, "repository", MemoryUserRepository())
     session = {"login":login,"server":"FxPro-MT5 Demo"}
-    trades = [{"position_id":1,"time":1790880043},{"position_id":349264740,"time":1790880044}]
+    # Deal tickets and position IDs are distinct fields in broker history.
+    trades = [{"ticket":323402061,"position_id":1,"time":1790880043},
+              {"ticket":323402062,"position_id":349264740,"time":1790880044}]
     connector = SimpleNamespace(session_credentials=lambda uid: session, get_dashboard_state=lambda uid: {"recent_trades":list(trades)})
     monkeypatch.setattr(mt5_routes, "_service", lambda: connector)
     monkeypatch.setattr(guard_routes, "_service", lambda: SimpleNamespace(status=lambda uid: {}))
