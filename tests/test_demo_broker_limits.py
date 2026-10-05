@@ -49,3 +49,18 @@ def test_demo_worker_refuses_real_account_before_candles(monkeypatch):
     monkeypatch.setattr(worker,'AutoExecutionCoordinator',lambda **kwargs: None)
     with pytest.raises(MT5ExecutionError, match='demo account'):
         worker.run_cycle('EURUSD','5m',200,demo_only=True)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("ATLAS_DEMO_MAX_DAILY_ENTRIES", "16"),
+        ("ATLAS_DEMO_MAX_OPEN_POSITIONS", "6"),
+    ],
+)
+def test_demo_env_limits_cannot_exceed_hard_caps(monkeypatch, live_terminal, name, value):
+    broker, state = live_terminal
+    monkeypatch.setenv(name, value)
+    with pytest.raises(MT5ExecutionError, match="maximums are 15 daily entries and 5 open positions"):
+        submit(broker)
+    assert state.sent == []
