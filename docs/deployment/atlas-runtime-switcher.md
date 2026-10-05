@@ -31,7 +31,19 @@ The backend restarted into a new process and the public proxied health returned 
 The public owner panel served the matching BUILD_ID. Windows -Action Start returned Backend=true and Frontend=true without duplicating healthy services.
 No authenticated broker order or real-money execution was submitted.
 
-## Rollback
+## Verified rebuild, 2026-10-05
+
+Rebuilt the existing deployed frontend into `.next-recovery-20261005` without
+overwriting the previous `.next-owner-ops-20261003` build. All 87 frontend tests
+passed and Next.js completed compilation, type/lint checks, static pages and
+build traces. The production launcher selects the new build. The backend
+remains the separate private runtime on 8012; this is not a merge of the
+divergent public `main` backend or permission to submit broker orders.
+
+To roll back this rebuild, set `ATLAS_BUILD_DIR` in the frontend launcher to
+`.next-owner-ops-20261003` and restart only `ATLAS Web Frontend`.
+
+## Earlier rollback
 Previous frontend task XML: C:\Users\KHAT W TELEPHONE\ATLAS_Backup\ATLAS-Web-Frontend-pre-runtime-20261001.xml.
 Original launcher: C:\Users\KHAT W TELEPHONE\Trading-ai\.worktrees\atlas-webapp-option-a\web\run-production.ps1.
 Restore that launcher as the ATLAS Web Frontend task action, stop that task, then start it. The original .next-release4 build remains available.

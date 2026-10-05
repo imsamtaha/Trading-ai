@@ -33,7 +33,8 @@
     "**/*.tsx",
     ".next-ui-agent-20261003/types/**/*.ts",
     "next-env.d.ts",
-    ".next-runtime-boxes-20261003/types/**/*.ts"
+    ".next-runtime-boxes-20261003/types/**/*.ts",
+    ".next-recovery-20261005/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
