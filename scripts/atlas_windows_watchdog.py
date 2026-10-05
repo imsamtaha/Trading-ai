@@ -13,7 +13,7 @@ class FailureGate:
         self.state = dict(state or {"failures": 0, "attempts": 0, "next": 0})
     def observe(self, healthy, now):
         if healthy:
-            self.state.update(failures=0, attempts=0, next=0)
+            self.state.update(failures=0, attempts=0, restarts=0, next=0)
             return False
         self.state["failures"] = self.state.get("failures", 0) + 1
         if self.state["failures"] < 3 or now < self.state.get("next", 0):
@@ -96,7 +96,20 @@ def check_cycle(directory):
                     powershell("Start-ScheduledTask -TaskName '" + task + "'")
                     status["actions"].append("STARTED " + task)
                 elif task_state == "Running":
-                    component["state"] = "RUNNING_BUT_UNHEALTHY"
+                    if gate.state.get("restarts", 0) >= 5:
+                        component["state"] = "RECOVERY_EXHAUSTED"
+                    else:
+                        # Only the two named web tasks are eligible. Never restart
+                        # an execution worker or touch MT5 account permissions.
+                        gate.state["restarts"] = gate.state.get("restarts", 0) + 1
+                        powershell("Stop-ScheduledTask -TaskName '" + task + "'; "
+                            "$deadline = (Get-Date).AddSeconds(10); "
+                            "while ((Get-ScheduledTask -TaskName '" + task + "').State.ToString() -eq 'Running') { "
+                            "if ((Get-Date) -ge $deadline) { throw 'Task stop timed out' }; "
+                            "Start-Sleep -Milliseconds 200 }; "
+                            "Start-ScheduledTask -TaskName '" + task + "'")
+                        component["state"] = "RECOVERING"
+                        status["actions"].append("RESTARTED " + task)
                 else:
                     component["state"] = "TASK_REQUIRES_ATTENTION"
             except Exception:
