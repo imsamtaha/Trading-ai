@@ -11,7 +11,7 @@ VALID_DECISIONS = {"BUY", "SELL", "HOLD", "EXIT"}
 def _bounded_score(value: float, *, field: str) -> float:
     score = float(value)
     if not isfinite(score) or not 0.0 <= score <= 1.0:
-        raise ValueError(`${field} must be a finite value between 0 and 1`)
+        raise ValueError(f"{field} must be a finite value between 0 and 1")
     return score
 
 
