@@ -20,4 +20,12 @@ dist/
 
 .env.*
 !.env.example
+!.env.mt5.example
 .pytest-tmp*/
+
+# Local/editor/runtime artifacts that must never be committed.
+*.bak
+*.backup
+*.tmp
+*.temp
+*.log

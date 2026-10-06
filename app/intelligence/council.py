@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import isfinite
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
+
+from app.intelligence.council_training import agent_weight
 
 
 VALID_DECISIONS = {"BUY", "SELL", "HOLD", "EXIT"}
@@ -37,7 +39,7 @@ class AgentOpinion:
 
 
 class AtlasCouncilCoordinator:
-    """Normalizes specialist-agent outputs without executing trades."""
+    """Normalizes and calibrates specialist-agent outputs without executing trades."""
 
     def build_package(
         self,
@@ -47,6 +49,7 @@ class AtlasCouncilCoordinator:
         opinions: Iterable[AgentOpinion],
         senior_risk: dict[str, Any],
         data_quality: float,
+        agent_profile: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         symbol = symbol.strip().upper()
         snapshot_id = snapshot_id.strip()
@@ -65,9 +68,24 @@ class AtlasCouncilCoordinator:
         risk = dict(senior_risk or {})
         risk["assessment"] = str(risk.get("assessment", "UNKNOWN")).upper()
 
-        actionable = [item for item in items if item.decision in {"BUY", "SELL"}]
-        buy_weight = sum(item.confidence for item in actionable if item.decision == "BUY")
-        sell_weight = sum(item.confidence for item in actionable if item.decision == "SELL")
+        normalized: list[dict[str, Any]] = []
+        for item in items:
+            weight = agent_weight(agent_profile, item.agent)
+            calibrated = max(0.0, min(1.0, item.confidence * weight))
+            normalized.append(
+                {
+                    "agent": item.agent,
+                    "decision": item.decision,
+                    "confidence": item.confidence,
+                    "agent_weight": round(weight, 4),
+                    "calibrated_confidence": round(calibrated, 4),
+                    "evidence": list(item.evidence),
+                }
+            )
+
+        actionable = [item for item in normalized if item["decision"] in {"BUY", "SELL"}]
+        buy_weight = sum(item["calibrated_confidence"] for item in actionable if item["decision"] == "BUY")
+        sell_weight = sum(item["calibrated_confidence"] for item in actionable if item["decision"] == "SELL")
         total_weight = buy_weight + sell_weight
 
         if total_weight:
@@ -76,20 +94,15 @@ class AtlasCouncilCoordinator:
         else:
             agreement, conflict = 0.0, 0.0
 
+        profile_version = agent_profile.get("version") if isinstance(agent_profile, Mapping) else None
         return {
             "symbol": symbol,
             "snapshot_id": snapshot_id,
-            "opinions": [
-                {
-                    "agent": item.agent,
-                    "decision": item.decision,
-                    "confidence": item.confidence,
-                    "evidence": list(item.evidence),
-                }
-                for item in items
-            ],
+            "opinions": normalized,
             "senior_risk_management": risk,
             "agreement_score": round(agreement, 4),
             "conflict_score": round(conflict, 4),
             "data_quality": round(data_quality, 4),
+            "calibration_active": bool(agent_profile),
+            "training_profile_version": profile_version,
         }
