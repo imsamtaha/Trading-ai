@@ -42,11 +42,15 @@ class AtlasExecutiveAgent:
             decision = str(opinion.get("decision", "")).upper()
             if decision not in weights:
                 continue
-            confidence = _score_or_none(opinion.get("confidence"))
-            if confidence is None:
+
+            raw_confidence = _score_or_none(opinion.get("confidence"))
+            calibrated_confidence = _score_or_none(
+                opinion.get("calibrated_confidence", opinion.get("confidence"))
+            )
+            if raw_confidence is None or calibrated_confidence is None:
                 malformed = True
                 continue
-            weights[decision] += confidence
+            weights[decision] += calibrated_confidence
 
         if not opinions:
             decision = "HOLD"
@@ -79,6 +83,8 @@ class AtlasExecutiveAgent:
             "confidence": round(confidence, 4),
             "execution_environment": "PAPER",
             "broker_execution_allowed": False,
+            "training_profile_version": council.get("training_profile_version"),
+            "calibration_active": bool(council.get("calibration_active", False)),
             "reason_codes": self._reason_codes(
                 decision=decision,
                 risk_state=risk_state,
