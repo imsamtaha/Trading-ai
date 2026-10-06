@@ -31,10 +31,35 @@ def test_senior_risk_reject_forces_hold():
     assert "SENIOR_RISK_REJECT" in result["reason_codes"]
 
 
+def test_missing_or_unknown_senior_risk_forces_hold():
+    council = _council()
+    council["senior_risk_management"] = {}
+    result = AtlasExecutiveAgent().decide(council)
+    assert result["decision"] == "HOLD"
+    assert "SENIOR_RISK_NOT_APPROVED" in result["reason_codes"]
+
+
 def test_low_data_quality_forces_hold():
     result = AtlasExecutiveAgent().decide(_council(data_quality=0.3))
     assert result["decision"] == "HOLD"
     assert "LOW_DATA_QUALITY" in result["reason_codes"]
+
+
+def test_malformed_council_forces_hold_instead_of_execution():
+    council = _council()
+    council["opinions"][0]["confidence"] = float("nan")
+    result = AtlasExecutiveAgent().decide(council)
+    assert result["decision"] == "HOLD"
+    assert result["confidence"] == 0.0
+    assert "MALFORMED_COUNCIL" in result["reason_codes"]
+
+
+def test_no_opinions_forces_safe_hold():
+    council = _council()
+    council["opinions"] = []
+    result = AtlasExecutiveAgent().decide(council)
+    assert result["decision"] == "HOLD"
+    assert "NO_COUNCIL_OPINIONS" in result["reason_codes"]
 
 
 def test_council_rejects_stale_agent_snapshot():
@@ -45,4 +70,19 @@ def test_council_rejects_stale_agent_snapshot():
             opinions=[AgentOpinion("technical", "BUY", 0.8, (), "old")],
             senior_risk={"assessment": "RISK_ACCEPTABLE"},
             data_quality=0.9,
+        )
+
+
+@pytest.mark.parametrize("bad_score", [float("nan"), float("inf"), -0.1, 1.1])
+def test_council_rejects_invalid_scores(bad_score):
+    with pytest.raises(ValueError):
+        AgentOpinion("technical", "BUY", bad_score, (), "snap-1")
+
+    with pytest.raises(ValueError):
+        AtlasCouncilCoordinator().build_package(
+            symbol="EURUSD",
+            snapshot_id="snap-1",
+            opinions=[AgentOpinion("technical", "BUY", 0.8, (), "snap-1")],
+            senior_risk={"assessment": "RISK_ACCEPTABLE"},
+            data_quality=bad_score,
         )
