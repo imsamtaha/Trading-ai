@@ -24,7 +24,10 @@ class AtlasExecutiveAgent:
 
     def decide(self, council: dict[str, Any]) -> dict[str, Any]:
         opinions = council.get("opinions") or []
+
         risk = council.get("senior_risk_management") or {}
+        if not isinstance(risk, dict):
+            risk = {}
         risk_state = str(risk.get("assessment", "UNKNOWN")).upper()
 
         data_quality = _score_or_none(council.get("data_quality"))
@@ -33,6 +36,9 @@ class AtlasExecutiveAgent:
 
         weights = {"BUY": 0.0, "SELL": 0.0}
         for opinion in opinions:
+            if not isinstance(opinion, dict):
+                malformed = True
+                continue
             decision = str(opinion.get("decision", "")).upper()
             if decision not in weights:
                 continue
