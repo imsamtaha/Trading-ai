@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import math
 import os
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from app.analysis.structure import analyze_structure
@@ -11,6 +13,9 @@ from app.analysis.technical import analyze_candles
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
+from app.intelligence.confidence import SignalQualityEngine
+from app.intelligence.council_adapters import build_paper_council, record_settled_paper_outcome
+from app.intelligence.council_training import AtlasCouncilTrainer, CouncilTrainingJournal, save_profile
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.intelligence.journal import SignalJournal
 from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
@@ -88,6 +93,11 @@ class AtlasMT5Monitor:
             1,
             int(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")),
         )
+        self.quote_time_offset_seconds = int(
+            os.getenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "0")
+        )
+        if abs(self.quote_time_offset_seconds) > 14 * 3600:
+            raise ValueError("ATLAS MT5 quote time offset must be within +/-14 hours.")
         self.reentry_cooldown_seconds = max(
             TIMEFRAME_SECONDS[interval],
             int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
@@ -107,6 +117,20 @@ class AtlasMT5Monitor:
         self.running = False
         self.universe: list[dict[str, Any]] = []
         self.account_equity = float(os.getenv("ATLAS_DEMO_ACCOUNT_EQUITY", "10000"))
+        self.council_training_enabled = (
+            os.getenv("ATLAS_COUNCIL_TRAINING_ENABLED", "false").lower() == "true"
+        )
+        self.council_training_journal = CouncilTrainingJournal(
+            os.getenv("ATLAS_COUNCIL_TRAINING_JOURNAL", "data/atlas_council_training.jsonl")
+        )
+        self.council_profile_path = Path(
+            os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json")
+        )
+        self.council_minimum_samples = max(
+            1, int(os.getenv("ATLAS_COUNCIL_MINIMUM_SAMPLES", "5"))
+        )
+        self.signal_quality_engine = SignalQualityEngine()
+        self.council_profile = self._load_council_profile()
 
     @staticmethod
     def _safe_float(value: object, default: float = 0.0) -> float:
@@ -114,6 +138,105 @@ class AtlasMT5Monitor:
             return float(value)
         except (TypeError, ValueError):
             return default
+
+    def _load_council_profile(self) -> dict[str, Any] | None:
+        if not self.council_profile_path.exists():
+            return None
+        try:
+            payload = json.loads(self.council_profile_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+        if str(payload.get("training_environment", "")).upper() != "PAPER":
+            return None
+        if bool(payload.get("broker_execution_allowed", True)):
+            return None
+        return payload
+
+    def _refresh_council_profile(self) -> dict[str, Any] | None:
+        if not self.council_training_enabled:
+            return self.council_profile
+        examples = self.council_training_journal.load()
+        profile = AtlasCouncilTrainer(
+            minimum_samples=self.council_minimum_samples
+        ).fit(examples)
+        save_profile(profile, str(self.council_profile_path))
+        self.council_profile = profile
+        return profile
+
+    def _build_council_gate(
+        self,
+        *,
+        timestamp: str,
+        symbol: str,
+        candidate: dict[str, Any],
+        decision: dict[str, Any],
+        risk: dict[str, Any],
+    ) -> dict[str, Any]:
+        expected_action = "BUY" if candidate["direction"] == "LONG" else "SELL"
+        quality = self.signal_quality_engine.evaluate(
+            decision,
+            mtf_alignment="ALIGNED"
+            if str(decision.get("decision", "")).upper() == expected_action
+            else "MIXED",
+        )
+        reasons = [
+            f"strategy={candidate.get('strategy', 'UNKNOWN')}",
+            f"regime={candidate.get('regime', 'UNKNOWN')}",
+            f"unified_decision={decision.get('decision', 'WAIT')}",
+        ]
+        signal = {
+            "direction": candidate["direction"],
+            "confidence": self._safe_float(candidate.get("confidence")),
+            "reasons": reasons,
+        }
+        snapshot_id = f"{symbol.upper()}:{self.interval}:{timestamp}"
+        return build_paper_council(
+            symbol=symbol,
+            snapshot_id=snapshot_id,
+            signal=signal,
+            risk=risk,
+            data_quality=1.0,
+            quality=quality,
+            agent_profile=self.council_profile,
+        )
+
+    def _record_council_training_outcome(self, trade: dict[str, Any]) -> dict[str, Any] | None:
+        if not self.council_training_enabled:
+            return None
+        context = trade.get("training_context")
+        if not isinstance(context, dict):
+            return None
+        council = context.get("council")
+        trade_intent = context.get("trade_intent")
+        if not isinstance(council, dict) or not isinstance(trade_intent, dict):
+            return None
+
+        direction = "BUY" if str(trade.get("direction", "")).upper() == "LONG" else "SELL"
+        r_multiple = self._safe_float(trade.get("r_multiple"))
+        if r_multiple > 0:
+            realized_direction = direction
+        elif r_multiple < 0:
+            realized_direction = "SELL" if direction == "BUY" else "BUY"
+        else:
+            realized_direction = "HOLD"
+
+        record = record_settled_paper_outcome(
+            council=council,
+            trade_intent=trade_intent,
+            realized_direction=realized_direction,
+            journal=self.council_training_journal,
+        )
+        profile = self._refresh_council_profile() or {}
+        return {
+            "snapshot_id": record.get("snapshot_id"),
+            "realized_direction": realized_direction,
+            "total_examples": profile.get("total_examples", 0),
+            "minimum_samples": profile.get(
+                "minimum_samples", self.council_minimum_samples
+            ),
+        }
 
     def _validate_quote_freshness(self, quote: dict[str, Any]) -> tuple[bool, str]:
         """Fail closed when an MT5 quote has no trustworthy current timestamp."""
@@ -127,6 +250,7 @@ class AtlasMT5Monitor:
         else:
             return False, "MT5 quote timestamp is missing."
 
+        quote_timestamp -= self.quote_time_offset_seconds
         age_seconds = datetime.now(timezone.utc).timestamp() - quote_timestamp
 
         if age_seconds < -5:
@@ -256,6 +380,14 @@ class AtlasMT5Monitor:
                     bid=float(quote["bid"]),
                     ask=float(quote["ask"]),
                 ):
+                    training = None
+                    try:
+                        training = self._record_council_training_outcome(trade)
+                    except (OSError, TypeError, ValueError) as exc:
+                        training = {
+                            "status": "ERROR",
+                            "reason": f"Council training record rejected: {exc}",
+                        }
                     event = {
                         "timestamp": timestamp,
                         "symbol": symbol,
@@ -265,6 +397,7 @@ class AtlasMT5Monitor:
                         "decision": trade["decision"],
                         "confidence": trade["confidence"],
                         "trade": trade,
+                        "training": training,
                     }
                     self._record_event(event)
                     events.append(event)
@@ -371,6 +504,43 @@ class AtlasMT5Monitor:
                 "risk": risk,
             }
 
+        training_context = None
+        if self.council_training_enabled:
+            try:
+                training_context = self._build_council_gate(
+                    timestamp=timestamp,
+                    symbol=symbol,
+                    candidate=candidate,
+                    decision=decision,
+                    risk=risk,
+                )
+            except (TypeError, ValueError) as exc:
+                return {
+                    "timestamp": timestamp,
+                    "symbol": symbol,
+                    "timeframe": self.interval,
+                    "status": "NO_TRADE",
+                    "reason": f"ATLAS Council gate rejected malformed evidence: {exc}",
+                    "candidate": candidate,
+                    "decision": decision,
+                    "risk": risk,
+                }
+
+            trade_intent = training_context["trade_intent"]
+            if str(trade_intent.get("decision", "")).upper() != expected_action:
+                return {
+                    "timestamp": timestamp,
+                    "symbol": symbol,
+                    "timeframe": self.interval,
+                    "status": "NO_TRADE",
+                    "reason": "ATLAS Council/Executive did not confirm the Paper direction.",
+                    "candidate": candidate,
+                    "decision": decision,
+                    "risk": risk,
+                    "council": training_context["council"],
+                    "trade_intent": trade_intent,
+                }
+
         trade = self.ledger.open_trade(
             symbol=symbol,
             direction=candidate["direction"],
@@ -383,15 +553,23 @@ class AtlasMT5Monitor:
             confidence=self._safe_float(candidate["confidence"]),
             timeframe=self.interval,
             decision=decision,
+            training_context=training_context,
         )
         return {
             "timestamp": timestamp,
             "symbol": symbol,
             "timeframe": self.interval,
             "status": "PAPER_TRADE_OPENED",
-            "reason": "Qualified strategy, decision, and risk gates approved a paper entry.",
+            "reason": (
+                "Strategy, deterministic decision, Senior Risk, and ATLAS Council "
+                "approved a Paper entry."
+                if self.council_training_enabled
+                else "Qualified strategy, decision, and risk gates approved a paper entry."
+            ),
             "candidate": candidate,
             "decision": decision,
+            "council": training_context["council"] if training_context else None,
+            "trade_intent": training_context["trade_intent"] if training_context else None,
             "trade": trade,
         }
 

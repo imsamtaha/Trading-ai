@@ -146,6 +146,7 @@ class MT5PaperLedger:
         confidence: float,
         timeframe: str,
         decision: dict[str, Any],
+        training_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         direction = direction.upper()
         if direction not in {"LONG", "SHORT"}:
@@ -178,6 +179,7 @@ class MT5PaperLedger:
             "confidence": float(confidence),
             "timeframe": str(timeframe),
             "decision": dict(decision),
+            "training_context": dict(training_context) if training_context else None,
             "status": "OPEN",
             "opened_at": utc_now(),
         }

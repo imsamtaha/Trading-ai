@@ -45,3 +45,31 @@ def test_missing_mt5_quote_timestamp_is_rejected(monkeypatch):
 
     assert valid is False
     assert "timestamp is missing" in reason.lower()
+
+
+def test_broker_server_time_offset_is_normalized(monkeypatch):
+    monkeypatch.setenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "10800")
+    monitor = make_monitor(monkeypatch)
+    broker_local_msc = int(
+        (datetime.now(timezone.utc).timestamp() + 10800) * 1000
+    )
+
+    valid, reason = monitor._validate_quote_freshness({
+        "time": broker_local_msc // 1000,
+        "time_msc": broker_local_msc,
+    })
+
+    assert valid is True
+    assert reason == ""
+
+
+def test_unreasonable_broker_time_offset_is_rejected(monkeypatch):
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
+    monkeypatch.setenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "999999")
+
+    try:
+        AtlasMT5Monitor(symbols=["EURUSD"])
+    except ValueError as exc:
+        assert "offset" in str(exc).lower()
+    else:
+        raise AssertionError("Expected an invalid MT5 quote time offset to fail closed.")
