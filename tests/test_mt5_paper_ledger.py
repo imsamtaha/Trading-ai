@@ -76,7 +76,7 @@ def test_paper_ledger_caps_open_positions_at_five(tmp_path: Path):
     ledger = MT5PaperLedger(
         str(tmp_path / "atlas_demo.json"),
         max_open_positions=5,
-        max_daily_entries=15,
+        max_daily_entries=50,
     )
 
     for index in range(5):
@@ -86,14 +86,14 @@ def test_paper_ledger_caps_open_positions_at_five(tmp_path: Path):
         ledger.open_trade(**{**_trade_kwargs(), "symbol": "TEST5"})
 
 
-def test_paper_ledger_caps_daily_entries_at_fifteen(tmp_path: Path):
+def test_paper_ledger_caps_daily_entries_at_fifty(tmp_path: Path):
     ledger = MT5PaperLedger(
         str(tmp_path / "atlas_demo.json"),
         max_open_positions=5,
-        max_daily_entries=15,
+        max_daily_entries=50,
     )
 
-    for _ in range(15):
+    for _ in range(50):
         ledger.open_trade(**_trade_kwargs())
         closed = ledger.close_due_positions("EURUSD", bid=1.1042, ask=1.1043)
         assert len(closed) == 1
@@ -104,7 +104,7 @@ def test_paper_ledger_caps_daily_entries_at_fifteen(tmp_path: Path):
 
 @pytest.mark.parametrize(
     ("open_limit", "daily_limit"),
-    [(0, 15), (6, 15), (5, 0), (5, 16)],
+    [(0, 50), (6, 50), (5, 0), (5, 51)],
 )
 def test_paper_ledger_rejects_limits_above_safety_ceiling(
     tmp_path: Path,

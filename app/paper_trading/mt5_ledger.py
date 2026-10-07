@@ -56,12 +56,12 @@ class MT5PaperLedger:
         configured_daily_limit = (
             max_daily_entries
             if max_daily_entries is not None
-            else int(os.getenv("ATLAS_DEMO_MAX_DAILY_ENTRIES", "15"))
+            else int(os.getenv("ATLAS_DEMO_MAX_DAILY_ENTRIES", "50"))
         )
         if not 1 <= int(configured_open_limit) <= 5:
             raise PaperLedgerError("Paper open-position limit must be between 1 and 5.")
-        if not 1 <= int(configured_daily_limit) <= 15:
-            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 15.")
+        if not 1 <= int(configured_daily_limit) <= 50:
+            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 50.")
 
         self.max_open_positions = int(configured_open_limit)
         self.max_daily_entries = int(configured_daily_limit)
