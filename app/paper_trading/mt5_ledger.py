@@ -37,13 +37,34 @@ class MT5PaperLedger:
     order endpoint.
     """
 
-    def __init__(self, path: str | None = None, max_open_positions: int | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        max_open_positions: int | None = None,
+        max_daily_entries: int | None = None,
+    ) -> None:
         configured_path = path or os.getenv("ATLAS_DEMO_LEDGER", "data/atlas_demo_ledger.json")
         self.path = Path(configured_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.lock_path = self.path.with_suffix(f"{self.path.suffix}.lock")
-        configured_limit = max_open_positions or int(os.getenv("ATLAS_DEMO_MAX_OPEN_POSITIONS", "3"))
-        self.max_open_positions = max(1, int(configured_limit))
+
+        configured_open_limit = (
+            max_open_positions
+            if max_open_positions is not None
+            else int(os.getenv("ATLAS_DEMO_MAX_OPEN_POSITIONS", "5"))
+        )
+        configured_daily_limit = (
+            max_daily_entries
+            if max_daily_entries is not None
+            else int(os.getenv("ATLAS_DEMO_MAX_DAILY_ENTRIES", "15"))
+        )
+        if not 1 <= int(configured_open_limit) <= 5:
+            raise PaperLedgerError("Paper open-position limit must be between 1 and 5.")
+        if not 1 <= int(configured_daily_limit) <= 15:
+            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 15.")
+
+        self.max_open_positions = int(configured_open_limit)
+        self.max_daily_entries = int(configured_daily_limit)
         self._state = self._load()
 
     def _load(self) -> dict[str, list[dict[str, Any]]]:
@@ -193,8 +214,23 @@ class MT5PaperLedger:
                 raise PaperLedgerError(f"An open demo position already exists for {symbol}.")
             if len(self._state["open_positions"]) >= self.max_open_positions:
                 raise PaperLedgerError(
-                    f"Maximum open demo positions reached ({self.max_open_positions})."
+                    f"Maximum open paper positions reached ({self.max_open_positions})."
                 )
+
+            today = datetime.now(timezone.utc).date().isoformat()
+            opened_today = sum(
+                1
+                for recorded in (
+                    *self._state["open_positions"],
+                    *self._state["closed_trades"],
+                )
+                if str(recorded.get("opened_at", "")).startswith(today)
+            )
+            if opened_today >= self.max_daily_entries:
+                raise PaperLedgerError(
+                    f"Maximum daily paper entries reached ({self.max_daily_entries})."
+                )
+
             self._state["open_positions"].append(trade)
             self._persist()
         return dict(trade)
