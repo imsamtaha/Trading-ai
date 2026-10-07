@@ -70,3 +70,50 @@ def test_multiple_ledger_instances_preserve_each_others_trades(tmp_path: Path):
         "XAUUSD",
     }
     assert reloaded.summary()["recorded_trades"] == 2
+
+
+def test_paper_ledger_caps_open_positions_at_five(tmp_path: Path):
+    ledger = MT5PaperLedger(
+        str(tmp_path / "atlas_demo.json"),
+        max_open_positions=5,
+        max_daily_entries=15,
+    )
+
+    for index in range(5):
+        ledger.open_trade(**{**_trade_kwargs(), "symbol": f"TEST{index}"})
+
+    with pytest.raises(PaperLedgerError, match="Maximum open paper positions reached"):
+        ledger.open_trade(**{**_trade_kwargs(), "symbol": "TEST5"})
+
+
+def test_paper_ledger_caps_daily_entries_at_fifteen(tmp_path: Path):
+    ledger = MT5PaperLedger(
+        str(tmp_path / "atlas_demo.json"),
+        max_open_positions=5,
+        max_daily_entries=15,
+    )
+
+    for _ in range(15):
+        ledger.open_trade(**_trade_kwargs())
+        closed = ledger.close_due_positions("EURUSD", bid=1.1042, ask=1.1043)
+        assert len(closed) == 1
+
+    with pytest.raises(PaperLedgerError, match="Maximum daily paper entries reached"):
+        ledger.open_trade(**_trade_kwargs())
+
+
+@pytest.mark.parametrize(
+    ("open_limit", "daily_limit"),
+    [(0, 15), (6, 15), (5, 0), (5, 16)],
+)
+def test_paper_ledger_rejects_limits_above_safety_ceiling(
+    tmp_path: Path,
+    open_limit: int,
+    daily_limit: int,
+):
+    with pytest.raises(PaperLedgerError):
+        MT5PaperLedger(
+            str(tmp_path / "atlas_demo.json"),
+            max_open_positions=open_limit,
+            max_daily_entries=daily_limit,
+        )
