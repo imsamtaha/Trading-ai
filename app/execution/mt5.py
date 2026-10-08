@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_FLOOR
 from dataclasses import dataclass
 from typing import Any
+from app.strategy.universe import normalize_symbol, classify_symbol
 from app.execution.portfolio_lock import portfolio_lock, ExecutionBusy
 from app.execution.submission_journal import SubmissionJournal, SubmissionJournalError
 
@@ -146,6 +147,13 @@ class MT5Broker:
         disabled = int(getattr(mt5, "SYMBOL_TRADE_MODE_DISABLED", 0))
         for info in raw:
             symbol = str(info.name)
+            category = classify_symbol(normalize_symbol(symbol))
+            if (os.getenv("ATLAS_EXPANDED_DISCOVERY", "false").lower() == "true"
+                    and category and category[0] in {"STOCKS", "CRYPTO"}
+                    and not info.visible):
+                # Subscribe to the bounded supported registry, never submit orders.
+                if not mt5.symbol_select(symbol, True):
+                    continue
             tick = mt5.symbol_info_tick(symbol)
             bid = float(getattr(tick, "bid", 0.0) or 0.0) if tick is not None else 0.0
             ask = float(getattr(tick, "ask", 0.0) or 0.0) if tick is not None else 0.0

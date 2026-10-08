@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
+from app.strategy.universe import classify_symbol, normalize_symbol
 
 if os.name == "nt":
     import msvcrt
@@ -60,9 +62,12 @@ class MT5PaperLedger:
         )
         if not 1 <= int(configured_open_limit) <= 5:
             raise PaperLedgerError("Paper open-position limit must be between 1 and 5.")
-        if not 1 <= int(configured_daily_limit) <= 50:
-            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 50.")
+        if not 1 <= int(configured_daily_limit) <= 100:
+            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 100.")
 
+        self.category_position_limit = int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0"))
+        if not 0 <= self.category_position_limit <= 5:
+            raise PaperLedgerError("Category position limit must be between 0 and 5.")
         self.max_open_positions = int(configured_open_limit)
         self.max_daily_entries = int(configured_daily_limit)
         self._state = self._load()
@@ -121,7 +126,14 @@ class MT5PaperLedger:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            temporary.replace(self.path)
+            for attempt in range(6):
+                try:
+                    temporary.replace(self.path)
+                    break
+                except PermissionError:
+                    if attempt == 5:
+                        raise
+                    time.sleep(0.02 * (2 ** attempt))
         except OSError as exc:
             raise PaperLedgerError(f"Cannot persist demo ledger {self.path}: {exc}") from exc
 
@@ -216,6 +228,15 @@ class MT5PaperLedger:
                 raise PaperLedgerError(
                     f"Maximum open paper positions reached ({self.max_open_positions})."
                 )
+
+            category = (classify_symbol(normalize_symbol(symbol)) or ("UNKNOWN", 3))[0]
+            if self.category_position_limit and category in {"CRYPTO", "STOCKS"}:
+                count = sum(
+                    (classify_symbol(normalize_symbol(str(p["symbol"]))) or ("UNKNOWN", 3))[0] == category
+                    for p in self._state["open_positions"]
+                )
+                if count >= self.category_position_limit:
+                    raise PaperLedgerError(f"{category} concentration limit reached.")
 
             today = datetime.now(timezone.utc).date().isoformat()
             opened_today = sum(

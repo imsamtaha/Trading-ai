@@ -31,7 +31,7 @@ $env:MT5_USE_ACTIVE_SESSION = 'true'
 $env:MT5_TERMINAL_PATH = 'C:\Program Files\FxPro Markets MT5\terminal64.exe'
 
 # Paper portfolio limits.
-$env:ATLAS_DEMO_MAX_DAILY_ENTRIES = '50'
+$env:ATLAS_DEMO_MAX_DAILY_ENTRIES = '100'
 $env:ATLAS_DEMO_MAX_OPEN_POSITIONS = '5'
 $env:ATLAS_DEMO_LEDGER = Join-Path $stateDir 'atlas_demo_ledger.json'
 
@@ -42,8 +42,13 @@ $env:ATLAS_COUNCIL_PROFILE = Join-Path $stateDir 'atlas_council_profile.json'
 
 $env:ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS = '10800'
 $env:ATLAS_CYCLE_SECONDS = '30'
-$env:ATLAS_MONITOR_TOP_N = '12'
+$env:ATLAS_MONITOR_TOP_N = '30'
 $env:ATLAS_AUTO_DISCOVER_SYMBOLS = 'true'
+$env:ATLAS_EXPANDED_DISCOVERY = 'true'
+$env:ATLAS_CATEGORY_POSITION_LIMIT = '2'
+$env:ATLAS_SHADOW_TRAINING_ENABLED = 'true'
+$env:ATLAS_SHADOW_REPORT = Join-Path $stateDir 'atlas_shadow_report.json'
+$env:ATLAS_SHADOW_JOURNAL = Join-Path $stateDir 'atlas_shadow_predictions.jsonl'
 $env:ATLAS_PERSIST_ALL_SIGNALS = 'false'
 
 Set-Location $project
