@@ -3,21 +3,6 @@
   return raw;
 }
 
-export function buildGoogleAuthorizeUrl(
-  origin: string, supabaseUrl: string, returnTo = "/dashboard",
-): string {
-  const safe = safeReturnTo(returnTo);
-  const redirect = new URL("/login", origin);
-  redirect.searchParams.set("auth", "callback");
-  redirect.searchParams.set("returnTo", safe);
-
-  const target = new URL("/auth/v1/authorize", supabaseUrl);
-  if (target.protocol !== "https:") throw new Error("Invalid Supabase URL.");
-  target.searchParams.set("provider", "google");
-  target.searchParams.set("redirect_to", redirect.href);
-  return target.href;
-}
-
 export async function startGoogleOAuth(
   auth: { signInWithOAuth(input: { provider: "google"; options: { redirectTo: string } }): Promise<{ data: { url?: string | null }; error?: { message: string } | null }> },
   origin: string, supabaseUrl: string, returnTo = "/dashboard",

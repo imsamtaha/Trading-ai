@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildGoogleAuthorizeUrl, createBackendSession, safeReturnTo, startGoogleOAuth } from "@/features/auth/session";
+import { createBackendSession, safeReturnTo, startGoogleOAuth } from "@/features/auth/session";
 
 describe("private auth session", () => {
   it("exchanges a Supabase access token for an HttpOnly backend cookie", async () => {
@@ -10,18 +10,6 @@ describe("private auth session", () => {
       body: JSON.stringify({ access_token: "access-token" }),
     });
   });
-  it("builds a direct Google authorize URL without waiting for the Supabase browser bundle", () => {
-    const url = new URL(buildGoogleAuthorizeUrl(
-      "https://justai-atlas.online",
-      "https://example.supabase.co",
-      "/dashboard",
-    ));
-    expect(url.origin).toBe("https://example.supabase.co");
-    expect(url.pathname).toBe("/auth/v1/authorize");
-    expect(url.searchParams.get("provider")).toBe("google");
-    expect(url.searchParams.get("redirect_to")).toBe("https://justai-atlas.online/login?auth=callback&returnTo=%2Fdashboard");
-  });
-
   it("returns Google OAuth to the requested internal page", async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ data: { url: "https://example.supabase.co/auth/v1/authorize" }, error: null });
     expect(await startGoogleOAuth({ signInWithOAuth }, "https://justai-atlas.online", "https://example.supabase.co", "/admin/runtime")).toBe("https://example.supabase.co/auth/v1/authorize");
