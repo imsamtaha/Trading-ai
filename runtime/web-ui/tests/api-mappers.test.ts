@@ -43,6 +43,6 @@ it("preserves owner role from the private dashboard payload", () => {
 
  it("shows closed MT5 trades with the configured server time offset", () => {
   const state = mapPrivateDashboardState({ mt5: { connected: true, account: { account_masked: "***1391", currency: "USD" }, history_time_offset_seconds: 10800, recent_trades: [{ symbol: "EURUSD", position_id: 349264740, profit: 3, time: 1790884493 }] } });
-  expect(state.activity[0].message).toContain("#349264740");
-  expect(state.activity[0].timestamp).toBe("2026-10-01T16:54:53.000Z");
+  expect(state.activity?.[0].message).toContain("#349264740");
+  expect(state.activity?.[0].timestamp).toBe("2026-10-01T16:54:53.000Z");
  });
