@@ -1,4 +1,4 @@
-﻿"""Windows supervisor: recover stopped web tasks; observe MT5 without orders."""
+"""Windows supervisor: recover stopped web tasks; observe MT5 without orders."""
 import argparse
 import json
 import os
@@ -127,6 +127,41 @@ def check_cycle(directory):
         status["components"][name] = component
     status["components"]["public_route"] = {"state":
         "HTTPS_REACHABLE" if status["components"]["tunnel"]["state"] == "HEALTHY" else "HTTPS_UNAVAILABLE"}
+    # The paper task cannot place broker orders. Start only a stopped task;
+    # a running task with an old log is reported, never stopped or duplicated.
+    paper_gate = FailureGate(saved.get("paper"))
+    paper = {"state": "TASK_OPERATION_FAILED"}
+    try:
+        task_state = powershell("(Get-ScheduledTask -TaskName 'ATLAS Paper Monitor').State.ToString()")
+        paper["task_state"] = task_state
+        if task_state == "Running":
+            try:
+                modified = (directory.parent / "paper" / "paper-monitor.log").stat().st_mtime
+                age = now - modified
+                fresh = 0 <= age <= 120 and modified >= paper_gate.state.get("started_at", 0)
+                paper["log_age_seconds"] = round(age, 1)
+            except OSError:
+                fresh = False
+            paper["state"] = "HEALTHY" if fresh else "HEARTBEAT_UNAVAILABLE"
+            if fresh:
+                paper_gate.observe(True, now)
+                paper_gate.state["starts"] = 0
+        elif task_state == "Ready":
+            paper["state"] = "STOPPED"
+            if paper_gate.state.get("starts", 0) >= 5:
+                paper["state"] = "RECOVERY_EXHAUSTED"
+            elif not paused and paper_gate.observe(False, now):
+                paper_gate.state["starts"] = paper_gate.state.get("starts", 0) + 1
+                paper_gate.state["started_at"] = now
+                powershell("Start-ScheduledTask -TaskName 'ATLAS Paper Monitor'")
+                paper["state"] = "START_REQUESTED"
+                status["actions"].append("STARTED ATLAS Paper Monitor")
+        else:
+            paper["state"] = "TASK_REQUIRES_ATTENTION"
+    except Exception:
+        paper["state"] = "TASK_OPERATION_FAILED"
+    saved["paper"] = paper_gate.state
+    status["components"]["paper"] = paper
     status["components"]["mt5"] = check_mt5()
     atomic_json(state_path, saved)
     atomic_json(directory / "status.json", status)
