@@ -108,7 +108,7 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
     };
   }, [symbol, timeframe, sessionRequired]);
 
-  return <AtlasShell>
+  return <AtlasShell language={language}>
     <section data-testid="atlas-app-shell" className="atlas-app-workspace" lang={language} dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="atlas-utility-row">
         <div className="atlas-language-row" aria-label="Language">

@@ -3,12 +3,12 @@ import { Sidebar } from "./sidebar";
 import { MobileNav } from "./mobile-nav";
 import { AtlasWordmark } from "@/components/brand/atlas-wordmark";
 
-export function AtlasShell({ children }: { children: ReactNode }) {
+export function AtlasShell({ children, language = "ar" }: { children: ReactNode; language?: "ar" | "en" }) {
   return (
-    <div className="atlas-layout">
-      <Sidebar />
+    <div className="atlas-layout" lang={language} dir={language === "ar" ? "rtl" : "ltr"}>
+      <Sidebar language={language} />
       <main className="atlas-main"><div className="atlas-mobile-brand"><AtlasWordmark /></div>{children}</main>
-      <MobileNav />
+      <MobileNav language={language} />
     </div>
   );
 }

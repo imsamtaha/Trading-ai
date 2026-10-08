@@ -17,12 +17,16 @@ function NavIcon({ kind }: { kind: string }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="8" width="12" height="9" rx="3" /><path d="M9 12h.01M15 12h.01M9 15h6M12 8V5M4 11v3M20 11v3" /></svg>;
 }
 
-export function MobileNav() {
+const ENGLISH_LABELS: Record<string, string> = {
+  markets: "Markets", signals: "Signals", risk: "Risk", news: "News", ai: "ATLAS AI",
+};
+
+export function MobileNav({ language = "ar" }: { language?: "ar" | "en" }) {
   const [active, setActive] = useState("markets");
-  return <nav className="atlas-mobile-nav atlas-mobile-nav--five" data-testid="mobile-nav" aria-label="Mobile navigation">
+  return <nav className="atlas-mobile-nav atlas-mobile-nav--five" data-testid="mobile-nav" aria-label="Mobile navigation" dir={language === "ar" ? "rtl" : "ltr"}>
     {MOBILE_ITEMS.map((item) => <a key={item.key} href={item.href} className="atlas-mobile-nav__link"
       aria-current={active === item.key ? "page" : undefined} onClick={() => setActive(item.key)}>
-      <span className="atlas-mobile-nav__icon"><NavIcon kind={item.key} /></span><span>{item.label}</span>
+      <span className="atlas-mobile-nav__icon"><NavIcon kind={item.key} /></span><span>{language === "ar" ? item.label : ENGLISH_LABELS[item.key]}</span>
     </a>)}
   </nav>;
 }

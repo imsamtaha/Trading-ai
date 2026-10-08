@@ -16,9 +16,9 @@ describe("Arabic-first ATLAS mobile UI", () => {
     const { container } = render(<DashboardScreen state={DASHBOARD_FIXTURE} />);
     const nav = screen.getByRole("navigation", { name: "التنقل الرئيسي" });
     expect(nav.querySelectorAll("a")).toHaveLength(5);
-    for (const label of ["التداول", "الإشارات", "المخاطر", "الأخبار", "ATLAS AI"]) expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+    for (const label of ["الأسواق", "الإشارات", "المخاطر", "الأخبار", "ATLAS AI"]) expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     expect(container.querySelector('#ai img[alt="ATLAS AI"]')).toBeInTheDocument();
-    const trade = screen.getByRole("link", { name: "التداول" });
+    const trade = screen.getByRole("link", { name: "الأسواق" });
     const atlasAi = screen.getByRole("link", { name: "ATLAS AI" });
     expect(trade).toHaveAttribute("aria-current", "page");
     fireEvent.click(atlasAi);

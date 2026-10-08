@@ -7,6 +7,6 @@ describe("ATLAS app shell", () => {
     render(<AtlasPage />);
     expect(screen.getByTestId("atlas-app-shell")).toBeInTheDocument();
     expect(screen.getAllByRole("img", { name: "ATLAS" }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Trading Intelligence").length).toBeGreaterThan(0);
+    expect(screen.getByRole("navigation", { name: "التنقل الرئيسي" })).toBeInTheDocument();
   });
 });
