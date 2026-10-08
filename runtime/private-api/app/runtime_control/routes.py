@@ -43,6 +43,13 @@ def record_web_visit(payload: VisitPayload, request: Request) -> JSONResponse:
     return response
 
 
+@router.get("/training")
+def training_status(request: Request) -> JSONResponse:
+    _require_owner(request)
+    from .training import training_overview
+    return JSONResponse(training_overview(), headers={"Cache-Control": "private, no-store"})
+
+
 @router.get("/status")
 def runtime_status(request: Request) -> dict[str, object]:
     _require_owner(request)

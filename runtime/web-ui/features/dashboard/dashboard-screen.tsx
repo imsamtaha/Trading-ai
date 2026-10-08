@@ -12,6 +12,7 @@ import { AtlasAssistant } from "@/features/ai/atlas-assistant";
 import { sendAgentMessage } from "@/lib/api/agent";
 import type { Headline } from "@/lib/api/briefing";
 import { AgentBadge } from "@/components/system/agent-badge";
+import { TrainingPanel } from "@/features/training/training-panel";
 import { ExecutionAgentPanel } from "@/features/execution/execution-agent-panel";
 
 type Language = "ar" | "en";
@@ -102,6 +103,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
     </section>
 
     <ExecutionAgentPanel language={language} />
+    {state.userRole === "OWNER" && <TrainingPanel language={language} />}
 
     <section className="atlas-lower-grid atlas-secondary-zone">
       <div className="atlas-card atlas-activity-card" id="analytics">
