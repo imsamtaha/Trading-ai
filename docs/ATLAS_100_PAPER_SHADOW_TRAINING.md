@@ -6,13 +6,13 @@ User authorization: 2026-10-08, 22:39 Beirut; restore Python confirmed at 22:42.
 - Scheduled Paper Monitor sets daily entry ceiling to 100; the ledger accepts ceilings 1..100. Default for callers without an explicit setting remains 50.
 - Existing entries count toward the ceiling; no ledger reset, no forced daily quota. Existing day boundary remains UTC (03:00 Beirut during summer time).
 - Maximum concurrent positions remains 5. Maximum concurrent CRYPTO positions is 2 and STOCKS positions is 2. Other existing daily-loss, aggregate-risk, per-trade-risk and reward/risk gates remain active.
-- Monitor scans up to 30 available supported instruments per cycle. Categories take turns filling the list; preferences no longer remove other categories.
+- Monitor scans up to 30 available supported instruments per cycle and rotates scan order. Categories take turns filling the list; preferences no longer remove other categories.
 - Broker names BITCOIN, ETHEREUM, SOLANA, XRP and other verified aliases map to canonical symbols. A bounded equity registry includes AAPL, TSLA, MSFT, NVDA, AMZN, GOOGL, META, AMD, NFLX, JPM and others.
 - Broker discovery may subscribe supported crypto/equity quotes to Market Watch. Subscription is not order submission. Unavailable or stale quotes do not become eligible through this change.
 - MT5 orders remain disabled; accounting is simulated risk-normalized paper P&L, not actual broker P&L.
 
 ## Training architecture
-Existing Council calibration remains enabled and updates trained agent weights only from settled paper outcomes. The existing Node training accelerator is preserved without edits.
+Existing Council calibration remains enabled and updates trained agent weights only from settled paper outcomes. The existing Node training accelerator was backed up before its authorized v2 improvements. It refreshes on startup and after the settled count changes with a bounded 15-second timeout.
 
 A separate L2 logistic entry/abstention selector is enabled in SHADOW mode:
 1. Read settled positions from the paper ledger; reject invalid, future-dated, non-paper and broker-enabled outcomes; ignore repeated IDs.
@@ -50,3 +50,5 @@ Rollback: restore changed tracked files from .runtime/changes-100-shadow-2026100
 - Shadow abstention cannot alter a paper entry and cannot invoke orders.
 - Outcome fields cannot affect features; overlapping labels purged.
 - Transient replace locks recover without duplicate trades; persistent failures preserve original bytes.
+
+Verification: restored runtime imports and 100-cap behavior passed. A persistent read-only Desktop Commander stream blocked Windows atomic ledger replacement; released that exact reader and verified persistence. Existing 76 settled records were preserved and five new paper positions opened, bringing UTC daily entries to 55. See the v2 accelerator guide for corrected purged evaluation and limitations.

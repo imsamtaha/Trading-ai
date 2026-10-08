@@ -59,3 +59,29 @@ def test_broker_crypto_names_and_cash_stock_suffixes():
     for s in ["AAPL.O","TSLA.O","NVDA.O","V.N","MA.N"]:
         assert classify_symbol(normalize_symbol(s))[0]=="STOCKS"
     assert classify_symbol(normalize_symbol("UNKNOWN")) is None
+
+def test_accelerator_refreshes_once_per_new_settled_count(monkeypatch,tmp_path):
+    from app.monitor import atlas_mt5 as module
+    monkeypatch.setenv("ATLAS_TRAINING_ACCELERATOR_ENABLED","true")
+    m=instance(monkeypatch,tmp_path)
+    run=Mock(return_value=Mock(returncode=0,stderr=""))
+    monkeypatch.setattr(module.subprocess,"run",run)
+    m._refresh_shadow_training()
+    m._refresh_shadow_training()
+    assert run.call_count == 1
+    assert run.call_args.kwargs["timeout"] == 15
+    assert "--ledger" in run.call_args.args[0]
+    m.broker.order_send.assert_not_called()
+
+def test_scan_order_rotates_without_duplicating_symbols(monkeypatch,tmp_path):
+    m=instance(monkeypatch,tmp_path)
+    m.auto_discover=False
+    m.symbols=["EURUSD","BITCOIN","AAPL.O"]
+    m._close_due_positions=Mock(return_value=[])
+    order=[]
+    m.analyze_symbol=Mock(side_effect=lambda symbol:(order.append(symbol) or {"candidate":None,"decision":{"decision":"WAIT"}}))
+    m.cycle()
+    assert order==["EURUSD","BITCOIN","AAPL.O"]
+    order.clear()
+    m.cycle()
+    assert order==["BITCOIN","AAPL.O","EURUSD"]

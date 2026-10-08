@@ -1,44 +1,52 @@
-# ATLAS Training Accelerator (Offline Replay v1)
+# ATLAS Training Accelerator v2
 
-## Purpose
+The tool evaluates agent confidence calibration on settled PAPER outcomes. It does not place orders or promote experimental weights into the operational Council profile.
 
-Fast, reproducible **PAPER-only** experiments to calibrate council confidence weights without changing operational ATLAS profile, monitor, execution policy, or broker permissions. This tool uses the existing settled paper-training journal. Replaying 76 examples **does not create 76 new independent market observations**.
-
-## Usage (Windows, from ATLAS folder)
-
+## Running
+Windows from ATLAS:
 ```powershell
 node scripts/atlas_training_accelerator.mjs
 node --test tests/test_training_accelerator.mjs
 ```
+The scheduled Paper Monitor now invokes it at startup and whenever the settled-trade count changes, when ATLAS_TRAINING_ACCELERATOR_ENABLED=true. The call has a 15-second timeout; failure is logged without changing trading decisions. Runtime is independent of the replay report.
 
-Optional switches: `--journal <path>`, `--output-dir <research-path>`, `--min-improvement 0.01`.
+CLI: --journal, --ledger, --output-dir, --min-improvement (default0.01), --min-days (default3), --min-validation (default20).
+A custom journal without --ledger is marked as lacking verified entry times. The default run uses the operational journal and paper ledger read-only.
 
-Default input: `.runtime/paper/atlas_council_training.jsonl` (read-only).
-Default output: `.runtime/research/training-accelerator/latest-report.json`.
+## Evaluation
+1. Reject malformed, future, live/broker-enabled and conflicting records; ignore exact duplicate snapshots.
+2. Join each journal snapshot to its settled ledger trade. Validate label, entry/settlement timing and paper execution flags.
+3. Order by entry time; split 60% development /20% validation /20% retrospective test. Purge development positions still open at validation start and validation positions still open at test start.
+4. Optimize one bounded confidence multiplier per trained agent (0.50..1.50) on development only. The baseline uses the existing Council reliability formula, calculated from development only.
+5. Consider hypothetical acceptance only with 3 entry dates, at least20 validation samples per agent and Brier improvement>=0.01. These are operational gates, not proof of statistical independence or80% accuracy.
+6. Show accuracy with descriptive Wilson95% intervals, confidence calibration bins, high-confidence development errors, symbol/strategy/date coverage and risk-normalized paper R.
+7. Freeze exact source snapshots with SHA256 and save an immutable report for each run, plus latest-report.json. Historical tests have been viewed before; repeated runs do not provide fresh independent validation.
 
-## Safeguards
+Outputs: .runtime/research/training-accelerator/.
+No writes into the operational PAPER directory or its descendants, including resolved symbolic paths.
 
-- Rejects missing/wrong timestamps, non-PAPER or broker-enabled examples, invalid numeric confidence and conflicting labels for the same snapshot.
-- Removes exact duplicated snapshots before computing sample counts.
-- Uses chronological **60% train / 20% validation / 20% untouched test**. Minimum 30 settled unique samples required.
-- Computes a baseline from the existing trainer's reliability formula, then trials **bounded weights from 0.50 to 1.50** to minimize Brier score on training only.
-- Shadow-accepts a candidate only when validation Brier improves by at least 0.01 and there are at least 6 validation samples for the agent. Otherwise keeps the training-derived baseline in the shadow report.
-- Reports out-of-sample Brier, directional accuracy, disagreement rate and highest-confidence historical mistakes.
-- **NO** edits to operational `atlas_council_profile.json`, journal or trading settings. Never executes orders, connects to MT5, or enables live trading.
-- No online promotion is built. "SHADOW_ACCEPTED" refers only to a hypothetical calibration candidate in the research report.
+## What confidence weighting means
+A proposed multiplier scales reported confidence; it does not supply an independent BUY/SELL signal. On the current76 examples, both trained agents agree on every direction. Better calibration therefore does not establish better direction selection or a higher trade win rate.
+The live Council profile and retrospective baseline refer to different sample windows. Do not compare their weights as if they were the same model.
 
-## Initial 2026-10-08 replay, 76 examples
+The separate Python entry/abstention selector runs in SHADOW mode. It requires100 settled examples across3 entry dates, uses pre-entry features and purged chronological splits, and logs observations without changing entry gates. Its0.8 threshold is experimental, not an achieved80% success rate.
 
-All 76 settled examples contain unanimous decisions from the two trained agents (technical + confidence). Thus changing their weights does not independently create a better direction signal.
+## Verified first v2 replay, 2026-10-08
+76 unique settled outcomes across2 entry dates:
+- Development41; validation13; retrospective test16.
+- Purged4 development and2 validation outcomes.
+- Both agents: SHADOW_DEFERRED_DATA (insufficient dates and validation count).
+- Technical candidate0.50 improved validation Brier0.38678 ->0.27894.
+- Confidence candidate0.50 worsened validation Brier0.28268 ->0.28912.
+- No proposed weights deployed.
 
-- Technical: validation Brier improved from 0.34036 to 0.28046 with candidate weight 0.50; shadow-accepted only. Untouched test Brier improved from 0.38324 to 0.20953.
-- Confidence: candidate 0.50 worsened validation Brier from 0.26780 to 0.31266; shadow-rejected.
-- Production PAPER profile remains unchanged. The shadow baselines trained on the older 60% segment are not the latest runtime profile weights; do not confuse them.
+## Operational limits
+The monitor allows up to100 qualified paper entries per UTC day (03:00 Beirut in summer); it does not force100 trades. Maximum5 concurrent positions, maximum2 CRYPTO and2 STOCKS positions, existing loss/risk gates remain active. Category ceilings are checked within the cross-process ledger lock. Discovery samples up to30 supported broker instruments, and scan order rotates to reduce position-slot bias toward the same first symbols.
 
-## Limits, next version
+Broker names and market availability matter: the new mapping includes BITCOIN/ETHEREUM/SOLANA and exchange-suffixed equities such as AAPL.O/TSLA.O. Unsupported, unavailable or stale assets do not receive fabricated quotes or labels.
 
-The current training labels come only from settled positions. They do **not** establish the counterfactual outcomes of rejected trades; sample selection bias, intraday changes and non-independent agent opinions are material concerns. Replay speed is not the same thing as training throughput or directional improvement. Next priority is **independent** signals (regime, news, macro, or price-action abstention) with timestamped ex-ante predictions, blocked walk-forward validation across days/symbols, and a minimum independent sample requirement before any runtime experiment.
+## File locking incident
+A partial-read stream in Desktop Commander held the operational ledger open without allowing atomic replacement on Windows. Confirmed the exact read-only holder, released that reader and verified locked atomic persistence. Do not partially read active runtime files through file-preview tools; inspect a copied snapshot or a short-lived terminal read instead. Transient sharing locks receive bounded retries; persistent failures remain explicit errors. No data was discarded.
 
-## Windows environment warning observed 2026-10-08
-
-The existing `.venv/Scripts/python.exe --version` failed with code 103, reporting a missing Python 3.13 base path. The running paper monitor may continue while already loaded, but a restart may fail. This Node tool works independently. Repair the Python installation / venv only through a separately verified maintenance workflow; do not change the paper runtime to make this research tool work.
+## Remaining limitations
+Samples across dates can still be correlated. Executed trades are selected by the existing strategy; rejected candidates lack counterfactual labels. Paper R includes bid/ask effects but excludes commissions, funding and real broker execution. Unusual gap exits are retained, not cosmetically clipped. A replay cannot certify future returns.

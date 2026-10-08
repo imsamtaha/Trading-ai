@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -135,6 +136,9 @@ class AtlasMT5Monitor:
         self.shadow_report_path = Path(os.getenv("ATLAS_SHADOW_REPORT", "data/atlas_shadow_report.json"))
         self.shadow_journal_path = Path(os.getenv("ATLAS_SHADOW_JOURNAL", "data/atlas_shadow_predictions.jsonl"))
         self.shadow_closed_count = -1
+        self.cycle_rotation = 0
+        self.accelerator_enabled = os.getenv("ATLAS_TRAINING_ACCELERATOR_ENABLED", "false").lower() == "true"
+        self.accelerator_node = os.getenv("ATLAS_NODE_EXE", "node")
         self.category_position_limit = max(0, int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0")))
         self.signal_quality_engine = SignalQualityEngine()
         self.council_profile = self._load_council_profile()
@@ -598,6 +602,20 @@ class AtlasMT5Monitor:
                 self.shadow_selector.fit(closed)
                 self.shadow_selector.save_report(self.shadow_report_path)
                 self.shadow_closed_count = len(closed)
+                if self.accelerator_enabled:
+                    root = Path(__file__).resolve().parents[2]
+                    try:
+                        result = subprocess.run(
+                            [self.accelerator_node, str(root / "scripts/atlas_training_accelerator.mjs"),
+                             "--journal", str(self.council_training_journal.path.resolve()),
+                             "--ledger", str(self.ledger.path.resolve()),
+                             "--output-dir", str(root / ".runtime/research/training-accelerator")],
+                            cwd=root, capture_output=True, text=True, timeout=15,
+                        )
+                        if result.returncode:
+                            print(f"Agent accelerator deferred: {result.stderr[:300]}", flush=True)
+                    except (OSError, subprocess.TimeoutExpired) as exc:
+                        print(f"Agent accelerator unavailable: {exc}", flush=True)
         except (OSError, TypeError, ValueError) as exc:
             print(f"Shadow training unavailable: {exc}", flush=True)
 
@@ -626,7 +644,10 @@ class AtlasMT5Monitor:
         if self.auto_discover:
             self.discover_symbols()
 
-        for symbol in self.symbols:
+        offset = self.cycle_rotation % max(1, len(self.symbols))
+        ordered_symbols = self.symbols[offset:] + self.symbols[:offset]
+        self.cycle_rotation += 1
+        for symbol in ordered_symbols:
             try:
                 analysis = self.analyze_symbol(symbol)
                 candidate = analysis["candidate"]
