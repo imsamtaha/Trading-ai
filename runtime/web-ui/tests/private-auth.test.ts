@@ -13,7 +13,7 @@ describe("private auth session", () => {
   it("returns Google OAuth to the requested internal page", async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ data: { url: "https://example.supabase.co/auth/v1/authorize" }, error: null });
     expect(await startGoogleOAuth({ signInWithOAuth }, "https://justai-atlas.online", "https://example.supabase.co", "/admin/runtime")).toBe("https://example.supabase.co/auth/v1/authorize");
-    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "https://justai-atlas.online/login?auth=callback&returnTo=%2Fadmin%2Fruntime" } });
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "https://justai-atlas.online/login?auth=callback&returnTo=%2Fadmin%2Fruntime", skipBrowserRedirect: true } });
     expect(safeReturnTo("https://evil.example")).toBe("/dashboard");
   });
   it("rejects an OAuth redirect outside the configured Supabase origin", async () => {

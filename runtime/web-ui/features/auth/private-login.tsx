@@ -6,7 +6,7 @@ import { createBackendSession, safeReturnTo, startGoogleOAuth } from "./session"
 
 type AuthClient = {
   auth: {
-    signInWithOAuth(input: { provider: "google"; options: { redirectTo: string } }): Promise<{ data: { url?: string | null }; error?: { message: string } | null }>;
+    signInWithOAuth(input: { provider: "google"; options: { redirectTo: string; skipBrowserRedirect: true } }): Promise<{ data: { url?: string | null }; error?: { message: string } | null }>;
     signInWithOtp(input: { email: string; options: { emailRedirectTo: string } }): Promise<{ error?: { message: string } | null }>;
     getSession(): Promise<{ data: { session?: { access_token?: string } | null } }>;
     signOut(): Promise<unknown>;
@@ -19,13 +19,22 @@ export function PrivateLogin() {
   const currentReturnTo = () => safeReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [supabaseReady, setSupabaseReady] = useState(false);
+  const [clientReady, setClientReady] = useState(false);
   const [status, setStatus] = useState("Checking secure sign-in…");
   const [signedIn, setSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const clientRef = useRef<AuthClient | null>(null);
+  const failedReturn = useRef(false);
 
   useEffect(() => {
     let active = true;
+    const returnedUrl = new URL(window.location.href);
+    const fragment = new URLSearchParams(returnedUrl.hash.slice(1));
+    failedReturn.current = failedReturn.current || returnedUrl.searchParams.has("error") || fragment.has("error");
+    if (failedReturn.current) {
+      for (const key of ["error", "error_code", "error_description", "code"]) returnedUrl.searchParams.delete(key);
+      window.history.replaceState({}, "", returnedUrl.pathname + returnedUrl.search);
+    }
     fetch("/backend/auth/config", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("Authentication unavailable.");
@@ -34,7 +43,7 @@ export function PrivateLogin() {
       .then((value) => {
         if (active) {
           setConfig(value);
-          setStatus("Sign in with Google or use an email link.");
+          setStatus(failedReturn.current ? "Google sign-in could not be completed. Use the email link or contact ATLAS support." : "Sign in with Google or use an email link.");
         }
       })
       .catch(() => { if (active) setStatus("Authentication is temporarily unavailable."); });
@@ -52,10 +61,11 @@ export function PrivateLogin() {
     let active = true;
     const client = browser.supabase.createClient(config.url, config.anon_key);
     clientRef.current = client;
-    setStatus("Sign in with Google or use an email link.");
+    setClientReady(true);
+    setStatus(failedReturn.current ? "Google sign-in could not be completed. Use the email link or contact ATLAS support." : "Sign in with Google or use an email link.");
 
     void client.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
+      if (!active || failedReturn.current) return;
       const token = data.session?.access_token;
       const query = new URLSearchParams(window.location.search);
       const callback = query.has("code") || query.get("auth") === "callback";
@@ -137,7 +147,7 @@ export function PrivateLogin() {
     }
   }
 
-  const ready = Boolean(config && supabaseReady && clientRef.current);
+  const ready = Boolean(config && supabaseReady && clientReady);
 
   return <div className="atlas-auth-stack">
     <Script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onReady={() => setSupabaseReady(true)} />

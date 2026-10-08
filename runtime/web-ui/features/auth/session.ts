@@ -4,14 +4,14 @@
 }
 
 export async function startGoogleOAuth(
-  auth: { signInWithOAuth(input: { provider: "google"; options: { redirectTo: string } }): Promise<{ data: { url?: string | null }; error?: { message: string } | null }> },
+  auth: { signInWithOAuth(input: { provider: "google"; options: { redirectTo: string; skipBrowserRedirect: true } }): Promise<{ data: { url?: string | null }; error?: { message: string } | null }> },
   origin: string, supabaseUrl: string, returnTo = "/dashboard",
 ): Promise<string> {
   const safe = safeReturnTo(returnTo);
   const redirect = new URL("/login", origin);
   redirect.searchParams.set("auth", "callback");
   redirect.searchParams.set("returnTo", safe);
-  const result = await auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirect.href } });
+  const result = await auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirect.href, skipBrowserRedirect: true } });
   if (result.error || !result.data.url) throw new Error("Google OAuth unavailable.");
   const target = new URL(result.data.url);
   if (target.protocol !== "https:" || target.origin !== new URL(supabaseUrl).origin || target.pathname !== "/auth/v1/authorize") {
