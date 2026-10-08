@@ -1,0 +1,9 @@
+# ATLAS production operations
+
+Use `.venv/Scripts/python.exe ops/deploy_atlas_web.py` from the ATLAS root for frontend upgrades. It runs all frontend tests, TypeScript checks and a production build in an isolated directory. It verifies candidate routes and login JavaScript on port 8014 before stopping the production frontend. Failed post-deploy health restores the previous build. One `.next-last-good` build remains available. Builds and credentials belong outside Git.
+
+The Windows supervisor observes backend, frontend, the public route and MT5. It recovers only the named web and tunnel tasks after three failures, with backoff and bounded restarts. Tunnel recovery requires healthy local services. A deployment maintenance marker prevents recovery from racing the build swap and expires automatically. It does not submit broker orders.
+
+Windows rejected changes to the elevated web/backend task settings under the remote session. Run `ops/configure_atlas_host.ps1` in an Administrator PowerShell to remove battery-related stops. The tunnel currently requires a logged-in user. The host must remain powered, connected and awake. The latest outage includes a Windows sleep event with reason Application API; changing idle timeouts cannot guarantee protection against an application or person explicitly putting the host to sleep.
+
+Google OAuth still requires a verified matching web Client ID and Client Secret in Supabase. Never commit provider secrets, tunnel tokens, runtime env files or user databases. An enabled login button or HTTP 200 is not evidence of successful OAuth.
