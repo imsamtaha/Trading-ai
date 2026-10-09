@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import time
 import urllib.request
+from urllib.parse import urlsplit
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,11 +26,24 @@ def health(base, assets=False):
             with urllib.request.urlopen(base + route, timeout=6) as r:
                 if r.status != 200: return False
                 body=r.read().decode("utf-8")
+            if route == "/backend/health":
+                payload = json.loads(body)
+                if not isinstance(payload, dict) or payload.get("status") != "healthy" or payload.get("service") != "atlas-trading-api":
+                    return False
+            if route == "/backend/auth/config":
+                payload = json.loads(body)
+                if not isinstance(payload, dict): return False
+                auth_url = payload.get("url")
+                key = payload.get("anon_key")
+                if not isinstance(auth_url, str) or not isinstance(key, str) or not key.strip(): return False
+                target = urlsplit(auth_url)
+                if target.scheme != "https" or not target.hostname: return False
             if assets and route == "/login":
-                for src in re.findall(r'<script[^>]+src="([^"]+)"', body):
-                    if src.startswith("/_next/"):
-                        with urllib.request.urlopen(base + src, timeout=6) as r:
-                            if r.status != 200: return False
+                scripts = [src for src in re.findall(r'<script[^>]+src="([^"]+)"', body) if src.startswith("/_next/")]
+                if not scripts: return False
+                for src in scripts:
+                    with urllib.request.urlopen(base + src, timeout=6) as r:
+                        if r.status != 200: return False
         return True
     except Exception:
         return False
@@ -75,6 +89,14 @@ def promote(web, candidate, state):
     finally:
         marker.unlink(missing_ok=True)
 
+def validate_frontend(node, web, env):
+    # Lint is an admission check, rather than a manual step that upgrades skip.
+    for args in (["node_modules/vitest/vitest.mjs", "run"],
+                 ["node_modules/eslint/bin/eslint.js", ".", "--max-warnings=0"],
+                 ["node_modules/typescript/bin/tsc", "--noEmit"],
+                 ["node_modules/next/dist/bin/next", "build"]):
+        subprocess.run([node, *args], cwd=web, env=env, check=True)
+
 def main():
     import msvcrt
     STATE.mkdir(parents=True, exist_ok=True)
@@ -88,8 +110,7 @@ def main():
         original={p:p.read_bytes() for p in (WEB / "next-env.d.ts", WEB / "tsconfig.json")}
         canary=None
         try:
-            for args in (["node_modules/vitest/vitest.mjs", "run"], ["node_modules/typescript/bin/tsc", "--noEmit"], ["node_modules/next/dist/bin/next", "build"]):
-                subprocess.run([node,*args],cwd=WEB,env=env,check=True)
+            validate_frontend(node, WEB, env)
             # No promotion without a running, verified isolated build. The port
             # must be unused; a stale canary is never accepted as this build.
             import socket

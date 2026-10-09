@@ -1,6 +1,7 @@
 """Windows supervisor: recover stopped web tasks; observe MT5 without orders."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -11,9 +12,10 @@ import urllib.request
 class FailureGate:
     def __init__(self, state=None):
         self.state = dict(state or {"failures": 0, "attempts": 0, "next": 0})
+        self.state.setdefault("recoveries", self.state.get("restarts", 0))
     def observe(self, healthy, now):
         if healthy:
-            self.state.update(failures=0, attempts=0, restarts=0, next=0)
+            self.state.update(failures=0, attempts=0, restarts=0, recoveries=0, next=0)
             return False
         self.state["failures"] = self.state.get("failures", 0) + 1
         if self.state["failures"] < 3 or now < self.state.get("next", 0):
@@ -97,28 +99,35 @@ def check_cycle(directory):
         eligible = name != "tunnel" or local_healthy
         due = gate.observe(healthy, now) if eligible and not paused else False
         component = {"state": "HEALTHY" if healthy else "HTTP_UNAVAILABLE"}
+        if not healthy and gate.state["recoveries"] >= 5:
+            component["state"] = "RECOVERY_EXHAUSTED"
         if due:
             try:
                 task_state = powershell("(Get-ScheduledTask -TaskName '" + task + "').State.ToString()")
                 component["task_state"] = task_state
-                if task_state == "Ready":
-                    powershell("Start-ScheduledTask -TaskName '" + task + "'")
-                    status["actions"].append("STARTED " + task)
-                elif task_state == "Running":
-                    if gate.state.get("restarts", 0) >= 5:
+                if task_state in {"Ready", "Running"}:
+                    if gate.state["recoveries"] >= 5:
                         component["state"] = "RECOVERY_EXHAUSTED"
                     else:
+                        # Failed requests consume the same bounded budget as
+                        # successful ones; stopped tasks cannot loop forever.
+                        gate.state["recoveries"] += 1
                         # Only the named web and tunnel tasks are eligible. Never restart
                         # an execution worker or touch MT5 account permissions.
-                        gate.state["restarts"] = gate.state.get("restarts", 0) + 1
-                        powershell("Stop-ScheduledTask -TaskName '" + task + "'; "
-                            "$deadline = (Get-Date).AddSeconds(10); "
-                            "while ((Get-ScheduledTask -TaskName '" + task + "').State.ToString() -eq 'Running') { "
-                            "if ((Get-Date) -ge $deadline) { throw 'Task stop timed out' }; "
-                            "Start-Sleep -Milliseconds 200 }; "
-                            "Start-ScheduledTask -TaskName '" + task + "'")
-                        component["state"] = "RECOVERING"
-                        status["actions"].append("RESTARTED " + task)
+                        if task_state == "Ready":
+                            powershell("Start-ScheduledTask -TaskName '" + task + "'")
+                            component["state"] = "START_REQUESTED"
+                            status["actions"].append("STARTED " + task)
+                        else:
+                            gate.state["restarts"] = gate.state.get("restarts", 0) + 1
+                            powershell("Stop-ScheduledTask -TaskName '" + task + "'; "
+                                "$deadline = (Get-Date).AddSeconds(10); "
+                                "while ((Get-ScheduledTask -TaskName '" + task + "').State.ToString() -eq 'Running') { "
+                                "if ((Get-Date) -ge $deadline) { throw 'Task stop timed out' }; "
+                                "Start-Sleep -Milliseconds 200 }; "
+                                "Start-ScheduledTask -TaskName '" + task + "'")
+                            component["state"] = "RECOVERING"
+                            status["actions"].append("RESTARTED " + task)
                 else:
                     component["state"] = "TASK_REQUIRES_ATTENTION"
             except Exception:
@@ -128,7 +137,7 @@ def check_cycle(directory):
     status["components"]["public_route"] = {"state":
         "HTTPS_REACHABLE" if status["components"]["tunnel"]["state"] == "HEALTHY" else "HTTPS_UNAVAILABLE"}
     # The paper task cannot place broker orders. Start only a stopped task;
-    # a running task with an old log is reported, never stopped or duplicated.
+    # a running task without a completed cycle is reported, never duplicated.
     paper_gate = FailureGate(saved.get("paper"))
     paper = {"state": "TASK_OPERATION_FAILED"}
     try:
@@ -136,11 +145,16 @@ def check_cycle(directory):
         paper["task_state"] = task_state
         if task_state == "Running":
             try:
-                modified = (directory.parent / "paper" / "paper-monitor.log").stat().st_mtime
+                heartbeat = json.loads((directory.parent / "paper" / "paper-cycle.json").read_text(encoding="utf-8"))
+                modified = heartbeat.get("checked_at_epoch") if isinstance(heartbeat, dict) else None
+                if isinstance(modified, bool) or not isinstance(modified, (int, float)) or not math.isfinite(modified):
+                    raise ValueError("INVALID_PAPER_HEARTBEAT")
                 age = now - modified
-                fresh = 0 <= age <= 120 and modified >= paper_gate.state.get("started_at", 0)
-                paper["log_age_seconds"] = round(age, 1)
-            except OSError:
+                fresh = (0 <= age <= 120 and modified >= paper_gate.state.get("started_at", 0)
+                         and heartbeat.get("state") == "COMPLETED"
+                         and heartbeat.get("broker_execution_allowed") is False)
+                paper["cycle_age_seconds"] = round(age, 1)
+            except (OSError, ValueError, TypeError):
                 fresh = False
             paper["state"] = "HEALTHY" if fresh else "HEARTBEAT_UNAVAILABLE"
             if fresh:
@@ -165,6 +179,13 @@ def check_cycle(directory):
     status["components"]["mt5"] = check_mt5()
     atomic_json(state_path, saved)
     atomic_json(directory / "status.json", status)
+    healthy_states = {"HEALTHY", "HTTPS_REACHABLE", "ALGO_DISABLED"}
+    atomic_json(directory / "attention.json", {
+        "checked_at_utc": status["checked_at_utc"],
+        "maintenance": paused,
+        "components": {name: item["state"] for name, item in status["components"].items()
+                       if item["state"] not in healthy_states},
+    })
     log = directory / "events.jsonl"
     if log.exists() and log.stat().st_size > 1_000_000:
         os.replace(log, directory / "events.previous.jsonl")
