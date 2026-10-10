@@ -1,7 +1,9 @@
 """Windows supervisor: recover stopped web tasks; observe MT5 without orders."""
 import argparse
+from datetime import datetime
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -43,6 +45,30 @@ def http_health(url):
             return response.status == 200
     except Exception:
         return False
+
+def latest_paper_ledger_failure(log_path):
+    """Read only the log tail to find the last failed durable Paper write."""
+    try:
+        with log_path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            handle.seek(max(0, handle.tell() - 262144))
+            lines = handle.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return 0.0
+    latest = 0.0
+    for line in lines:
+        if "Cannot persist demo ledger" not in line:
+            continue
+        match = re.search(r"""['"]timestamp['"]:\s*['"]([^'"]+)""", line)
+        if not match:
+            continue
+        try:
+            observed = datetime.fromisoformat(match.group(1).replace("Z", "+00:00"))
+            if observed.tzinfo is not None:
+                latest = max(latest, observed.timestamp())
+        except ValueError:
+            continue
+    return latest
 
 def mt5_probe():
     import MetaTrader5 as mt5
@@ -130,6 +156,20 @@ def check_cycle(directory):
     # The paper task cannot place broker orders. Start only a stopped task;
     # a running task with an old log is reported, never stopped or duplicated.
     paper_gate = FailureGate(saved.get("paper"))
+    paper_dir = directory.parent / "paper"
+    last_failure = max(
+        float(paper_gate.state.get("ledger_failure_at", 0)),
+        latest_paper_ledger_failure(paper_dir / "paper-monitor.log"),
+    )
+    try:
+        ledger_modified = (paper_dir / "atlas_demo_ledger.json").stat().st_mtime
+    except OSError:
+        ledger_modified = 0.0
+    ledger_failed = last_failure > 0 and ledger_modified <= last_failure
+    if ledger_failed:
+        paper_gate.state["ledger_failure_at"] = last_failure
+    else:
+        paper_gate.state.pop("ledger_failure_at", None)
     paper = {"state": "TASK_OPERATION_FAILED"}
     try:
         task_state = powershell("(Get-ScheduledTask -TaskName 'ATLAS Paper Monitor').State.ToString()")
@@ -142,13 +182,22 @@ def check_cycle(directory):
                 paper["log_age_seconds"] = round(age, 1)
             except OSError:
                 fresh = False
-            paper["state"] = "HEALTHY" if fresh else "HEARTBEAT_UNAVAILABLE"
-            if fresh:
+            paper["state"] = (
+                "LEDGER_PERSISTENCE_FAILED" if ledger_failed
+                else "HEALTHY" if fresh else "HEARTBEAT_UNAVAILABLE"
+            )
+            if ledger_failed:
+                paper["last_ledger_error_utc"] = time.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(last_failure)
+                )
+            if fresh and not ledger_failed:
                 paper_gate.observe(True, now)
                 paper_gate.state["starts"] = 0
         elif task_state == "Ready":
-            paper["state"] = "STOPPED"
-            if paper_gate.state.get("starts", 0) >= 5:
+            paper["state"] = "LEDGER_PERSISTENCE_FAILED" if ledger_failed else "STOPPED"
+            if ledger_failed:
+                pass  # A storage fault needs manual repair; no restart loops.
+            elif paper_gate.state.get("starts", 0) >= 5:
                 paper["state"] = "RECOVERY_EXHAUSTED"
             elif not paused and paper_gate.observe(False, now):
                 paper_gate.state["starts"] = paper_gate.state.get("starts", 0) + 1

@@ -101,3 +101,37 @@ def test_log_from_before_recovery_does_not_reset_start_budget(server_dir):
     assert result["components"]["paper"]["state"] == "HEARTBEAT_UNAVAILABLE"
     state = json.loads((server_dir / "recovery-state.json").read_text())
     assert state["paper"]["starts"] == 1
+
+
+def test_recent_persistence_error_marks_running_paper_degraded(server_dir):
+    paper_dir = server_dir.parent / "paper"
+    paper_dir.mkdir()
+    log = paper_dir / "paper-monitor.log"
+    log.write_text(
+        "{'timestamp': '1970-01-01T00:16:40+00:00', "
+        "'status': 'MT5_ERROR', "
+        "'reason': 'Cannot persist demo ledger: WinError 5'}\n"
+    )
+    os.utime(log, (1000, 1000))
+    ledger = paper_dir / "atlas_demo_ledger.json"
+    ledger.write_text('{"open_positions": [], "closed_trades": []}')
+    os.utime(ledger, (900, 900))
+    result = cycle(server_dir, task_state="Running", now=1000)
+    assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+    assert result["actions"] == []
+    assert result["components"]["paper"]["last_ledger_error_utc"] == "1970-01-01T00:16:40Z"
+
+    # A stopped task with an unresolved persistence fault must not auto-restart.
+    for now in range(1001, 1400, 100):
+        result = cycle(server_dir, task_state="Ready", now=now)
+        assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+        assert result["actions"] == []
+
+    # A verified more recent durable ledger update clears the failure.
+    ledger.write_text('{"open_positions": [], "closed_trades": []}')
+    os.utime(ledger, (1400, 1400))
+    os.utime(log, (1401, 1401))
+    result = cycle(server_dir, task_state="Running", now=1401)
+    assert result["components"]["paper"]["state"] == "HEALTHY"
+    state = json.loads((server_dir / "recovery-state.json").read_text())
+    assert "ledger_failure_at" not in state["paper"]

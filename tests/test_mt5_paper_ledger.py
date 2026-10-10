@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -72,21 +73,22 @@ def test_multiple_ledger_instances_preserve_each_others_trades(tmp_path: Path):
     assert reloaded.summary()["recorded_trades"] == 2
 
 
-def test_paper_ledger_caps_open_positions_at_five(tmp_path: Path):
+@pytest.mark.parametrize("open_limit", [5, 10])
+def test_paper_ledger_caps_open_positions(tmp_path: Path, open_limit: int):
     ledger = MT5PaperLedger(
         str(tmp_path / "atlas_demo.json"),
-        max_open_positions=5,
+        max_open_positions=open_limit,
         max_daily_entries=50,
     )
 
-    for index in range(5):
+    for index in range(open_limit):
         ledger.open_trade(**{**_trade_kwargs(), "symbol": f"TEST{index}"})
 
     with pytest.raises(PaperLedgerError, match="Maximum open paper positions reached"):
-        ledger.open_trade(**{**_trade_kwargs(), "symbol": "TEST5"})
+        ledger.open_trade(**{**_trade_kwargs(), "symbol": "TEST_LIMIT"})
 
 
-@pytest.mark.parametrize("daily_limit", [50, 100])
+@pytest.mark.parametrize("daily_limit", [50, 100, 150])
 def test_paper_ledger_caps_daily_entries(tmp_path: Path, daily_limit: int):
     ledger = MT5PaperLedger(
         str(tmp_path / "atlas_demo.json"),
@@ -105,7 +107,7 @@ def test_paper_ledger_caps_daily_entries(tmp_path: Path, daily_limit: int):
 
 @pytest.mark.parametrize(
     ("open_limit", "daily_limit"),
-    [(0, 50), (6, 50), (5, 0), (5, 101)],
+    [(0, 50), (11, 50), (5, 0), (5, 151)],
 )
 def test_paper_ledger_rejects_limits_above_safety_ceiling(
     tmp_path: Path,
@@ -147,10 +149,14 @@ def test_paper_ledger_persistent_replace_failure_preserves_original(tmp_path, mo
         raise PermissionError("Persistent sharing lock")
     monkeypatch.setattr(Path, "replace", locked)
     monkeypatch.setattr(module.time, "sleep", lambda seconds: None)
+    def denied_fallback(*args):
+        raise PermissionError("Persistent Windows sharing lock")
+    monkeypatch.setattr(module, "_win_replace_existing", denied_fallback)
     with pytest.raises(PaperLedgerError, match="Cannot persist"):
         ledger.close_due_positions("EURUSD", bid=1.1042, ask=1.1043)
     assert len(attempts) == 6
     assert path.read_bytes() == original
+    assert list(tmp_path.glob('retry.json.*.tmp')) == []
 
 def test_category_limit_is_enforced_across_ledger_instances(tmp_path, monkeypatch):
     monkeypatch.setenv("ATLAS_CATEGORY_POSITION_LIMIT", "2")
@@ -163,3 +169,23 @@ def test_category_limit_is_enforced_across_ledger_instances(tmp_path, monkeypatc
         second.open_trade(**{**_trade_kwargs(), "symbol": "SOLANA"})
     second.open_trade(**{**_trade_kwargs(), "symbol": "AAPL.O"})
     assert first.summary()["open_positions"] == 3
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Uses Windows ReplaceFileW")
+def test_windows_atomic_replace_fallback_succeeds_when_movefile_denied(tmp_path, monkeypatch):
+    from app.paper_trading import mt5_ledger as module
+
+    path = tmp_path / "paper.json"
+    ledger = MT5PaperLedger(str(path))
+    ledger.open_trade(**_trade_kwargs())
+    attempts = []
+    def sharing_violation(*args):
+        attempts.append(1)
+        raise PermissionError("MoveFileEx target is held open")
+    monkeypatch.setattr(Path, "replace", sharing_violation)
+    monkeypatch.setattr(module.time, "sleep", lambda seconds: None)
+    closed = ledger.close_due_positions("EURUSD", bid=1.1042, ask=1.1043)
+    assert len(attempts) == 6
+    assert len(closed) == 1
+    assert MT5PaperLedger(str(path)).summary()["closed_trades"] == 1
+    assert not list(tmp_path.glob("paper.json.*.tmp"))

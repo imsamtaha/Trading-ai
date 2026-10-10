@@ -9,3 +9,28 @@ Windows rejected changes to the elevated web/backend task settings under the rem
 Google OAuth was verified end-to-end on 2026-10-08: the Google button returned to the dashboard and the backend /api/me resolved the authenticated account. The paper monitor was restarted after a stopped task was found; its task is Running and its paper log and ledger updated afterward. The cause of that earlier stop is not yet established. Never commit provider secrets, tunnel tokens, runtime env files or user databases. An enabled login button or HTTP 200 is not evidence of successful OAuth.
 
 Public health probes must identify themselves as `ATLAS-Windows-Monitor/1.0`, as the production supervisor already does. On 2026-10-08 the default Python urllib client received Cloudflare error 1010, while the ATLAS monitor client returned 200 for login, dashboard and backend health. The authenticated browser dashboard also showed backend connected and rendered candles. No Cloudflare security settings were changed.
+
+
+## 2026-10-10 Windows Paper Ledger incident recovery
+
+The Windows ATLAS Paper Monitor previously failed with WinError 5 during
+`Path.replace()` of the canonical ledger. Restart Manager identified a
+long-running Node.js Desktop Commander process holding that path. A production
+byte-identical test confirmed that `MoveFileEx` failed while `ReplaceFileW`
+succeeded with the same target. `MT5PaperLedger._persist()` now tries bounded
+replacement retries, then uses Windows `ReplaceFileW` for an existing target;
+writes remain atomic, and failed temporary files are cleaned up. Other
+platforms remain unchanged. Neither path sends broker orders.
+
+The Windows watchdog now flags `LEDGER_PERSISTENCE_FAILED` when a dated Paper
+ledger persistence error is newer than the canonical ledger's successful write.
+The failure is sticky across cycles until a newer persisted ledger version
+exists, and stopped tasks with an unresolved persistence error do not
+auto-restart. Disabled tasks still require operator attention.
+
+Validation: isolated focused suite 29 passed; full Python suite 561 passed and
+6 subtests passed. A content-identical production ledger persistence test
+succeeded with 151 closed Paper trades, zero open positions, and identical
+SHA-256 before/after. Recovery must only re-enable the Paper scheduled task
+after a verified backup and a no-op atomic persistence test. Keep real broker
+execution disabled, and do not interpret a fresh monitor log alone as health.
