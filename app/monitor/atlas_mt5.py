@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,8 @@ from app.analysis.technical import analyze_candles
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
+from app.intelligence.shadow_selector import ShadowSelector
+from app.intelligence.recovery_guardian import RecoveryGuardian
 from app.intelligence.confidence import SignalQualityEngine
 from app.intelligence.council_adapters import build_paper_council, record_settled_paper_outcome
 from app.intelligence.council_training import AtlasCouncilTrainer, CouncilTrainingJournal, save_profile
@@ -22,7 +25,7 @@ from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
 from app.risk.ledger_metrics import calculate_ledger_risk_state
 from app.risk.manager import calculate_risk
 from app.strategies.router import generate_strategy_candidate
-from app.strategy.universe import build_universe, diversify_universe
+from app.strategy.universe import build_universe, diversify_universe, normalize_symbol, classify_symbol
 
 
 TIMEFRAME_MAP = {
@@ -73,6 +76,12 @@ class AtlasMT5Monitor:
                 "Set it to false for paper validation."
             )
 
+        self.max_daily_loss_percent = float(
+            os.getenv("ATLAS_DEMO_MAX_DAILY_LOSS_PERCENT", "3")
+        )
+        if not math.isfinite(self.max_daily_loss_percent) or not 0 < self.max_daily_loss_percent <= 100:
+            raise ValueError("Paper daily loss limit must be finite and between 0 and 100 percent.")
+
         self.symbols = symbols or []
         self.interval = interval
         self.candle_limit = candle_limit
@@ -98,6 +107,9 @@ class AtlasMT5Monitor:
         )
         if abs(self.quote_time_offset_seconds) > 14 * 3600:
             raise ValueError("ATLAS MT5 quote time offset must be within +/-14 hours.")
+        self.fresh_quotes_only = os.getenv(
+            "ATLAS_MONITOR_FRESH_QUOTES_ONLY", "false"
+        ).lower() == "true"
         self.reentry_cooldown_seconds = max(
             TIMEFRAME_SECONDS[interval],
             int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
@@ -129,8 +141,20 @@ class AtlasMT5Monitor:
         self.council_minimum_samples = max(
             1, int(os.getenv("ATLAS_COUNCIL_MINIMUM_SAMPLES", "5"))
         )
+        self.shadow_enabled = os.getenv("ATLAS_SHADOW_TRAINING_ENABLED", "false").lower() == "true"
+        self.shadow_selector = ShadowSelector()
+        self.shadow_report_path = Path(os.getenv("ATLAS_SHADOW_REPORT", "data/atlas_shadow_report.json"))
+        self.shadow_journal_path = Path(os.getenv("ATLAS_SHADOW_JOURNAL", "data/atlas_shadow_predictions.jsonl"))
+        self.shadow_closed_count = -1
+        self.cycle_rotation = 0
+        self.accelerator_enabled = os.getenv("ATLAS_TRAINING_ACCELERATOR_ENABLED", "false").lower() == "true"
+        self.accelerator_node = os.getenv("ATLAS_NODE_EXE", "node")
+        self.category_position_limit = max(0, int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0")))
         self.signal_quality_engine = SignalQualityEngine()
         self.council_profile = self._load_council_profile()
+        self.recovery_guardian = (RecoveryGuardian() if os.getenv("ATLAS_RECOVERY_AGENT_ENABLED", "false").lower() == "true" else None)
+        self.recovery_report_path = Path(os.getenv("ATLAS_RECOVERY_REPORT", "data/atlas_recovery_agent.json"))
+        self.recovery_checks: list[dict[str, Any]] = []
 
     @staticmethod
     def _safe_float(value: object, default: float = 0.0) -> float:
@@ -173,6 +197,7 @@ class AtlasMT5Monitor:
         candidate: dict[str, Any],
         decision: dict[str, Any],
         risk: dict[str, Any],
+        recovery: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         expected_action = "BUY" if candidate["direction"] == "LONG" else "SELL"
         quality = self.signal_quality_engine.evaluate(
@@ -200,7 +225,31 @@ class AtlasMT5Monitor:
             data_quality=1.0,
             quality=quality,
             agent_profile=self.council_profile,
+            recovery=recovery,
         )
+
+    def _recovery_check(self, *, symbol, candidate, quote, risk):
+        if self.recovery_guardian is None:
+            return None
+        self.recovery_guardian.fit(self.ledger.closed_trades())
+        verdict = self.recovery_guardian.assess(symbol=symbol, candidate=candidate, quote=quote, risk=risk)
+        self.recovery_checks.append({"symbol": symbol, "allowed": verdict["allowed"],
+            "reason_codes": verdict["reason_codes"], "spread_fraction": verdict["spread_fraction"]})
+        self.recovery_checks = self.recovery_checks[-30:]
+        return verdict
+
+    def _save_recovery_report(self):
+        if self.recovery_guardian is None:
+            return
+        try:
+            self.recovery_guardian.fit(self.ledger.closed_trades())
+            state = calculate_ledger_risk_state(self.ledger, self.account_equity)
+            loss_percent = max(0.0, -state["daily_realized_pnl"]) / self.account_equity * 100
+            report = self.recovery_guardian.report(daily_loss_percent=loss_percent,
+                daily_limit_percent=self.max_daily_loss_percent, checks=self.recovery_checks)
+            self.recovery_guardian.save_report(report, self.recovery_report_path)
+        except (OSError, TypeError, ValueError, ZeroDivisionError) as exc:
+            print(f"Recovery report unavailable: {exc}", flush=True)
 
     def _record_council_training_outcome(self, trade: dict[str, Any]) -> dict[str, Any] | None:
         if not self.council_training_enabled:
@@ -294,17 +343,24 @@ class AtlasMT5Monitor:
         if not self.auto_discover and self.symbols:
             return self.symbols
 
-        ranked = build_universe(self.broker.symbols(), top_n=max(self.top_n, 30))
-        ranked = diversify_universe(ranked, top_n=self.top_n)
-        preferred = [
-            item
-            for item in ranked
-            if item.canonical_symbol in self.preferred_canonical and item.tradeable
-        ]
-        selected = preferred or ranked
+        raw = self.broker.symbols()
+        if self.fresh_quotes_only:
+            # Skip stale/out-of-session ticks and close-only contracts when scanning.
+            # This does NOT relax the 30-second quote guard on paper entries.
+            raw = [
+                item for item in raw
+                if int(item.get("trade_mode", -1)) == 4
+                and self._validate_quote_freshness(item)[0]
+            ]
+        ranked = build_universe(raw, top_n=max(self.top_n, len(raw)))
+        # Preferences prioritize within each category rather than removing categories.
+        ranked.sort(key=lambda item: (item.canonical_symbol not in self.preferred_canonical,
+                                     -item.opportunity_score, item.priority, item.canonical_symbol))
+        selected = diversify_universe(ranked, top_n=self.top_n)
         self.universe = [item.to_dict() for item in selected]
         discovered = [item.broker_symbol for item in selected if item.tradeable]
-        if discovered:
+        if discovered or self.fresh_quotes_only:
+            # Drop previously selected symbols when their market stops quoting.
             self.symbols = discovered
         return self.symbols
 
@@ -465,6 +521,17 @@ class AtlasMT5Monitor:
                 "decision": decision,
             }
 
+        category = (classify_symbol(normalize_symbol(symbol)) or ("UNKNOWN", 3))[0]
+        if self.category_position_limit and category in {"CRYPTO", "STOCKS"}:
+            same_category = sum(
+                (classify_symbol(normalize_symbol(str(p["symbol"]))) or ("UNKNOWN", 3))[0] == category
+                for p in self.ledger.open_positions()
+            )
+            if same_category >= self.category_position_limit:
+                return {"timestamp": timestamp, "symbol": symbol, "timeframe": self.interval,
+                        "status": "NO_TRADE", "reason": f"{category} concentration limit reached.",
+                        "candidate": candidate, "decision": decision}
+
         quote = self.broker.quote(symbol)
         quote_fresh, quote_reason = self._validate_quote_freshness(quote)
         if not quote_fresh:
@@ -490,8 +557,10 @@ class AtlasMT5Monitor:
             account_balance=self.account_equity,
             risk_percent=self._safe_float(base_risk.get("risk_percent"), 0.5),
             daily_realized_pnl=ledger_risk["daily_realized_pnl"],
+            max_daily_loss_percent=self.max_daily_loss_percent,
             open_risk_percent=ledger_risk["open_risk_percent"],
         )
+        recovery = self._recovery_check(symbol=symbol, candidate=candidate, quote=quote, risk=risk)
         if not risk.get("approved", False):
             return {
                 "timestamp": timestamp,
@@ -499,10 +568,16 @@ class AtlasMT5Monitor:
                 "timeframe": self.interval,
                 "status": "NO_TRADE",
                 "reason": str(risk.get("reason", "Risk gate rejected the paper trade.")),
+                "recovery_guardian": recovery,
                 "candidate": candidate,
                 "decision": decision,
                 "risk": risk,
             }
+
+        if recovery is not None and recovery["allowed"] is not True:
+            return {"timestamp": timestamp, "symbol": symbol, "timeframe": self.interval,
+                "status": "NO_TRADE", "reason": "ATLAS Recovery Guardian veto: " + ", ".join(recovery["reason_codes"]),
+                "candidate": candidate, "decision": decision, "risk": risk, "recovery_guardian": recovery}
 
         training_context = None
         if self.council_training_enabled:
@@ -513,6 +588,7 @@ class AtlasMT5Monitor:
                     candidate=candidate,
                     decision=decision,
                     risk=risk,
+                    recovery=recovery,
                 )
             except (TypeError, ValueError) as exc:
                 return {
@@ -560,6 +636,7 @@ class AtlasMT5Monitor:
             "symbol": symbol,
             "timeframe": self.interval,
             "status": "PAPER_TRADE_OPENED",
+            "recovery_guardian": recovery,
             "reason": (
                 "Strategy, deterministic decision, Senior Risk, and ATLAS Council "
                 "approved a Paper entry."
@@ -573,17 +650,67 @@ class AtlasMT5Monitor:
             "trade": trade,
         }
 
+    def _refresh_shadow_training(self) -> None:
+        if not self.shadow_enabled:
+            return
+        try:
+            closed = self.ledger.closed_trades()
+            if len(closed) != self.shadow_closed_count:
+                self.shadow_selector.fit(closed)
+                self.shadow_selector.save_report(self.shadow_report_path)
+                self.shadow_closed_count = len(closed)
+                if self.accelerator_enabled:
+                    root = Path(__file__).resolve().parents[2]
+                    try:
+                        result = subprocess.run(
+                            [self.accelerator_node, str(root / "scripts/atlas_training_accelerator.mjs"),
+                             "--journal", str(self.council_training_journal.path.resolve()),
+                             "--ledger", str(self.ledger.path.resolve()),
+                             "--output-dir", str(root / ".runtime/research/training-accelerator")],
+                            cwd=root, capture_output=True, text=True, timeout=15,
+                        )
+                        if result.returncode:
+                            print(f"Agent accelerator deferred: {result.stderr[:300]}", flush=True)
+                    except (OSError, subprocess.TimeoutExpired) as exc:
+                        print(f"Agent accelerator unavailable: {exc}", flush=True)
+        except (OSError, TypeError, ValueError) as exc:
+            print(f"Shadow training unavailable: {exc}", flush=True)
+
+    def _record_shadow_prediction(self, timestamp, symbol, candidate):
+        if not self.shadow_enabled or not candidate:
+            return
+        try:
+            record = {"timestamp": timestamp, "symbol": symbol,
+                      "direction": candidate["direction"], "strategy": candidate["strategy"],
+                      "confidence": candidate["confidence"],
+                      "qualified": bool(candidate.get("qualified")),
+                      "opened_at": timestamp}
+            record["prediction_id"] = f"{timestamp}:{symbol}"
+            prediction = self.shadow_selector.predict(record)
+            self.shadow_journal_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.shadow_journal_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({**record, "shadow": prediction}, allow_nan=False)+"\n")
+            return {**prediction, "prediction_id": record["prediction_id"]}
+        except (OSError, TypeError, ValueError, KeyError) as exc:
+            print(f"Shadow prediction unavailable: {exc}", flush=True)
+
     def cycle(self) -> list[dict[str, Any]]:
         timestamp = datetime.now(timezone.utc).isoformat()
+        self.recovery_checks = []
         events = self._close_due_positions(timestamp)
+        self._refresh_shadow_training()
         if self.auto_discover:
             self.discover_symbols()
 
-        for symbol in self.symbols:
+        offset = self.cycle_rotation % max(1, len(self.symbols))
+        ordered_symbols = self.symbols[offset:] + self.symbols[:offset]
+        self.cycle_rotation += 1
+        for symbol in ordered_symbols:
             try:
                 analysis = self.analyze_symbol(symbol)
                 candidate = analysis["candidate"]
                 decision = analysis["decision"]
+                shadow = self._record_shadow_prediction(timestamp, symbol, candidate)
                 if not candidate:
                     event = {
                         "timestamp": timestamp,
@@ -610,6 +737,8 @@ class AtlasMT5Monitor:
                         candidate=candidate,
                         decision=decision,
                     )
+                if shadow:
+                    event["shadow"] = shadow
                 self._record_event(event)
                 events.append(event)
             except (MT5ExecutionError, PaperLedgerError) as exc:
@@ -634,6 +763,7 @@ class AtlasMT5Monitor:
                 }
                 self._record_event(event)
                 events.append(event)
+        self._save_recovery_report()
         return events
 
     def run_once(self) -> list[dict[str, Any]]:

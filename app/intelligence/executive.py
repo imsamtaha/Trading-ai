@@ -33,6 +33,16 @@ class AtlasExecutiveAgent:
         data_quality = _score_or_none(council.get("data_quality"))
         conflict = _score_or_none(council.get("conflict_score"))
         malformed = data_quality is None or conflict is None
+        recovery = council.get("recovery_guardian")
+        recovery_veto = False
+        if recovery is not None:
+            if (not isinstance(recovery, dict) or recovery.get("environment") != "PAPER"
+                    or recovery.get("broker_execution_allowed") is not False
+                    or recovery.get("authority") != "VETO_ONLY"
+                    or type(recovery.get("allowed")) is not bool):
+                malformed = True
+            else:
+                recovery_veto = not recovery["allowed"]
 
         weights = {"BUY": 0.0, "SELL": 0.0}
         for opinion in opinions:
@@ -57,6 +67,8 @@ class AtlasExecutiveAgent:
         elif malformed:
             decision = "HOLD"
         elif risk_state != "RISK_ACCEPTABLE":
+            decision = "HOLD"
+        elif recovery_veto:
             decision = "HOLD"
         elif data_quality < 0.5:
             decision = "HOLD"
@@ -92,6 +104,7 @@ class AtlasExecutiveAgent:
                 data_quality=data_quality,
                 malformed=malformed,
                 has_opinions=bool(opinions),
+                recovery_veto=recovery_veto,
             ),
         }
 
@@ -104,6 +117,7 @@ class AtlasExecutiveAgent:
         data_quality: float | None,
         malformed: bool,
         has_opinions: bool,
+        recovery_veto: bool = False,
     ) -> list[str]:
         reasons: list[str] = []
         if not has_opinions:
@@ -118,6 +132,8 @@ class AtlasExecutiveAgent:
             reasons.append("LOW_DATA_QUALITY")
         if conflict is not None and conflict >= 0.45:
             reasons.append("HIGH_COUNCIL_CONFLICT")
+        if recovery_veto:
+            reasons.append("RECOVERY_GUARDIAN_VETO")
         if not reasons:
             reasons.append("COUNCIL_DIRECTION_CONFIRMED" if decision != "HOLD" else "NO_DIRECTIONAL_EDGE")
         return reasons

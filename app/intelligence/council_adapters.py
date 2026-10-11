@@ -97,6 +97,7 @@ def build_paper_council(
     event_state: Mapping[str, Any] | None = None,
     quality: Mapping[str, Any] | None = None,
     agent_profile: Mapping[str, Any] | None = None,
+    recovery: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     technical = technical_opinion(signal, snapshot_id=snapshot_id)
     opinions = [technical]
@@ -113,6 +114,10 @@ def build_paper_council(
     if confidence is not None:
         opinions.append(confidence)
 
+    if recovery is not None:
+        opinions.append(AgentOpinion(agent="recovery_guardian", decision="HOLD",
+            confidence=0.0, evidence=tuple(recovery.get("reason_codes") or ()), snapshot_id=snapshot_id))
+
     council = AtlasCouncilCoordinator().build_package(
         symbol=symbol,
         snapshot_id=snapshot_id,
@@ -121,6 +126,8 @@ def build_paper_council(
         data_quality=data_quality,
         agent_profile=agent_profile,
     )
+    if recovery is not None:
+        council["recovery_guardian"] = dict(recovery)
     trade_intent = AtlasExecutiveAgent().decide(council)
     return {"council": council, "trade_intent": trade_intent}
 
@@ -142,8 +149,8 @@ def record_settled_paper_outcome(
     opinions = council.get("opinions") or []
     training_opinions: list[dict[str, Any]] = []
     for opinion in opinions:
-        if not isinstance(opinion, Mapping):
-            continue
+        if not isinstance(opinion, Mapping) or opinion.get("agent") == "recovery_guardian":
+            continue  # A veto supervisor has no directional prediction to score.
         training_opinions.append(
             {
                 "agent": str(opinion.get("agent", "")),
