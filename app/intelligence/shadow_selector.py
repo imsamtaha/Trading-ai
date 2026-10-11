@@ -119,7 +119,7 @@ class ShadowSelector:
                       changes_trade_decision=False, samples=len(valid), independent_days=days,
                       minimum_samples=self.minimum_samples, minimum_days=self.minimum_days,
                       invalid_records=invalid, duplicate_records=duplicates,
-                      threshold=.8, daily_entry_ceiling=100,
+                      threshold=.8, daily_entry_ceiling=150,
                       outcome="positive risk-normalized paper R; spread included; fees excluded",
                       evaluation="exploratory chronological; not independent forward proof")
         self.report = report

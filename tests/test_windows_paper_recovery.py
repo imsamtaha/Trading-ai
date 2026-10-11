@@ -135,3 +135,19 @@ def test_recent_persistence_error_marks_running_paper_degraded(server_dir):
     assert result["components"]["paper"]["state"] == "HEALTHY"
     state = json.loads((server_dir / "recovery-state.json").read_text())
     assert "ledger_failure_at" not in state["paper"]
+
+
+def test_log_updated_during_probes_uses_current_observation_time(server_dir):
+    log = server_dir.parent / "paper" / "paper-monitor.log"
+    log.parent.mkdir()
+    log.write_text("new paper cycle")
+    os.utime(log, (1005, 1005))
+    def task(code):
+        if code.startswith("(Get-ScheduledTask"):
+            return "Running"
+        raise AssertionError("Unexpected task operation")
+    with patch.object(w, "http_health", return_value=True), patch.object(w, "check_mt5", return_value={"state": "ALGO_DISABLED"}), patch.object(w, "powershell", side_effect=task), patch.object(w.time, "time", side_effect=[1000, 1006]):
+        result = w.check_cycle(server_dir)
+    assert result["components"]["paper"]["state"] == "HEALTHY"
+    assert result["components"]["paper"]["log_age_seconds"] == 1
+    assert result["actions"] == []

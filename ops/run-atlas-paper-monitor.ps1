@@ -31,8 +31,9 @@ $env:MT5_USE_ACTIVE_SESSION = 'true'
 $env:MT5_TERMINAL_PATH = 'C:\Program Files\FxPro Markets MT5\terminal64.exe'
 
 # Paper portfolio limits.
-$env:ATLAS_DEMO_MAX_DAILY_ENTRIES = '100'
-$env:ATLAS_DEMO_MAX_OPEN_POSITIONS = '5'
+$env:ATLAS_DEMO_MAX_DAILY_LOSS_PERCENT = '7'
+$env:ATLAS_DEMO_MAX_DAILY_ENTRIES = '150'
+$env:ATLAS_DEMO_MAX_OPEN_POSITIONS = '10'
 $env:ATLAS_DEMO_LEDGER = Join-Path $stateDir 'atlas_demo_ledger.json'
 
 # Council learns only from settled Paper outcomes.
@@ -41,12 +42,16 @@ $env:ATLAS_COUNCIL_TRAINING_JOURNAL = Join-Path $stateDir 'atlas_council_trainin
 $env:ATLAS_COUNCIL_PROFILE = Join-Path $stateDir 'atlas_council_profile.json'
 
 $env:ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS = '10800'
-$env:ATLAS_CYCLE_SECONDS = '30'
+# Scan only fresh broker ticks from symbols accepting new positions; keep fail-closed quote validation.
+$env:ATLAS_MONITOR_FRESH_QUOTES_ONLY = 'true'
+$env:ATLAS_CYCLE_SECONDS = '15'
 $env:ATLAS_MONITOR_TOP_N = '30'
 $env:ATLAS_AUTO_DISCOVER_SYMBOLS = 'true'
 $env:ATLAS_EXPANDED_DISCOVERY = 'true'
 $env:ATLAS_CATEGORY_POSITION_LIMIT = '2'
 $env:ATLAS_SHADOW_TRAINING_ENABLED = 'true'
+$env:ATLAS_RECOVERY_AGENT_ENABLED = 'true'
+$env:ATLAS_RECOVERY_REPORT = Join-Path $stateDir 'atlas_recovery_agent.json'
 $env:ATLAS_TRAINING_ACCELERATOR_ENABLED = 'true'
 $env:ATLAS_NODE_EXE = 'C:\Program Files\nodejs\node.exe'
 $env:ATLAS_SHADOW_REPORT = Join-Path $stateDir 'atlas_shadow_report.json'

@@ -15,6 +15,7 @@ from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 from app.intelligence.shadow_selector import ShadowSelector
+from app.intelligence.recovery_guardian import RecoveryGuardian
 from app.intelligence.confidence import SignalQualityEngine
 from app.intelligence.council_adapters import build_paper_council, record_settled_paper_outcome
 from app.intelligence.council_training import AtlasCouncilTrainer, CouncilTrainingJournal, save_profile
@@ -75,6 +76,12 @@ class AtlasMT5Monitor:
                 "Set it to false for paper validation."
             )
 
+        self.max_daily_loss_percent = float(
+            os.getenv("ATLAS_DEMO_MAX_DAILY_LOSS_PERCENT", "3")
+        )
+        if not math.isfinite(self.max_daily_loss_percent) or not 0 < self.max_daily_loss_percent <= 100:
+            raise ValueError("Paper daily loss limit must be finite and between 0 and 100 percent.")
+
         self.symbols = symbols or []
         self.interval = interval
         self.candle_limit = candle_limit
@@ -100,6 +107,9 @@ class AtlasMT5Monitor:
         )
         if abs(self.quote_time_offset_seconds) > 14 * 3600:
             raise ValueError("ATLAS MT5 quote time offset must be within +/-14 hours.")
+        self.fresh_quotes_only = os.getenv(
+            "ATLAS_MONITOR_FRESH_QUOTES_ONLY", "false"
+        ).lower() == "true"
         self.reentry_cooldown_seconds = max(
             TIMEFRAME_SECONDS[interval],
             int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
@@ -142,6 +152,9 @@ class AtlasMT5Monitor:
         self.category_position_limit = max(0, int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0")))
         self.signal_quality_engine = SignalQualityEngine()
         self.council_profile = self._load_council_profile()
+        self.recovery_guardian = (RecoveryGuardian() if os.getenv("ATLAS_RECOVERY_AGENT_ENABLED", "false").lower() == "true" else None)
+        self.recovery_report_path = Path(os.getenv("ATLAS_RECOVERY_REPORT", "data/atlas_recovery_agent.json"))
+        self.recovery_checks: list[dict[str, Any]] = []
 
     @staticmethod
     def _safe_float(value: object, default: float = 0.0) -> float:
@@ -184,6 +197,7 @@ class AtlasMT5Monitor:
         candidate: dict[str, Any],
         decision: dict[str, Any],
         risk: dict[str, Any],
+        recovery: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         expected_action = "BUY" if candidate["direction"] == "LONG" else "SELL"
         quality = self.signal_quality_engine.evaluate(
@@ -211,7 +225,31 @@ class AtlasMT5Monitor:
             data_quality=1.0,
             quality=quality,
             agent_profile=self.council_profile,
+            recovery=recovery,
         )
+
+    def _recovery_check(self, *, symbol, candidate, quote, risk):
+        if self.recovery_guardian is None:
+            return None
+        self.recovery_guardian.fit(self.ledger.closed_trades())
+        verdict = self.recovery_guardian.assess(symbol=symbol, candidate=candidate, quote=quote, risk=risk)
+        self.recovery_checks.append({"symbol": symbol, "allowed": verdict["allowed"],
+            "reason_codes": verdict["reason_codes"], "spread_fraction": verdict["spread_fraction"]})
+        self.recovery_checks = self.recovery_checks[-30:]
+        return verdict
+
+    def _save_recovery_report(self):
+        if self.recovery_guardian is None:
+            return
+        try:
+            self.recovery_guardian.fit(self.ledger.closed_trades())
+            state = calculate_ledger_risk_state(self.ledger, self.account_equity)
+            loss_percent = max(0.0, -state["daily_realized_pnl"]) / self.account_equity * 100
+            report = self.recovery_guardian.report(daily_loss_percent=loss_percent,
+                daily_limit_percent=self.max_daily_loss_percent, checks=self.recovery_checks)
+            self.recovery_guardian.save_report(report, self.recovery_report_path)
+        except (OSError, TypeError, ValueError, ZeroDivisionError) as exc:
+            print(f"Recovery report unavailable: {exc}", flush=True)
 
     def _record_council_training_outcome(self, trade: dict[str, Any]) -> dict[str, Any] | None:
         if not self.council_training_enabled:
@@ -306,6 +344,14 @@ class AtlasMT5Monitor:
             return self.symbols
 
         raw = self.broker.symbols()
+        if self.fresh_quotes_only:
+            # Skip stale/out-of-session ticks and close-only contracts when scanning.
+            # This does NOT relax the 30-second quote guard on paper entries.
+            raw = [
+                item for item in raw
+                if int(item.get("trade_mode", -1)) == 4
+                and self._validate_quote_freshness(item)[0]
+            ]
         ranked = build_universe(raw, top_n=max(self.top_n, len(raw)))
         # Preferences prioritize within each category rather than removing categories.
         ranked.sort(key=lambda item: (item.canonical_symbol not in self.preferred_canonical,
@@ -313,7 +359,8 @@ class AtlasMT5Monitor:
         selected = diversify_universe(ranked, top_n=self.top_n)
         self.universe = [item.to_dict() for item in selected]
         discovered = [item.broker_symbol for item in selected if item.tradeable]
-        if discovered:
+        if discovered or self.fresh_quotes_only:
+            # Drop previously selected symbols when their market stops quoting.
             self.symbols = discovered
         return self.symbols
 
@@ -510,8 +557,10 @@ class AtlasMT5Monitor:
             account_balance=self.account_equity,
             risk_percent=self._safe_float(base_risk.get("risk_percent"), 0.5),
             daily_realized_pnl=ledger_risk["daily_realized_pnl"],
+            max_daily_loss_percent=self.max_daily_loss_percent,
             open_risk_percent=ledger_risk["open_risk_percent"],
         )
+        recovery = self._recovery_check(symbol=symbol, candidate=candidate, quote=quote, risk=risk)
         if not risk.get("approved", False):
             return {
                 "timestamp": timestamp,
@@ -519,10 +568,16 @@ class AtlasMT5Monitor:
                 "timeframe": self.interval,
                 "status": "NO_TRADE",
                 "reason": str(risk.get("reason", "Risk gate rejected the paper trade.")),
+                "recovery_guardian": recovery,
                 "candidate": candidate,
                 "decision": decision,
                 "risk": risk,
             }
+
+        if recovery is not None and recovery["allowed"] is not True:
+            return {"timestamp": timestamp, "symbol": symbol, "timeframe": self.interval,
+                "status": "NO_TRADE", "reason": "ATLAS Recovery Guardian veto: " + ", ".join(recovery["reason_codes"]),
+                "candidate": candidate, "decision": decision, "risk": risk, "recovery_guardian": recovery}
 
         training_context = None
         if self.council_training_enabled:
@@ -533,6 +588,7 @@ class AtlasMT5Monitor:
                     candidate=candidate,
                     decision=decision,
                     risk=risk,
+                    recovery=recovery,
                 )
             except (TypeError, ValueError) as exc:
                 return {
@@ -580,6 +636,7 @@ class AtlasMT5Monitor:
             "symbol": symbol,
             "timeframe": self.interval,
             "status": "PAPER_TRADE_OPENED",
+            "recovery_guardian": recovery,
             "reason": (
                 "Strategy, deterministic decision, Senior Risk, and ATLAS Council "
                 "approved a Paper entry."
@@ -639,6 +696,7 @@ class AtlasMT5Monitor:
 
     def cycle(self) -> list[dict[str, Any]]:
         timestamp = datetime.now(timezone.utc).isoformat()
+        self.recovery_checks = []
         events = self._close_due_positions(timestamp)
         self._refresh_shadow_training()
         if self.auto_discover:
@@ -705,6 +763,7 @@ class AtlasMT5Monitor:
                 }
                 self._record_event(event)
                 events.append(event)
+        self._save_recovery_report()
         return events
 
     def run_once(self) -> list[dict[str, Any]]:

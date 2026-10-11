@@ -114,8 +114,8 @@ def check_cycle(directory):
     status["maintenance"] = paused
     for name, task, url in (
         ("backend", "ATLAS Private Backend", "http://127.0.0.1:8012/health"),
-        ("frontend", "ATLAS Web Frontend", "http://127.0.0.1:8011/connect"),
-        ("tunnel", "ATLAS Tunnel Recovery", "https://justai-atlas.online/connect"),
+        ("frontend", "ATLAS Web Frontend", "http://127.0.0.1:8011/health"),
+        ("tunnel", "ATLAS Tunnel Recovery", "https://justai-atlas.online/health"),
     ):
         healthy = http_health(url)
         gate = FailureGate(saved.get(name))
@@ -177,7 +177,8 @@ def check_cycle(directory):
         if task_state == "Running":
             try:
                 modified = (directory.parent / "paper" / "paper-monitor.log").stat().st_mtime
-                age = now - modified
+                # Probes can take seconds while a running worker updates this log.
+                age = time.time() - modified
                 fresh = 0 <= age <= 120 and modified >= paper_gate.state.get("started_at", 0)
                 paper["log_age_seconds"] = round(age, 1)
             except OSError:

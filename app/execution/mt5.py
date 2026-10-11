@@ -167,6 +167,9 @@ class MT5Broker:
                 "trade_mode": trade_mode,
                 "bid": bid,
                 "ask": ask,
+                # Read-only MT5 tick timestamps for session-aware paper discovery.
+                "time": int(getattr(tick, "time", 0) or 0) if tick is not None else 0,
+                "time_msc": int(getattr(tick, "time_msc", 0) or 0) if tick is not None else 0,
                 "point": float(getattr(info, "point", 0.0) or 0.0),
                 "digits": int(getattr(info, "digits", 0) or 0),
                 "volume_min": float(getattr(info, "volume_min", 0.0) or 0.0),
