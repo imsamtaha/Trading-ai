@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from bisect import bisect_left
 import hashlib
 import json
 import os
 from pathlib import Path
 import tempfile
 import threading
+import uuid
 import zipfile
 
 import numpy as np
@@ -20,6 +22,38 @@ FEATURES = (
     "agent_experience_months", "avg_handle_time_mins", "historical_csat",
     "total_chats_handled", "current_workload",
 )
+
+
+def _time_cuts(times, sales):
+    """Choose feasible group boundaries nearest 60/80%, in O(n log n)."""
+    bounds = (np.flatnonzero(times.asi8[1:] != times.asi8[:-1]) + 1).tolist()
+    if len(bounds) < 2:
+        raise ValueError("Need distinct time groups for all three splits")
+    positive = np.r_[0, np.cumsum(sales.astype(int))]
+    negative = np.arange(len(sales) + 1) - positive
+    first = [a for a in bounds if positive[a] > 0 and negative[a] > 0]
+    first_positive = [positive[a] for a in first]
+    first_negative = [negative[a] for a in first]
+    target_a, target_b = int(len(sales) * .6), int(len(sales) * .8)
+    best = None
+    for b in bounds:
+        if positive[-1] <= positive[b] or negative[-1] <= negative[b]:
+            continue
+        # Eligible first boundaries leave both classes for validation.
+        stop = min(bisect_left(first, b), bisect_left(first_positive, positive[b]),
+                   bisect_left(first_negative, negative[b]))
+        if not stop:
+            continue
+        near = bisect_left(first, target_a, hi=stop)
+        for j in (near - 1, near):
+            if 0 <= j < stop:
+                a = first[j]
+                choice = (abs(a - target_a) + abs(b - target_b), abs(a - target_a), a, b)
+                if best is None or choice < best:
+                    best = choice
+    if best is None:
+        raise ValueError("Each chronological split needs both sales classes")
+    return best[2:]
 
 
 class AgentPerformanceXGBoost:
@@ -75,7 +109,7 @@ class AgentPerformanceXGBoost:
                        + X.historical_csat * .4 + rng.normal(0, .2, num_samples), 1, 5)
         return X, sales, csat.to_numpy()
 
-    def train(self, X, y_sales, y_csat, *, source="observed", split="chronological"):
+    def train(self, X, y_sales, y_csat, *, source="observed", split="chronological", timestamps=None):
         X = self._features(X)
         ys, yc = np.asarray(y_sales, dtype=float), np.asarray(y_csat, dtype=float)
         if len(X) < 50 or ys.shape != (len(X),) or yc.shape != (len(X),):
@@ -89,12 +123,19 @@ class AgentPerformanceXGBoost:
         if source == "observed" and split != "chronological":
             raise ValueError("Observed data requires chronological validation")
         indices = np.arange(len(X))
+        times = None
         if split == "random":
             development, test = train_test_split(indices, test_size=.2, random_state=42, stratify=ys)
             training, validation = train_test_split(development, test_size=.25, random_state=42,
                                                     stratify=ys[development])
         else:
-            training, validation, test = np.split(indices, [int(len(X) * .6), int(len(X) * .8)])
+            cuts = [int(len(X) * .6), int(len(X) * .8)]
+            if timestamps is not None:
+                times = pd.DatetimeIndex(pd.to_datetime(timestamps, utc=True, errors="raise", format="ISO8601"))
+                if len(times) != len(X) or times.hasnans or not times.is_monotonic_increasing:
+                    raise ValueError("Timestamps must be aligned, present and chronological")
+                cuts = _time_cuts(times, ys)
+            training, validation, test = np.split(indices, cuts)
         if any(set(np.unique(ys[part])) != {0, 1} for part in (training, validation, test)):
             raise ValueError("Each split needs both sales classes")
         sales, csat = self._new_models()
@@ -103,16 +144,31 @@ class AgentPerformanceXGBoost:
         csat.fit(X.iloc[training], yc[training], eval_set=[(X.iloc[validation], yc[validation])], verbose=False)
         probabilities = sales.predict_proba(X.iloc[test])[:, 1]
         predictions = np.clip(csat.predict(X.iloc[test]), 1, 5)
+        # Compare against constants fitted solely on training targets.
+        baseline_sales = np.full(len(test), ys[training].mean())
+        baseline_csat = np.full(len(test), np.median(yc[training]))
+        snapshot = X.to_csv(index=False).encode() + np.column_stack([ys, yc]).tobytes()
+        if times is not None:
+            snapshot += "\n".join(times.astype(str)).encode()
         meta = dict(schema_version=1, source=source, split=split, production_ready=False,
                     purpose="customer_routing_advisory", features=list(FEATURES),
+                    session_id=uuid.uuid4().hex, dataset_sha256=hashlib.sha256(snapshot).hexdigest(),
                     trained_at_utc=datetime.now(timezone.utc).isoformat(),
                     rows_train=len(training), rows_validation=len(validation), rows_test=len(test),
-                    xgboost_version=xgb.__version__, metrics={
+                    xgboost_version=xgb.__version__,
+                    best_iterations={"sales": int(sales.best_iteration), "csat": int(csat.best_iteration)},
+                    baselines={"sales_logloss": float(log_loss(ys[test], baseline_sales)),
+                               "csat_mae": float(mean_absolute_error(yc[test], baseline_csat))}, metrics={
                         "sales_auc": float(roc_auc_score(ys[test], probabilities)),
                         "sales_logloss": float(log_loss(ys[test], probabilities)),
                         "csat_mae": float(mean_absolute_error(yc[test], predictions)),
                         "csat_rmse": float(np.sqrt(mean_squared_error(yc[test], predictions))),
                     })
+        if times is not None:
+            meta["time_ranges"] = {
+                name: {"start": times[part[0]].isoformat(), "end": times[part[-1]].isoformat()}
+                for name, part in (("train", training), ("validation", validation), ("test", test))
+            }
         with self._lock:
             self.sales_model, self.csat_model, self.metadata = sales, csat, meta
         return meta
@@ -212,3 +268,4 @@ class AgentPerformanceXGBoost:
     @staticmethod
     def _reject_json_constant(value):
         raise ValueError("Nonfinite model metadata: " + value)
+

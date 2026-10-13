@@ -14,7 +14,10 @@ broker orders, or establish profitable trading performance.
 - Scores stay within 0..1. CSAT is clipped to its 1..5 domain and normalized with
   (CSAT - 1) / 4 rather than training-prediction minimum and maximum.
 - Feature schema, target alignment, finite values, weights, and counts are validated.
-- Each model uses one CPU thread. Training runs offline, outside API requests.
+- Each model uses one CPU thread. Training runs in a separate child process.
+- A persistent OS file lock serializes API and CLI sessions for the same output prefix.
+- Each new fit records a session ID, dataset hash, split time ranges, best iterations,
+  and constant training-target baselines alongside held-out metrics.
 - Native XGBoost JSON models and metadata are saved in a single atomic ZIP bundle.
   Checksums and metadata are validated before publishing a replacement.
 - A failed save preserves the old bundle; a failed API reload keeps the last
@@ -33,8 +36,8 @@ Use the existing ATLAS virtual environment:
 
 CSV columns: agent_experience_months, avg_handle_time_mins, historical_csat,
 total_chats_handled, current_workload, sale_success, csat_outcome, occurred_at.
-Use at least 50 rows, both sale classes in each split, and unique UTC event
-timestamps. CSAT outcomes must be 1..5; sale outcomes must be 0 or 1.
+Use at least 50 rows, both sale classes in each split, and ISO8601 UTC event
+timestamps. Equal timestamps are allowed; their complete groups stay in one split. CSAT outcomes must be 1..5; sale outcomes must be 0 or 1.
 
 Demo training writes .runtime/models/agent_performance_demo.bundle.zip.
 Observed training writes .runtime/models/agent_performance.bundle.zip.
@@ -44,14 +47,17 @@ independent deployment decision grounded in real observed outcomes.
 
 ## API
 
-Owner authentication is required for both endpoints. Responses are private/no-store.
+Owner authentication or the dedicated server bridge credential is required. Responses are private/no-store.
 
 - GET /api/runtime/agent-performance/status
 - POST /api/runtime/agent-performance/scores
+- GET /api/runtime/agent-performance/outcomes (aggregate counts only)
+- POST /api/runtime/agent-performance/outcomes (confirmed observed result)
+- POST /api/runtime/agent-performance/train (confirmed observed dataset)
 
 Scores accept agents (1..100 records with unique agent_id and the five features),
 w_sales, w_csat, and allow_synthetic. Synthetic scoring requires the explicit
-allow_synthetic=true flag and is marked DEMO_READY. No training happens on request.
+allow_synthetic=true flag and is marked DEMO_READY. The train route runs the offline CLI with a bounded timeout; status and scoring stay independent.
 Missing models return UNTRAINED/503; corrupt updates report DEGRADED.
 
 ## Paper process recovery
@@ -75,9 +81,42 @@ Shadow and Recovery report writes now reuse the already verified Windows Replace
 - Backend, frontend and supervisor public health checks report HEALTHY.
 - The public Site health route returns HTTP 200 with the existing monitor User-Agent.
 - Local private model status rejects an unauthenticated caller with HTTP 401.
-- The public Site model route currently returns NOT_CONFIGURED/404. The evaluator
-  is deployed in the Windows backend; a public Site connection remains unconfigured.
+- The original backend deployment is verified above. The later protected Site intake
+  and training integration is prepared in source. Windows activation and the server
+  bridge secret remain pending while Desktop Commander is disconnected.
 - Synthetic test-set metrics: sales AUC 0.6548, logloss 0.5713; CSAT MAE 0.1763.
   These demonstrate the simulated pipeline, not observed commercial improvement.
 - Source and runtime rollback copies are retained separately. Real-money trading
   permissions and council decision weights were not modified.
+
+
+## Protected Site integration
+
+The current public Site presents this feature at /traders/agents#customer-scoring.
+A server-verified Google account matching ATLAS_OWNER_EMAILS can use only these
+model endpoints. Its global trader role and all trading owner permissions stay
+unchanged. Other accounts cannot see model data or write outcomes. Same-origin
+JSON writes go through the authenticated, pinned Windows bridge; no token reaches
+the browser. Configure MT5_BRIDGE_TOKEN as a Sites secret from the existing Windows
+token in memory. Deploy bridge/server.py and bridge/model_proxy.py from the current
+Site source together, then restart the existing private backend/bridge services.
+
+The intake starts empty. An outcome needs a unique interaction_id, agent_id, all
+five numeric features, a timezone-aware feature_snapshot_at strictly preceding
+occurred_at, sale_success 0/1, observed csat_outcome 1..5 and confirmed_observed=true.
+No customer text, email or payment details are collected. Matching interaction-ID
+retries are idempotent; changed values conflict. The transactional legacy migration
+preserves existing rows while allowing simultaneous distinct interactions.
+
+The training button requires at least 50 records and both sale classes, and the
+trainer additionally requires both classes in every chronological part. Feasible
+whole-timestamp-group boundaries nearest the nominal 60/20/20 proportions are
+chosen; exact proportions can vary. Mixed fractional/whole-second ISO8601 times
+are supported. Fifty rows is a software gate, not statistical proof of useful
+accuracy or increased revenue. CSV training remains an operator assertion that its
+aggregates and labels are truly observed; the operator must prevent target leakage.
+
+Illustrative score inputs never enter the outcome store. Editing inputs, adding or
+removing agents, changing weights or rescoring invalidates previous rankings; late
+responses after edits are ignored. Source, tests and research do not represent a
+paid cloud subscription or an active fit on real customer records.
