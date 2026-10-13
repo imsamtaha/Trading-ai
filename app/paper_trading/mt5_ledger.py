@@ -208,6 +208,8 @@ class MT5PaperLedger:
         timeframe: str,
         decision: dict[str, Any],
         training_context: dict[str, Any] | None = None,
+        entry_quote: dict[str, Any] | None = None,
+        quality_card: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         direction = direction.upper()
         if direction not in {"LONG", "SHORT"}:
@@ -244,6 +246,10 @@ class MT5PaperLedger:
             "status": "OPEN",
             "opened_at": utc_now(),
         }
+        if entry_quote is not None:
+            trade["entry_quote"] = dict(entry_quote)
+        if quality_card is not None:
+            trade["quality_card"] = {**quality_card, "trade_id": trade["id"]}
 
         normalized = symbol.upper()
         with self._locked_state():
@@ -284,7 +290,7 @@ class MT5PaperLedger:
             self._persist()
         return dict(trade)
 
-    def close_due_positions(self, symbol: str, *, bid: float, ask: float) -> list[dict[str, Any]]:
+    def close_due_positions(self, symbol: str, *, bid: float, ask: float, quote_evidence: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Close only positions whose stop or target is reached by the latest quote."""
         normalized = symbol.upper()
         bid = float(bid)
@@ -339,6 +345,8 @@ class MT5PaperLedger:
                     "closed_at": utc_now(),
                 }
                 closed.append(closed_trade)
+                if quote_evidence is not None:
+                    closed_trade["exit_quote"] = dict(quote_evidence)
 
             if closed:
                 self._state["open_positions"] = remaining
@@ -354,3 +362,4 @@ class MT5PaperLedger:
                 "recorded_trades": len(self._state["open_positions"])
                 + len(self._state["closed_trades"]),
             }
+

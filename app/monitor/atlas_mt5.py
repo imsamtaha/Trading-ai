@@ -15,6 +15,7 @@ from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 from app.intelligence.shadow_selector import ShadowSelector
+from app.intelligence.paper_quality import PaperQualityLab, quality_card
 from app.intelligence.recovery_guardian import RecoveryGuardian
 from app.intelligence.confidence import SignalQualityEngine
 from app.intelligence.council_adapters import build_paper_council, record_settled_paper_outcome
@@ -146,6 +147,7 @@ class AtlasMT5Monitor:
         self.shadow_report_path = Path(os.getenv("ATLAS_SHADOW_REPORT", "data/atlas_shadow_report.json"))
         self.shadow_journal_path = Path(os.getenv("ATLAS_SHADOW_JOURNAL", "data/atlas_shadow_predictions.jsonl"))
         self.shadow_closed_count = -1
+        self.quality_lab = PaperQualityLab(Path(os.getenv("ATLAS_PAPER_QUALITY_DIR", ".runtime/research/paper-quality")))
         self.cycle_rotation = 0
         self.accelerator_enabled = os.getenv("ATLAS_TRAINING_ACCELERATOR_ENABLED", "false").lower() == "true"
         self.accelerator_node = os.getenv("ATLAS_NODE_EXE", "node")
@@ -435,6 +437,7 @@ class AtlasMT5Monitor:
                     symbol,
                     bid=float(quote["bid"]),
                     ask=float(quote["ask"]),
+                    quote_evidence={k: quote.get(k) for k in ("bid", "ask", "time", "time_msc")},
                 ):
                     training = None
                     try:
@@ -477,6 +480,7 @@ class AtlasMT5Monitor:
         symbol: str,
         candidate: dict[str, Any],
         decision: dict[str, Any],
+        quality_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         last_closed = self.ledger.last_closed_trade(symbol)
         if last_closed:
@@ -617,6 +621,23 @@ class AtlasMT5Monitor:
                     "trade_intent": trade_intent,
                 }
 
+        try:
+            evidence = quality_card(candidate=candidate, quote=quote, entry=entry, stop=stop_loss,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                technical=(quality_context or {}).get("technical"),
+                structure=(quality_context or {}).get("structure"),
+                quote_offset=getattr(self, "quote_time_offset_seconds", 0))
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            evidence = {"status": "QUALITY_EVIDENCE_UNAVAILABLE", "score": None,
+                "reason": str(exc), "broker_execution_allowed": False, "changes_trade_decision": False,
+                "recorded_at": datetime.now(timezone.utc).isoformat()}
+        lab = getattr(self, "quality_lab", None)
+        if lab is not None:
+            try:
+                evidence["density_experiment"] = lab.predict({**candidate,
+                    "timestamp": evidence["recorded_at"], "symbol": symbol})
+            except (ValueError, TypeError, KeyError, IndexError, OSError) as exc:
+                evidence["density_error"] = str(exc)
         trade = self.ledger.open_trade(
             symbol=symbol,
             direction=candidate["direction"],
@@ -630,6 +651,8 @@ class AtlasMT5Monitor:
             timeframe=self.interval,
             decision=decision,
             training_context=training_context,
+            entry_quote={k: quote.get(k) for k in ("bid", "ask", "time", "time_msc")},
+            quality_card=evidence,
         )
         return {
             "timestamp": timestamp,
@@ -659,6 +682,12 @@ class AtlasMT5Monitor:
                 self.shadow_selector.fit(closed)
                 self.shadow_selector.save_report(self.shadow_report_path)
                 self.shadow_closed_count = len(closed)
+                lab = getattr(self, "quality_lab", None)
+                if lab is not None:
+                    try:
+                        lab.refresh(closed)
+                    except (OSError, ValueError, TypeError, KeyError) as exc:
+                        print(f"Paper quality research unavailable: {exc}", flush=True)
                 if self.accelerator_enabled:
                     root = Path(__file__).resolve().parents[2]
                     try:
@@ -736,6 +765,7 @@ class AtlasMT5Monitor:
                         symbol=symbol,
                         candidate=candidate,
                         decision=decision,
+                        quality_context=analysis,
                     )
                 if shadow:
                     event["shadow"] = shadow
