@@ -63,3 +63,6 @@ keeps an active log capped at 16MiB plus three rotated logs. The pre-existing la
 log is retained as an archive on first rotation. Ledger and trading flags remain
 outside this change. A wrapper launcher and its child Python process are one
 worker, not two independent workers.
+
+Shadow and Recovery report writes now reuse the already verified Windows ReplaceFileW fallback when normal replacement is denied. Shadow temporary files are unique, flushed, and cleaned. Live verification confirmed both reports refresh with new generated_at timestamps.
+
