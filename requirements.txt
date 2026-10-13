@@ -9,3 +9,4 @@ PyYAML
 pytest
 httpx>=0.28,<1
 MetaTrader5; sys_platform == "win32"
+-r requirements-agent-performance.txt
