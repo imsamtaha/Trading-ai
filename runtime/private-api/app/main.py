@@ -24,6 +24,7 @@ from app.subscription import router as subscription_router
 from app.billing import router as billing_router
 from app.dashboard.preferences import router as preferences_router
 from app.auth import router as auth_router
+from app.performance.agent_routes import router as agent_performance_router
 
 
 app = FastAPI(
@@ -37,6 +38,7 @@ app.include_router(subscription_router)
 app.include_router(billing_router)
 app.include_router(preferences_router)
 app.include_router(auth_router)
+app.include_router(agent_performance_router)
 
 
 @app.middleware("http")

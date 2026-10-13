@@ -62,6 +62,6 @@ Set-Location $project
 if ($Once) {
     & $python 'run_atlas_mt5.py' --once
 } else {
-    & $python 'run_atlas_mt5.py' *>> (Join-Path $stateDir 'paper-monitor.log')
+    & $python -u 'ops/rotate_paper_logs.py' (Join-Path $stateDir 'paper-monitor.log') --run $python -u 'run_atlas_mt5.py'
 }
 exit $LASTEXITCODE

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from app.strategy.universe import classify_symbol, normalize_symbol
@@ -167,6 +169,28 @@ class ShadowSelector:
     def save_report(self,path):
         target = Path(path)
         target.parent.mkdir(parents=True,exist_ok=True)
-        temporary = target.with_suffix(".tmp")
-        temporary.write_text(json.dumps(self.report,indent=2,allow_nan=False)+"\n",encoding="utf-8")
-        os.replace(temporary,target)
+        fd, temporary = tempfile.mkstemp(prefix=target.stem + "-", suffix=".tmp", dir=target.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(self.report, handle, indent=2, allow_nan=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            for attempt in range(3):
+                try:
+                    os.replace(temporary, target)
+                    break
+                except PermissionError:
+                    if os.name == "nt" and target.exists():
+                        from app.paper_trading.mt5_ledger import _win_replace_existing
+                        try:
+                            _win_replace_existing(Path(temporary), target)
+                            break
+                        except OSError:
+                            if attempt == 2:
+                                raise
+                    if attempt == 2:
+                        raise
+                    time.sleep(0.03)
+        finally:
+            Path(temporary).unlink(missing_ok=True)

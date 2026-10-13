@@ -145,6 +145,14 @@ class RecoveryGuardian:
                     os.replace(temporary, target)
                     break
                 except PermissionError:
+                    if os.name == "nt" and target.exists():
+                        from app.paper_trading.mt5_ledger import _win_replace_existing
+                        try:
+                            _win_replace_existing(Path(temporary), target)
+                            break
+                        except OSError:
+                            if attempt == 2:
+                                raise
                     if attempt == 2:
                         raise
                     time.sleep(0.03)
