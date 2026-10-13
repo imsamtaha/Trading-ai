@@ -66,3 +66,18 @@ worker, not two independent workers.
 
 Shadow and Recovery report writes now reuse the already verified Windows ReplaceFileW fallback when normal replacement is denied. Shadow temporary files are unique, flushed, and cleaned. Live verification confirmed both reports refresh with new generated_at timestamps.
 
+## Verified deployment on 2026-10-13
+
+- Active Windows suite: 617 tests and 6 subtests passed.
+- Environment dependency check: no broken requirements.
+- Paper task runs continuously with no recent Shadow or Recovery write errors.
+- Both reports contain new generated_at timestamps after the Windows fix.
+- Backend, frontend and supervisor public health checks report HEALTHY.
+- The public Site health route returns HTTP 200 with the existing monitor User-Agent.
+- Local private model status rejects an unauthenticated caller with HTTP 401.
+- The public Site model route currently returns NOT_CONFIGURED/404. The evaluator
+  is deployed in the Windows backend; a public Site connection remains unconfigured.
+- Synthetic test-set metrics: sales AUC 0.6548, logloss 0.5713; CSAT MAE 0.1763.
+  These demonstrate the simulated pipeline, not observed commercial improvement.
+- Source and runtime rollback copies are retained separately. Real-money trading
+  permissions and council decision weights were not modified.
