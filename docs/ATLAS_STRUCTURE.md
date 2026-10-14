@@ -1,4 +1,4 @@
-# ATLAS Final Structure
+# ATLAS  repository and runtime architecture.
 
 This document defines the canonical ATLAS repository and runtime architecture.
 
