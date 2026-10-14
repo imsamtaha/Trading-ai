@@ -3,6 +3,7 @@ from __future__ import annotations
 from math import isfinite
 from typing import Any
 from uuid import uuid4
+from app.intelligence.council import NON_VOTING_ROLES
 
 
 def _score_or_none(value: Any) -> float | None:
@@ -29,6 +30,12 @@ class AtlasExecutiveAgent:
         if not isinstance(risk, dict):
             risk = {}
         risk_state = str(risk.get("assessment", "UNKNOWN")).upper()
+        specialist_protocol = "specialist_schema_version" in council or "risk_executive" in council
+        risk_executive_veto = False
+        if specialist_protocol:
+            from app.intelligence.specialists import verdict_allows
+            risk_executive_veto = (council.get("specialist_schema_version") != 1 or not verdict_allows(
+                council.get("risk_executive"), symbol=council.get("symbol"), snapshot_id=council.get("snapshot_id")))
 
         data_quality = _score_or_none(council.get("data_quality"))
         conflict = _score_or_none(council.get("conflict_score"))
@@ -49,6 +56,8 @@ class AtlasExecutiveAgent:
             if not isinstance(opinion, dict):
                 malformed = True
                 continue
+            if opinion.get("agent") in NON_VOTING_ROLES:
+                continue
             decision = str(opinion.get("decision", "")).upper()
             if decision not in weights:
                 continue
@@ -67,6 +76,8 @@ class AtlasExecutiveAgent:
         elif malformed:
             decision = "HOLD"
         elif risk_state != "RISK_ACCEPTABLE":
+            decision = "HOLD"
+        elif risk_executive_veto:
             decision = "HOLD"
         elif recovery_veto:
             decision = "HOLD"
@@ -87,7 +98,7 @@ class AtlasExecutiveAgent:
             confidence *= max(0.0, 1.0 - conflict)
             confidence *= data_quality
 
-        return {
+        result = {
             "decision_id": str(uuid4()),
             "snapshot_id": council.get("snapshot_id"),
             "symbol": council.get("symbol"),
@@ -107,6 +118,14 @@ class AtlasExecutiveAgent:
                 recovery_veto=recovery_veto,
             ),
         }
+        if specialist_protocol:
+            result["specialist_schema_version"] = 1
+            result["risk_executive"] = council.get("risk_executive")
+            if risk_executive_veto:
+                result["reason_codes"] = [code for code in result["reason_codes"] if code != "NO_DIRECTIONAL_EDGE"]
+                result["reason_codes"].append("RISK_EXECUTIVE_VETO")
+                result["confidence"] = 0.0
+        return result
 
     @staticmethod
     def _reason_codes(

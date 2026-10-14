@@ -1,4 +1,15 @@
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.intelligence.specialists import RiskExecutive
+from app.risk.manager import calculate_risk
+
+
+def approved_decision(action="BUY", risk_level="LOW", confidence=90):
+    direction = "LONG" if action == "BUY" else "SHORT"
+    stop, target = (98, 104) if action == "BUY" else (102, 96)
+    risk = calculate_risk(direction, 100, stop, target)
+    return {"decision": action, "confidence": confidence, "risk_level": risk_level,
+            "symbol": "EURUSD", "snapshot_id": "s", "specialist_schema_version": 1,
+            "risk_executive": RiskExecutive().assess(risk, symbol="EURUSD", snapshot_id="s")}
 
 
 class FakeBroker:
@@ -30,7 +41,7 @@ def test_execution_gate_accepts_low_risk_high_confidence():
         policy=ExecutionPolicy(enabled=True, min_confidence=55, max_risk_level="MEDIUM"),
     )
     approved, reason = service.gate(
-        {"decision": "SELL", "confidence": 72, "risk_level": "LOW"}
+        approved_decision("SELL", confidence=72)
     )
     assert approved is True
     assert reason == "APPROVED"
@@ -42,7 +53,7 @@ def test_execution_gate_rejects_high_risk():
         policy=ExecutionPolicy(enabled=True, max_risk_level="MEDIUM"),
     )
     approved, reason = service.gate(
-        {"decision": "BUY", "confidence": 90, "risk_level": "HIGH"}
+        approved_decision(risk_level="HIGH")
     )
     assert approved is False
     assert reason == "RISK_LEVEL_BLOCKED"

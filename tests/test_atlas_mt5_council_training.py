@@ -108,8 +108,8 @@ def test_winning_paper_close_records_training_and_refreshes_profile(tmp_path, mo
 
     profile = monitor._load_council_profile()
     assert profile["total_examples"] == 1
-    assert profile["agents"]["technical"]["weight"] == 1.0
-    assert profile["agents"]["technical"]["locked_baseline"] is True
+    assert profile["agents"]["quantitative_strategist"]["weight"] == 1.0
+    assert profile["agents"]["quantitative_strategist"]["locked_baseline"] is True
 
 
 def test_losing_long_paper_close_trains_opposite_realized_direction(tmp_path, monkeypatch):

@@ -10,6 +10,8 @@ from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.risk.manager import calculate_risk
 from app.execution.portfolio_lock import portfolio_lock, ExecutionBusy
+from app.intelligence.specialists import RiskExecutive
+from app.risk.correlation import measure_correlations
 
 
 @dataclass(frozen=True)
@@ -22,6 +24,7 @@ class AutoExecutionConfig:
     max_entry_drift_points: float = 20.0
     max_candidate_age_seconds: float = 60.0
     max_quote_age_seconds: float = 30.0
+    max_abs_correlation: float | None = None
 
     def __post_init__(self):
         for name in ("risk_percent", "min_confidence", "max_entry_drift_points",
@@ -33,6 +36,8 @@ class AutoExecutionConfig:
             raise ValueError("Risk/confidence configuration exceeds its allowed range.")
         if self.max_risk_level not in AtlasExecutionService.RISK_ORDER:
             raise ValueError("Unknown maximum risk level.")
+        if self.max_abs_correlation is not None and (not math.isfinite(self.max_abs_correlation) or not 0 < self.max_abs_correlation <= 1):
+            raise ValueError("Correlation limit must be finite and between 0 and 1.")
 
     @classmethod
     def from_env(cls) -> "AutoExecutionConfig":
@@ -40,6 +45,7 @@ class AutoExecutionConfig:
         return cls(
             enabled=os.getenv("ATLAS_AUTO_EXECUTION_ENABLED", "false").lower() == "true",
             risk_percent=risk_percent,
+            max_abs_correlation=float(os.environ["ATLAS_MAX_ABS_CORRELATION"]) if os.getenv("ATLAS_MAX_ABS_CORRELATION") else None,
             max_entry_drift_points=float(os.getenv("ATLAS_AUTO_MAX_ENTRY_DRIFT_POINTS", "20")),
             max_candidate_age_seconds=float(os.getenv("ATLAS_AUTO_MAX_CANDIDATE_AGE_SECONDS", "60")),
             max_quote_age_seconds=float(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")),
@@ -173,10 +179,29 @@ class AutoExecutionCoordinator:
             )
             if not risk.get("approved"):
                 return {"status": "BLOCKED", "reason": "RISK_REJECTED", "risk": risk}
+            snapshot_id = f"{symbol}:{portfolio['timestamp']}"
+            open_symbols = tuple(str(p['symbol']) for p in portfolio.get('positions', []))
+            correlation = None
+            if open_symbols and self.config.max_abs_correlation is not None:
+                from app.execution.mt5 import mt5
+                try:
+                    histories = {key: self.broker.candles(key, mt5.TIMEFRAME_M5, 200) for key in {symbol, *open_symbols}}
+                    from datetime import datetime, timezone
+                    correlation = measure_correlations(symbol, open_symbols, histories,
+                        limit=self.config.max_abs_correlation, snapshot_id=snapshot_id,
+                        as_of=datetime.fromtimestamp(float(portfolio['timestamp']), timezone.utc).isoformat())
+                except (MT5ExecutionError, ValueError, KeyError, TypeError, AttributeError):
+                    pass
+            verdict = RiskExecutive().assess(risk, symbol=symbol, snapshot_id=snapshot_id,
+                                             open_symbols=open_symbols, correlation=correlation)
+            if verdict['allowed'] is not True:
+                return {"status": "BLOCKED", "reason": "RISK_EXECUTIVE_VETO", "risk": risk, "risk_executive": verdict}
+            execution_decision = {**decision, 'symbol': symbol, 'snapshot_id': snapshot_id,
+                                  'specialist_schema_version': 1, 'risk_executive': verdict}
             risk_amount = float(risk["actual_risk_amount"])
             volume = self.broker.volume_for_risk(symbol, entry=entry, stop_loss=stop_loss, risk_amount=risk_amount)
             result = self.execution.execute(
-                symbol=symbol, decision=decision, volume=volume, stop_loss=stop_loss,
+                symbol=symbol, decision=execution_decision, volume=volume, stop_loss=stop_loss,
                 take_profit=take_profit, max_cash_risk=risk_amount,
                 expected_entry=source_entry, max_entry_deviation=allowed_drift,
                 expected_account=expected_account,

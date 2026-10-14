@@ -24,6 +24,8 @@ from app.intelligence.journal import SignalJournal
 from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
 from app.risk.ledger_metrics import calculate_ledger_risk_state
 from app.risk.manager import calculate_risk
+from app.risk.correlation import measure_correlations
+from app.intelligence.specialists import RiskExecutive
 from app.strategies.router import generate_strategy_candidate
 from app.strategy.universe import build_universe, diversify_universe, normalize_symbol, classify_symbol
 
@@ -152,6 +154,10 @@ class AtlasMT5Monitor:
         self.category_position_limit = max(0, int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0")))
         self.signal_quality_engine = SignalQualityEngine()
         self.council_profile = self._load_council_profile()
+        correlation_limit = os.getenv("ATLAS_MAX_ABS_CORRELATION")
+        self.max_abs_correlation = float(correlation_limit) if correlation_limit else None
+        if self.max_abs_correlation is not None and (not math.isfinite(self.max_abs_correlation) or not 0 < self.max_abs_correlation <= 1):
+            raise ValueError("Correlation limit must be finite and between 0 and 1")
         self.recovery_guardian = (RecoveryGuardian() if os.getenv("ATLAS_RECOVERY_AGENT_ENABLED", "false").lower() == "true" else None)
         self.recovery_report_path = Path(os.getenv("ATLAS_RECOVERY_REPORT", "data/atlas_recovery_agent.json"))
         self.recovery_checks: list[dict[str, Any]] = []
@@ -198,6 +204,8 @@ class AtlasMT5Monitor:
         decision: dict[str, Any],
         risk: dict[str, Any],
         recovery: dict[str, Any] | None = None,
+        open_symbols: tuple[str, ...] = (),
+        correlation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         expected_action = "BUY" if candidate["direction"] == "LONG" else "SELL"
         quality = self.signal_quality_engine.evaluate(
@@ -215,6 +223,8 @@ class AtlasMT5Monitor:
             "direction": candidate["direction"],
             "confidence": self._safe_float(candidate.get("confidence")),
             "reasons": reasons,
+            "strategy": candidate.get("strategy", "TECHNICAL"),
+            "pair_validation": candidate.get("metadata", {}).get("pair_validation"),
         }
         snapshot_id = f"{symbol.upper()}:{self.interval}:{timestamp}"
         return build_paper_council(
@@ -226,7 +236,22 @@ class AtlasMT5Monitor:
             quality=quality,
             agent_profile=self.council_profile,
             recovery=recovery,
+            macro_state=candidate.get("metadata", {}).get("macro_state"),
+            open_symbols=open_symbols,
+            correlation=correlation,
+            as_of=timestamp,
         )
+
+    def _correlation_context(self, *, symbol, open_symbols, snapshot_id, timestamp):
+        if not open_symbols or self.max_abs_correlation is None:
+            return None
+        try:
+            histories = {key: self.broker.candles(key, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit)
+                         for key in {symbol, *open_symbols}}
+            return measure_correlations(symbol, open_symbols, histories, limit=self.max_abs_correlation,
+                snapshot_id=snapshot_id, as_of=timestamp, bar_seconds=TIMEFRAME_SECONDS[self.interval])
+        except (MT5ExecutionError, TypeError, ValueError, KeyError, AttributeError):
+            return None
 
     def _recovery_check(self, *, symbol, candidate, quote, risk):
         if self.recovery_guardian is None:
@@ -561,6 +586,12 @@ class AtlasMT5Monitor:
             open_risk_percent=ledger_risk["open_risk_percent"],
         )
         recovery = self._recovery_check(symbol=symbol, candidate=candidate, quote=quote, risk=risk)
+        snapshot_id = f"{symbol.upper()}:{self.interval}:{timestamp}"
+        open_symbols = tuple(str(p["symbol"]) for p in self.ledger.open_positions())
+        correlation = self._correlation_context(symbol=symbol, open_symbols=open_symbols,
+            snapshot_id=snapshot_id, timestamp=timestamp) if risk.get("approved") is True else None
+        risk_verdict = RiskExecutive().assess(risk, symbol=symbol, snapshot_id=snapshot_id,
+                                              open_symbols=open_symbols, correlation=correlation, as_of=timestamp)
         if not risk.get("approved", False):
             return {
                 "timestamp": timestamp,
@@ -572,7 +603,13 @@ class AtlasMT5Monitor:
                 "candidate": candidate,
                 "decision": decision,
                 "risk": risk,
+                "risk_executive": risk_verdict,
             }
+
+        if risk_verdict["allowed"] is not True:
+            return {"timestamp": timestamp, "symbol": symbol, "timeframe": self.interval,
+                "status": "NO_TRADE", "reason": "Risk Executive veto: " + ", ".join(risk_verdict["reason_codes"]),
+                "candidate": candidate, "decision": decision, "risk": risk, "risk_executive": risk_verdict}
 
         if recovery is not None and recovery["allowed"] is not True:
             return {"timestamp": timestamp, "symbol": symbol, "timeframe": self.interval,
@@ -589,6 +626,8 @@ class AtlasMT5Monitor:
                     decision=decision,
                     risk=risk,
                     recovery=recovery,
+                    open_symbols=open_symbols,
+                    correlation=correlation,
                 )
             except (TypeError, ValueError) as exc:
                 return {
@@ -648,6 +687,7 @@ class AtlasMT5Monitor:
             "council": training_context["council"] if training_context else None,
             "trade_intent": training_context["trade_intent"] if training_context else None,
             "trade": trade,
+            "risk_executive": risk_verdict,
         }
 
     def _refresh_shadow_training(self) -> None:

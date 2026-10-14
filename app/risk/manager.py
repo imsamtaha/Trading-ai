@@ -167,6 +167,7 @@ def calculate_risk(
         "actual_risk_amount": round(actual_risk, 2),
         "position_size": round(position_size, 8),
         "position_value": round(position_value, 2),
+        "max_position_value": round(max_position_value, 2),
         "daily_start_capital": round(daily_capital, 2),
         "daily_realized_pnl": round(daily_realized_pnl, 2),
         "daily_loss_percent": round(daily_loss_percent, 4),
@@ -174,4 +175,3 @@ def calculate_risk(
         "open_risk_percent": round(open_risk_percent, 4),
         "max_total_open_risk_percent": max_total_open_risk_percent,
     }
-

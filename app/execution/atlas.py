@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import isfinite
+from math import isfinite, isclose
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,6 +32,12 @@ class AtlasExecutionService:
 
         if not self.policy.enabled:
             return False, "LIVE_EXECUTION_DISABLED"
+        if decision.get("execution_environment") == "PAPER" or decision.get("broker_execution_allowed") is False:
+            return False, "PAPER_INTENT_NOT_EXECUTABLE"
+        from app.intelligence.specialists import verdict_allows
+        if decision.get("specialist_schema_version") != 1 or not verdict_allows(
+                decision.get("risk_executive"), symbol=decision.get("symbol"), snapshot_id=decision.get("snapshot_id")):
+            return False, "RISK_EXECUTIVE_VETO"
         if action not in {"BUY", "SELL"}:
             return False, "NO_TRADE_DECISION"
         if not isfinite(confidence) or confidence < self.policy.min_confidence:
@@ -66,6 +72,17 @@ class AtlasExecutionService:
             }
 
         bounds = {}
+        from app.intelligence.specialists import verdict_allows, number
+        verdict = decision["risk_executive"]
+        if not verdict_allows(verdict, symbol=symbol, snapshot_id=decision.get("snapshot_id")):
+            return {"status": "BLOCKED", "symbol": symbol, "reason": "RISK_EXECUTIVE_VETO"}
+        try:
+            if (number(max_cash_risk) <= 0
+                    or max_cash_risk > number(verdict["approved_cash_risk"]) + 1e-8
+                    or not isclose(number(stop_loss), number(verdict["approved_stop_loss"]), abs_tol=1e-8, rel_tol=0)):
+                raise ValueError()
+        except (ValueError, TypeError, KeyError):
+            return {"status": "BLOCKED", "symbol": symbol, "reason": "RISK_EXECUTIVE_BOUNDS_REQUIRED"}
         if max_cash_risk is not None:
             bounds["max_cash_risk"] = max_cash_risk
         if expected_entry is not None:

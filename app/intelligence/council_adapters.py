@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from app.intelligence.council import AgentOpinion, AtlasCouncilCoordinator
 from app.intelligence.council_training import CouncilTrainingJournal, PaperTrainingExample
 from app.intelligence.executive import AtlasExecutiveAgent
+from app.intelligence.specialists import MacroAnalyst, QuantitativeStrategist, RiskExecutive, specialist_contracts
 
 
 def _confidence(value: Any) -> float:
@@ -79,7 +80,7 @@ def confidence_opinion(
 
 
 def senior_risk_assessment(risk: Mapping[str, Any]) -> dict[str, Any]:
-    approved = bool(risk.get("approved", False))
+    approved = risk.get("approved") is True
     return {
         "agent": "Senior Risk Management Agent",
         "assessment": "RISK_ACCEPTABLE" if approved else "RISK_REJECT",
@@ -98,21 +99,16 @@ def build_paper_council(
     quality: Mapping[str, Any] | None = None,
     agent_profile: Mapping[str, Any] | None = None,
     recovery: Mapping[str, Any] | None = None,
+    macro_state: Mapping[str, Any] | None = None,
+    open_symbols: tuple[str, ...] | list[str] = (),
+    correlation: Mapping[str, Any] | None = None,
+    as_of: str | None = None,
 ) -> dict[str, Any]:
-    technical = technical_opinion(signal, snapshot_id=snapshot_id)
-    opinions = [technical]
-
-    event = event_opinion(event_state, snapshot_id=snapshot_id)
-    if event is not None:
-        opinions.append(event)
-
-    confidence = confidence_opinion(
-        quality,
-        directional_decision=technical.decision,
-        snapshot_id=snapshot_id,
-    )
-    if confidence is not None:
-        opinions.append(confidence)
+    quant, quant_info = QuantitativeStrategist().evaluate(signal, quality, snapshot_id=snapshot_id)
+    macro, macro_info = MacroAnalyst().evaluate(macro_state, symbol=symbol, snapshot_id=snapshot_id, as_of=as_of)
+    opinions = [quant, macro]
+    risk_verdict = RiskExecutive().assess(risk, symbol=symbol, snapshot_id=snapshot_id,
+                                         open_symbols=open_symbols, correlation=correlation, as_of=as_of)
 
     if recovery is not None:
         opinions.append(AgentOpinion(agent="recovery_guardian", decision="HOLD",
@@ -128,6 +124,12 @@ def build_paper_council(
     )
     if recovery is not None:
         council["recovery_guardian"] = dict(recovery)
+    council["specialist_schema_version"] = 1
+    council["specialists"] = {"macro_analyst": macro_info, "quantitative_strategist": quant_info,
+                               "risk_executive": specialist_contracts()["risk_executive"]}
+    council["risk_executive"] = risk_verdict
+    # News and signal-quality tools provide context, not extra directional votes.
+    council["event_context"] = dict(event_state) if event_state else None
     trade_intent = AtlasExecutiveAgent().decide(council)
     return {"council": council, "trade_intent": trade_intent}
 
@@ -149,7 +151,7 @@ def record_settled_paper_outcome(
     opinions = council.get("opinions") or []
     training_opinions: list[dict[str, Any]] = []
     for opinion in opinions:
-        if not isinstance(opinion, Mapping) or opinion.get("agent") == "recovery_guardian":
+        if not isinstance(opinion, Mapping) or opinion.get("agent") in {"recovery_guardian", "risk_executive", "macro_analyst"}:
             continue  # A veto supervisor has no directional prediction to score.
         training_opinions.append(
             {

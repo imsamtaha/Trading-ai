@@ -284,6 +284,11 @@ class MT5Broker:
         return int(getattr(mt5, "ORDER_FILLING_IOC", 1))
 
     def market_order(self, symbol: str, direction: str, volume: float, stop_loss: float, take_profit: float, comment: str = "ATLAS", *, expected_account_type: str | None = None, expected_login: int | None = None) -> dict[str, Any]:
+        # This broker has no trusted portfolio snapshot/correlation/budget
+        # revalidation path. A caller flag or confidence is not risk approval.
+        # Keep closing positions available through the separate exit method.
+        if not self.config.dry_run:
+            raise MT5ExecutionError("RISK_EXECUTIVE_CONTEXT_UNAVAILABLE: private broker entries require trusted portfolio risk integration.")
         self.ensure_connected()
         direction = direction.upper()
         if direction not in {"LONG", "SHORT", "BUY", "SELL"}:

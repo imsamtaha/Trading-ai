@@ -5,6 +5,7 @@ from app.intelligence.council_adapters import (
     record_settled_paper_outcome,
 )
 from app.intelligence.council_training import CouncilTrainingJournal
+from app.risk.manager import calculate_risk
 
 
 def _signal(direction="LONG", confidence=80):
@@ -16,10 +17,9 @@ def _signal(direction="LONG", confidence=80):
 
 
 def _risk(approved=True):
-    return {
+    return {**calculate_risk("LONG",100,98,104),
         "approved": approved,
-        "reason": "Risk parameters acceptable." if approved else "Risk limit reached.",
-    }
+        "reason": "Risk parameters acceptable." if approved else "Risk limit reached."}
 
 
 def test_existing_components_build_a_paper_only_council_intent():
@@ -44,9 +44,8 @@ def test_existing_components_build_a_paper_only_council_intent():
     council = result["council"]
     intent = result["trade_intent"]
     assert [item["agent"] for item in council["opinions"]] == [
-        "technical",
-        "event_intelligence",
-        "confidence",
+        "quantitative_strategist",
+        "macro_analyst",
     ]
     assert intent["decision"] == "BUY"
     assert intent["execution_environment"] == "PAPER"
@@ -87,7 +86,7 @@ def test_settled_paper_outcome_is_recorded_for_training(tmp_path):
     assert record["broker_execution_allowed"] is False
     loaded = journal.load()
     assert len(loaded) == 1
-    assert loaded[0].opinions[0]["agent"] == "technical"
+    assert loaded[0].opinions[0]["agent"] == "quantitative_strategist"
 
 
 def test_non_paper_or_broker_intent_cannot_enter_training_journal(tmp_path):
