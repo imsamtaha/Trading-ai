@@ -41,7 +41,9 @@ class AtlasExecutionService:
             return False, "BUY_DISABLED"
         if action == "SELL" and not self.policy.allow_sell:
             return False, "SELL_DISABLED"
-        return True, "APPROVED"
+        # The private adapter cannot enforce the root coordinator's fresh
+        # portfolio/correlation/cash-risk bounds. Never approve legacy entries.
+        return False, "RISK_EXECUTIVE_CONTEXT_UNAVAILABLE"
 
     def execute(
         self,
@@ -77,4 +79,6 @@ class AtlasExecutionService:
             "mt5_dry_run": self.broker.config.dry_run,
             "real_money_execution_requested": self.broker.config.real_money_execution,
             "real_money_acknowledged": bool(self.broker.config.real_money_ack),
+            "risk_executive_ready": False,
+            "entry_blocked_reason": "RISK_EXECUTIVE_CONTEXT_UNAVAILABLE",
         }

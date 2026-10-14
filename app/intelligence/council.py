@@ -8,6 +8,7 @@ from app.intelligence.council_training import agent_weight
 
 
 VALID_DECISIONS = {"BUY", "SELL", "HOLD", "EXIT"}
+NON_VOTING_ROLES = frozenset({"risk_executive", "recovery_guardian"})
 
 
 def _bounded_score(value: float, *, field: str) -> float:
@@ -70,6 +71,8 @@ class AtlasCouncilCoordinator:
 
         normalized: list[dict[str, Any]] = []
         for item in items:
+            if item.agent in NON_VOTING_ROLES:
+                continue
             weight = agent_weight(agent_profile, item.agent)
             calibrated = max(0.0, min(1.0, item.confidence * weight))
             normalized.append(

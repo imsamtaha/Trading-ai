@@ -85,6 +85,10 @@ class AtlasCouncilTrainer:
             total_examples += 1
             for opinion in example.opinions:
                 agent = str(opinion.get("agent", "")).strip()
+                if agent in {"risk_executive", "recovery_guardian", "macro_analyst"}:
+                    # Risk is deterministic; structural regimes need their own
+                    # labels, not the direction of a settled paper trade.
+                    continue
                 decision = str(opinion.get("decision", "")).upper()
                 if not agent or decision not in VALID_OUTCOMES:
                     continue
@@ -126,6 +130,8 @@ class AtlasCouncilTrainer:
 
 
 def agent_weight(profile: Mapping[str, Any] | None, agent: str) -> float:
+    if agent in {"risk_executive", "recovery_guardian"}:
+        return 1.0
     if not profile:
         return 1.0
     agents = profile.get("agents")

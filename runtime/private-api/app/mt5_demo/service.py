@@ -277,9 +277,11 @@ class MT5DemoService:
         if mode == "DEMO" and self._demo_runtime_managed:
             self.demo_orders_enabled = get_demo_execution_enabled()
         enabled = self.demo_orders_enabled if mode == "DEMO" else self.real_orders_enabled
-        active = bool(enabled and (mode == "DEMO" or self._active_real.get(user_id) == session["login"]))
-        return {"connected": True, "active": active, "account_type": mode,
-                "account_masked": self._mask_login(session["login"]), "server_enabled": enabled}
+        # Legacy private entry paths have no trusted portfolio risk verdict.
+        # Keep connection/read state truthful without advertising entry approval.
+        return {"connected": True, "active": False, "account_type": mode,
+                "account_masked": self._mask_login(session["login"]), "server_enabled": enabled,
+                "risk_executive_ready": False, "blocked_reason": "RISK_EXECUTIVE_CONTEXT_UNAVAILABLE"}
 
     def activate_manual_trading(self, user_id: str, account_type: str) -> dict[str, Any]:
         session = self._sessions.get(user_id)
@@ -299,7 +301,10 @@ class MT5DemoService:
         mode = session["account_type"]
         if order.get("confirmed") is not True or order.get("account_type") != mode:
             raise MT5DemoError("Confirm the order for the connected account type.")
-        if not self.manual_trading_state(user_id)["active"]:
+        state = self.manual_trading_state(user_id)
+        if state.get("blocked_reason") == "RISK_EXECUTIVE_CONTEXT_UNAVAILABLE":
+            raise MT5DemoError("Risk Executive veto: trusted portfolio risk context is unavailable.")
+        if not state["active"]:
             raise MT5DemoError("Activate trading for this account or ask the owner to enable it.")
         request_id = str(order.get("request_id") or "")
         if len(request_id) < 8 or len(request_id) > 64:
