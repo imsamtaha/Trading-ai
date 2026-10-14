@@ -10,6 +10,7 @@ from typing import Any
 from app.strategy.universe import normalize_symbol, classify_symbol
 from app.execution.portfolio_lock import portfolio_lock, ExecutionBusy
 from app.execution.submission_journal import SubmissionJournal, SubmissionJournalError
+from app.risk.multi_asset import finite, margin_health
 
 try:
     import MetaTrader5 as mt5
@@ -251,6 +252,41 @@ class MT5Broker:
             raise MT5ExecutionError(f"Cash risk unavailable for {symbol}")
         return max(0.0, -float(loss))
 
+    def required_margin(self, symbol, direction, volume, entry):
+        """Native account-currency estimate; never infer broker leverage."""
+        self.ensure_connected()
+        side = str(direction).upper()
+        if side not in {'BUY','SELL','LONG','SHORT'}:
+            raise MT5ExecutionError('Invalid margin calculation direction.')
+        action = mt5.ORDER_TYPE_BUY if side in {'BUY','LONG'} else mt5.ORDER_TYPE_SELL
+        try:
+            amount = mt5.order_calc_margin(action, symbol, self._positive(volume,'Volume'), self._positive(entry,'Entry'))
+            return finite(amount, 'Native required margin')
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise MT5ExecutionError('Native required margin unavailable; entry refused.') from exc
+
+    def _entry_margin_health(self, symbol, direction, volume, entry, account, stop_loss):
+        try:
+            free = finite(getattr(account,'margin_free',None),'Native free margin')
+            tick = mt5.symbol_info_tick(symbol)
+            if tick is None:
+                raise ValueError('Spread quote unavailable')
+            self._require_fresh_quote({'time':getattr(tick,'time',0),'time_msc':getattr(tick,'time_msc',0)})
+            bid, ask = self._positive(tick.bid,'Bid'), self._positive(tick.ask,'Ask')
+            spread = finite(ask-bid,'Native spread')
+            if not (stop_loss < bid if direction in {'BUY','LONG'} else stop_loss > ask):
+                raise MT5ExecutionError('Stop loss is inside or already breached by the current spread.')
+            spread_stop = entry - spread if direction in {'BUY','LONG'} else entry + spread
+            opening_cost = self.cash_risk(symbol,entry,spread_stop,volume) if spread else 0
+            health = margin_health(equity=getattr(account,'equity',None),
+                used_margin=getattr(account,'margin',None), free_margin=free,opening_cost=opening_cost,
+                required_margin=self.required_margin(symbol,direction,volume,entry))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise MT5ExecutionError('Account margin health unavailable; entry refused.') from exc
+        if not health['allowed']:
+            raise MT5ExecutionError('Risk Executive margin veto: ' + ', '.join(health['reason_codes']))
+        return health
+
     @staticmethod
     def _require_fresh_quote(quote: dict[str, Any]) -> None:
         timestamp = float(quote.get("time_msc", 0)) / 1000 or float(quote.get("time", 0))
@@ -267,6 +303,11 @@ class MT5Broker:
         if account is None:
             raise MT5ExecutionError("MT5 account risk state unavailable.")
         equity = self._positive(account.equity, "Account equity")
+        try:
+            used_margin = finite(getattr(account,'margin',None), 'Used margin')
+            free_margin = finite(getattr(account,'margin_free',None), 'Free margin')
+        except ValueError as exc:
+            raise MT5ExecutionError('Account margin state unavailable.') from exc
         balance = float(account.balance)
         identity = self.account_identity(account)
         credit = float(getattr(account, "credit", 0.0))
@@ -324,6 +365,7 @@ class MT5Broker:
         if latest is None or self.account_identity(latest) != identity or float(latest.balance) != balance or float(getattr(latest, "credit", 0.0)) != credit:
             raise MT5ExecutionError("Account balance, credit or identity changed during risk collection.")
         return {**identity, "equity": equity, "daily_realized_pnl": pnl,
+                "used_margin": used_margin, "free_margin": free_margin,
                 "daily_start_capital": daily_start_capital,
                 "open_risk_percent": open_cash_risk / equity * 100.0,
                 "positions": symbols, "position_fingerprint": self.position_fingerprint(positions),
@@ -446,6 +488,7 @@ class MT5Broker:
         account = self._validate_account(target) if target is not None else mt5.account_info()
         if account is None or not bool(account.trade_allowed):
             raise MT5ExecutionError("MT5 account does not allow trading.")
+        self._entry_margin_health(symbol, side, volume, price, account, stop_loss)
         identity = self.account_identity(account)
         guard_symbol = (os.getenv('ATLAS_ONE_POSITION_PER_SYMBOL', 'true').lower() == 'true'
                         if one_position_per_symbol is None else one_position_per_symbol)
@@ -453,7 +496,7 @@ class MT5Broker:
         if journal.status(identity)['blocked']:
             raise MT5ExecutionError('Unresolved MT5 submission; reconcile before further execution.')
         identifier, request = journal.begin(identity, request)
-        # Keep these reads at the last boundary. No pricing/sizing work follows.
+        # Repeat portfolio, account and margin checks at the last entry boundary.
         # External terminals still cannot be locked by this local process.
         try:
             positions = mt5.positions_get()
@@ -467,7 +510,8 @@ class MT5Broker:
                 raise MT5ExecutionError('Position already open at final submission boundary.')
             if any(o.symbol == symbol for o in orders) or (max_cash_risk is not None and orders):
                 raise MT5ExecutionError('Pending order exposure at final submission boundary.')
-            self._validate_account(identity)
+            current_account = self._validate_account(identity)
+            self._entry_margin_health(symbol, side, volume, price, current_account, stop_loss)
         except MT5ExecutionError:
             # No delivery took place. Retain a NOT_SENT audit record.
             journal.cancel_before_send(identifier)

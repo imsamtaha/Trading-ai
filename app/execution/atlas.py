@@ -79,6 +79,7 @@ class AtlasExecutionService:
         try:
             if (number(max_cash_risk) <= 0
                     or max_cash_risk > number(verdict["approved_cash_risk"]) + 1e-8
+                    or ('approved_lots' in verdict and number(volume) > number(verdict['approved_lots']) + 1e-10)
                     or not isclose(number(stop_loss), number(verdict["approved_stop_loss"]), abs_tol=1e-8, rel_tol=0)):
                 raise ValueError()
         except (ValueError, TypeError, KeyError):
