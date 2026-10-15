@@ -24,6 +24,8 @@ def measure_correlations(symbol, open_symbols, histories, *, limit, snapshot_id,
             stamp, close = float(row["open_time"]), float(row["close"])
             if not isfinite(stamp) or not isfinite(close) or close <= 0 or stamp in prices:
                 raise ValueError("Invalid correlation history")
+            if stamp > end:
+                raise ValueError("Correlation bar opens in the future; verify broker timestamp normalization")
             if stamp + bar_seconds * 1000 <= end:
                 prices[stamp] = close
         series[key] = prices
