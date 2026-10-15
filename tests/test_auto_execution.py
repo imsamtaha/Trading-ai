@@ -16,7 +16,7 @@ class FakeBroker:
 
     def risk_snapshot(self):
         return {"login":123,"server":"Test","trade_mode":0,"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": 0.0, "open_risk_percent": 0.0,
-                "positions": self._positions, "position_fingerprint": [], "timestamp": time.time()}
+                "used_margin":0.,"free_margin":10000.,"positions": self._positions, "position_fingerprint": [], "timestamp": time.time()}
 
     def quote(self, symbol):
         return {"bid": 1.1000, "ask": 1.1002, "point": 0.00001, "time": int(time.time())}
@@ -28,6 +28,7 @@ class FakeBroker:
             volume_min=0.01,
             volume_max=100.0,
             volume_step=0.01,
+            trade_contract_size=100000,
         )
 
     def _normalized_volume(self, symbol, volume):
@@ -37,6 +38,12 @@ class FakeBroker:
         info = self.symbol_info(symbol)
         ticks = abs(entry - stop_loss) / info.trade_tick_size
         return self._normalized_volume(symbol, risk_amount / (ticks * info.trade_tick_value))
+
+    def cash_risk(self,symbol,entry,stop_loss,volume):
+        return abs(entry-stop_loss)*100000*volume
+
+    def required_margin(self,symbol,direction,volume,entry):
+        return volume*100000*entry/200
 
     def market_order(self, symbol, direction, volume, stop_loss, take_profit, comment="ATLAS", **bounds):
         order = {
@@ -168,7 +175,7 @@ class PortfolioBroker(FakeBroker):
         if self.snapshot_error:
             raise MT5ExecutionError("History unavailable")
         return {"login":123,"server":"Test","trade_mode":0,"equity": 10000.0, "daily_start_capital": 10000.0, "daily_realized_pnl": self.daily_pnl,
-                "open_risk_percent": self.open_risk, "positions": [], "position_fingerprint": [], "timestamp": time.time()}
+                "used_margin":0.,"free_margin":10000.,"open_risk_percent": self.open_risk, "positions": [], "position_fingerprint": [], "timestamp": time.time()}
 
     def quote(self, symbol):
         return {"bid": self.quote_entry - 0.0002, "ask": self.quote_entry,

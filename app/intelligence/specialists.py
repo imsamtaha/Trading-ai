@@ -116,7 +116,7 @@ class QuantitativeStrategist:
 
 class RiskExecutive:
     """Risk policy cannot be calibrated away or overridden by council weights."""
-    def assess(self, risk, *, symbol, snapshot_id, open_symbols=(), correlation=None, as_of=None):
+    def assess(self, risk, *, symbol, snapshot_id, open_symbols=(), correlation=None, as_of=None, position=None):
         checks = dict(position_sizing=False, correlation_limits=False, stop_losses=False)
         reasons = []
         if risk.get("approved") is not True:
@@ -135,6 +135,32 @@ class RiskExecutive:
                 checks["position_sizing"] &= cap > 0 and size * entry <= cap + .02
         except (ValueError, TypeError):
             pass
+        margin = None
+        if position is not None:
+            from app.risk.multi_asset import margin_health
+            checks['margin_health'] = False
+            try:
+                health = position['margin_health']
+                margin = margin_health(equity=health['equity'],used_margin=health['used_margin'],
+                    required_margin=position['required_margin'],free_margin=health['free_margin'],
+                    opening_cost=number(position['estimated_spread_cost']))
+                checks['margin_health'] = margin['allowed']
+                matches = (position.get('status') == 'APPROVED' and position.get('symbol') == symbol
+                    and position.get('mode') == 'BROKER_ESTIMATE'
+                    and position.get('direction') == {'LONG':'BUY','SHORT':'SELL'}.get(risk.get('direction'))
+                    and isclose(number(position['entry_price']),number(risk['entry']),abs_tol=1e-8,rel_tol=0)
+                    and isclose(number(position['sl_price']),number(risk['stop_loss']),abs_tol=1e-8,rel_tol=0)
+                    and isclose(number(health['equity']),number(risk['account_balance']),abs_tol=.01,rel_tol=0)
+                    and number(position['lots']) > 0
+                    and 0 < number(position['estimated_total_risk']) <= number(position['risk_budget']) + 1e-8
+                    and number(position['risk_budget']) <= number(risk['actual_risk_amount']) + 1e-8)
+                checks['position_sizing'] &= matches
+                reasons.extend(margin['reason_codes'])
+            except (ValueError, TypeError, KeyError, AttributeError):
+                checks['position_sizing'] = False
+                reasons.append('MARGIN_DATA_UNAVAILABLE')
+            if not checks['margin_health']:
+                reasons.append('MARGIN_HEALTH_VETO')
         if not checks["position_sizing"]:
             reasons.append("POSITION_SIZING_VETO")
         if not checks["stop_losses"]:
@@ -170,16 +196,22 @@ class RiskExecutive:
                     reasons.append("CORRELATION_LIMIT_EXCEEDED")
             except (ValueError, TypeError):
                 reasons.append("CORRELATION_DATA_UNAVAILABLE")
-        return {"agent": "risk_executive", "authority": "ABSOLUTE_VETO", "executes_orders": False,
+        verdict = {"agent": "risk_executive", "authority": "ABSOLUTE_VETO", "executes_orders": False,
                 "symbol": symbol, "snapshot_id": snapshot_id, "checks": checks,
                 "allowed": risk.get("approved") is True and all(checks.values()), "reason_codes": reasons,
                 "approved_cash_risk": risk.get("actual_risk_amount") if checks["position_sizing"] else None,
                 "approved_stop_loss": risk.get("stop_loss") if checks["stop_losses"] else None}
+        if position is not None:
+            verdict.update(margin_health=margin,approved_lots=position.get('lots') if checks['position_sizing'] else None)
+        return verdict
 
 
 def verdict_allows(verdict, *, symbol, snapshot_id):
     try:
         if number(verdict.get("approved_cash_risk")) <= 0 or number(verdict.get("approved_stop_loss")) <= 0:
+            return False
+        if 'approved_lots' in verdict and (number(verdict['approved_lots']) <= 0
+                or verdict.get('checks',{}).get('margin_health') is not True):
             return False
     except (ValueError, TypeError, AttributeError):
         return False

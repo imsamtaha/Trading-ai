@@ -34,7 +34,10 @@ def crash_after_broker_delivery(db_path, delivery_path):
     adapter.mt5 = SimpleNamespace(
         ORDER_TYPE_BUY=0, ORDER_TYPE_SELL=1, POSITION_TYPE_BUY=0,
         TRADE_ACTION_DEAL=1, ORDER_TIME_GTC=0, ORDER_FILLING_IOC=1,
-        account_info=lambda: SimpleNamespace(login=123, server='Test', trade_mode=0, trade_allowed=True),
+        account_info=lambda: SimpleNamespace(login=123, server='Test', trade_mode=0, trade_allowed=True,
+                                             equity=10000,margin=0,margin_free=10000),
+        order_calc_margin=lambda side,symbol,volume,price:volume*100000*price/200,
+        order_calc_profit=lambda side,symbol,volume,entry,stop:((stop-entry) if side==0 else (entry-stop))*100000*volume,
         positions_get=lambda: [], orders_get=lambda: [], order_send=send,
         symbol_info_tick=lambda symbol: SimpleNamespace(bid=1.1, ask=1.1002, time=int(now), time_msc=int(now*1000)))
     broker = MT5Broker(MT5Config(dry_run=False))

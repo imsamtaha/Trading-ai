@@ -246,10 +246,25 @@ class AtlasMT5Monitor:
         if not open_symbols or self.max_abs_correlation is None:
             return None
         try:
-            histories = {key: self.broker.candles(key, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit)
-                         for key in {symbol, *open_symbols}}
-            return measure_correlations(symbol, open_symbols, histories, limit=self.max_abs_correlation,
+            histories = {}
+            for key in {symbol, *open_symbols}:
+                # Confirm this broker's configured time basis with a current
+                # quote for every symbol; never infer an offset from old bars.
+                fresh, _ = self._validate_quote_freshness(self.broker.quote(key))
+                if not fresh:
+                    return None
+                bars = self.broker.candles(
+                    key, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit
+                )
+                histories[key] = [
+                    {**bar, "open_time": float(bar["open_time"])
+                     - self.quote_time_offset_seconds * 1000}
+                    for bar in bars
+                ]
+            result = measure_correlations(symbol, open_symbols, histories, limit=self.max_abs_correlation,
                 snapshot_id=snapshot_id, as_of=timestamp, bar_seconds=TIMEFRAME_SECONDS[self.interval])
+            result["timestamp_offset_seconds"] = self.quote_time_offset_seconds
+            return result
         except (MT5ExecutionError, TypeError, ValueError, KeyError, AttributeError):
             return None
 

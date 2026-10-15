@@ -12,6 +12,7 @@ from app.risk.manager import calculate_risk
 from app.execution.portfolio_lock import portfolio_lock, ExecutionBusy
 from app.intelligence.specialists import RiskExecutive
 from app.risk.correlation import measure_correlations
+from app.risk.multi_asset import MultiAssetRiskEngine
 
 
 @dataclass(frozen=True)
@@ -192,14 +193,18 @@ class AutoExecutionCoordinator:
                         as_of=datetime.fromtimestamp(float(portfolio['timestamp']), timezone.utc).isoformat())
                 except (MT5ExecutionError, ValueError, KeyError, TypeError, AttributeError):
                     pass
+            risk_amount = float(risk["actual_risk_amount"])
+            position = MultiAssetRiskEngine(float(portfolio['equity']),risk_percent / 100,broker=self.broker).calculate_position(
+                symbol,entry,stop_loss,portfolio['free_margin'],used_margin=portfolio['used_margin'],
+                direction=expected_action,max_cash_risk=risk_amount,entry_includes_spread=True,
+                spread_price=float(quote['ask'])-float(quote['bid']))
             verdict = RiskExecutive().assess(risk, symbol=symbol, snapshot_id=snapshot_id,
-                                             open_symbols=open_symbols, correlation=correlation)
+                                             open_symbols=open_symbols, correlation=correlation, position=position)
             if verdict['allowed'] is not True:
                 return {"status": "BLOCKED", "reason": "RISK_EXECUTIVE_VETO", "risk": risk, "risk_executive": verdict}
             execution_decision = {**decision, 'symbol': symbol, 'snapshot_id': snapshot_id,
                                   'specialist_schema_version': 1, 'risk_executive': verdict}
-            risk_amount = float(risk["actual_risk_amount"])
-            volume = self.broker.volume_for_risk(symbol, entry=entry, stop_loss=stop_loss, risk_amount=risk_amount)
+            volume = float(position['lots'])
             result = self.execution.execute(
                 symbol=symbol, decision=execution_decision, volume=volume, stop_loss=stop_loss,
                 take_profit=take_profit, max_cash_risk=risk_amount,
@@ -208,6 +213,7 @@ class AutoExecutionCoordinator:
                 one_position_per_symbol=self.config.one_position_per_symbol,
                 expected_position_fingerprint=portfolio['position_fingerprint'],
             )
-            return {**result, "risk": risk, "volume": volume, "entry": entry, "auto_execution": True}
+            return {**result, "risk": risk, "position_sizing":position, "risk_executive":verdict,
+                    "volume": volume, "entry": entry, "auto_execution": True}
         except (MT5ExecutionError, ValueError, TypeError, KeyError) as exc:
             return {"status": "BLOCKED", "reason": "EXECUTION_INPUT_UNAVAILABLE", "detail": str(exc)}

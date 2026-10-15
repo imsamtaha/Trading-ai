@@ -12,8 +12,8 @@ def terminal(monkeypatch):
     now = time.time()
     state = SimpleNamespace(
         info=SimpleNamespace(volume_min=0.01, volume_max=100.0, volume_step=0.01,
-                             trade_tick_size=0.0001, trade_tick_value=10.0, point=0.00001, digits=5),
-        account=SimpleNamespace(equity=10000.0, balance=10000.0, login=123, server="Test", trade_mode=0, trade_allowed=True),
+                             trade_tick_size=0.0001, trade_tick_value=10.0, trade_contract_size=100000, point=0.00001, digits=5),
+        account=SimpleNamespace(equity=10000.0, balance=10000.0, margin=0., margin_free=10000., login=123, server="Test", trade_mode=0, trade_allowed=True),
         positions=[], deals=[], sent=[],
     )
     def history(start, end):
@@ -29,6 +29,7 @@ def terminal(monkeypatch):
         history_deals_get=history,
         symbol_info_tick=lambda symbol: SimpleNamespace(bid=1.1, ask=1.1002, time=int(now), time_msc=int(now*1000)),
         order_calc_profit=lambda side, symbol, volume, entry, stop: ((stop-entry) if side==0 else (entry-stop))*100000*volume,
+        order_calc_margin=lambda side,symbol,volume,price:volume*100000*price/200,
         last_error=lambda: (1, "unavailable"),
         order_send=lambda request: state.sent.append(request),
     )
