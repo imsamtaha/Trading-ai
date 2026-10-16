@@ -13,25 +13,34 @@ class SupabaseJournalError(RuntimeError):
 class SupabaseSignalJournal:
     """Persist ATLAS dry-run analysis records through the Supabase REST API.
 
-    Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the local runtime.
-    The service-role credential must never be committed to source control.
+    Requires SUPABASE_URL and a server-only SUPABASE_SECRET_KEY, or legacy
+    SUPABASE_SERVICE_ROLE_KEY. Never commit either credential.
     """
 
     def __init__(self) -> None:
         self.base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        self.service_role_key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv(
+            "SUPABASE_SERVICE_ROLE_KEY", ""
+        )
         if not self.base_url or not self.service_role_key:
             raise SupabaseJournalError(
-                "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for Supabase persistence."
+                "SUPABASE_URL and a server-only Supabase credential are required for persistence."
+            )
+        if self.service_role_key.startswith("sb_publishable_"):
+            raise SupabaseJournalError(
+                "A publishable key cannot be used for server-side persistence."
             )
 
     def _headers(self) -> dict[str, str]:
-        return {
+        headers = {
             "apikey": self.service_role_key,
-            "Authorization": f"Bearer {self.service_role_key}",
             "Content-Type": "application/json",
             "Prefer": "return=representation",
         }
+        # Modern sb_secret_* keys are opaque: do not send them as JWT Bearer tokens.
+        if not self.service_role_key.startswith("sb_secret_"):
+            headers["Authorization"] = f"Bearer {self.service_role_key}"
+        return headers
 
     def record_analysis(
         self,
@@ -70,7 +79,7 @@ class SupabaseSignalJournal:
         )
         if not response.ok:
             raise SupabaseJournalError(
-                f"Supabase insert failed ({response.status_code}): {response.text[:500]}"
+                f"Supabase insert failed (HTTP {response.status_code})"
             )
         data = response.json()
         return data[0] if isinstance(data, list) and data else row
