@@ -137,6 +137,12 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input{{width:100%;border
 .success{{display:none;border:1px solid #3bd58b55;background:#3bd58b0d;border-radius:14px;padding:13px;margin-top:12px;color:#ccebdd}}.success.show{{display:block}}
 .micro{{font-size:12px;color:#7f8a99;margin-top:12px}}.divider{{height:1px;background:var(--line);margin:18px 0}}
 @media(min-width:620px){{.actions.two{{grid-template-columns:1fr 1fr}}}}
+
+.server-preset-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}}
+.server-preset-grid label{{margin-top:4px}}
+.server-preset-grid select{{width:100%;border:1px solid #39485d;background:#09111b;color:var(--text);border-radius:13px;padding:14px 13px;font:inherit}}
+.server-preset-grid select:focus{{outline:2px solid var(--orange);outline-offset:2px}}
+@media(max-width:620px){{.server-preset-grid{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
@@ -173,12 +179,25 @@ label{{display:block;font-weight:800;margin:14px 0 7px}}input{{width:100%;border
 
     <div id="bridgeStatus" class="micro">Checking the ATLAS Windows MT5 bridge…</div>
 
+  <div class="server-preset-grid" role="group" aria-label="Broker server selection">
+    <div><label for="brokerPreset">Broker</label><select id="brokerPreset">
+      <option value="FxPro" selected>FxPro</option>
+      <option value="Exness">Exness</option><option value="IC Markets">IC Markets</option>
+      <option value="Pepperstone">Pepperstone</option><option value="XM">XM</option>
+      <option value="MetaQuotes">MetaQuotes (Demo)</option><option value="Other">Other broker</option>
+    </select></div>
+    <div><label for="accountModePreset">MT5 account mode</label><select id="accountModePreset">
+      <option value="DEMO" selected>MT5 Demo</option>
+      <option value="LIVE">MT5 Live (reference only)</option>
+    </select></div>
+  </div>
+  <p id="brokerPresetHint" class="notice" role="status">Default: FxPro-MT5 Demo. MT5 Live connections are disabled.</p>
     <form id="fxproForm">
       <label for="login">MT5 account number</label>
       <input id="login" name="login" inputmode="numeric" autocomplete="off" placeholder="Example: 592031391" maxlength="20" required>
 
-      <label for="server">FxPro MT5 server name</label>
-      <input id="server" name="server" autocomplete="off" placeholder="Example: FxPro-MT5 Demo" maxlength="80" required>
+      <label for="server">MT5 broker server name</label>
+      <input id="server" name="server" autocomplete="off" placeholder="Exact MT5 server from your terminal" value="FxPro-MT5 Demo" list="knownMt5DemoServers" maxlength="80" required><datalist id="knownMt5DemoServers"><option value="FxPro-MT5 Demo"></datalist>
 
       <div class="notice"><b>Security:</b> Do not enter your FxPro password, MT5 master password, investor password, PIN, recovery code, or payment details on this page.</div>
 
@@ -198,6 +217,34 @@ const fxproUrl={fxpro_url_json};
 const panel=document.getElementById('connectPanel');
 const form=document.getElementById('fxproForm');
 const saved=document.getElementById('saved');
+
+let fxproBridgeConnected=false;
+const brokerPreset=document.getElementById('brokerPreset');
+const accountModePreset=document.getElementById('accountModePreset');
+const serverInput=document.getElementById('server');
+const loginInput=document.getElementById('login');
+const verifyButton=document.getElementById('verifyButton');
+function updateMt5Preset(preserveServer=false){{
+  const broker=brokerPreset.value;
+  const demo=accountModePreset.value==='DEMO';
+  const canVerify=broker==='FxPro'&&demo;
+  if(!preserveServer)serverInput.value=canVerify?'FxPro-MT5 Demo':'';
+  const hint=document.getElementById('brokerPresetHint');
+  hint.textContent=!demo
+    ?'MT5 Live is for reference only. ATLAS cannot connect to or verify real-money accounts here.'
+    :broker==='FxPro'
+      ?'Default: FxPro-MT5 Demo. Only the connected FxPro demo session can be verified.'
+      :'Enter the exact '+broker+' MT5 demo server from your broker. Verification is currently available for FxPro Demo only.';
+  loginInput.disabled=!canVerify;
+  verifyButton.disabled=!canVerify;
+  serverInput.placeholder=demo?'Exact Demo server from MT5':'Live server (reference only)';
+  form.style.display=canVerify&&fxproBridgeConnected?'none':'';
+  if(!canVerify)saved.classList.remove('show');
+  else if(fxproBridgeConnected)saved.classList.add('show');
+}}
+brokerPreset.addEventListener('change',()=>updateMt5Preset());
+accountModePreset.addEventListener('change',()=>updateMt5Preset());
+updateMt5Preset();
 document.getElementById('existing').addEventListener('click',()=>{{panel.classList.add('open');panel.scrollIntoView({{behavior:'smooth',block:'start'}});}});
 document.getElementById('openFxPro').addEventListener('click',()=>{{try{{sessionStorage.setItem('atlas.fxpro.mt5.returnPending','1')}}catch{{}}}});
 async function refreshBridgeStatus(){{
@@ -209,21 +256,29 @@ async function refreshBridgeStatus(){{
     panel.classList.add('open');
     bridge.textContent='CONNECTED: '+data.masked_login+' · '+data.server+' · '+data.company;
     bridge.style.color='#9ff0c8';
+    fxproBridgeConnected=true;
     form.style.display='none';
     document.getElementById('savedTitle').textContent='FxPro MT5 Live Demo is connected.';
     document.getElementById('savedDetails').textContent='ATLAS verified '+data.masked_login+' on '+data.server+'. Live demo execution is '+(data.demo_execution?'ACTIVE':'STANDBY')+'. Real-money execution is off.';
     saved.classList.add('show');
+    updateMt5Preset(true);
     try{{sessionStorage.setItem('atlas.fxpro.mt5.connectionDraft',JSON.stringify({{broker:'FxPro',platform:'MT5',mode:'demo',verified:true,masked_login:data.masked_login,server:data.server,verifiedAt:new Date().toISOString()}}));sessionStorage.removeItem('atlas.fxpro.mt5.returnPending')}}catch{{}}
   }}catch(error){{
+    fxproBridgeConnected=false;
     bridge.textContent='Bridge not connected: '+error.message;
     bridge.style.color='';
     form.style.display='';
     saved.classList.remove('show');
+    updateMt5Preset(true);
   }}
 }}
 refreshBridgeStatus();
 form.addEventListener('submit',async event=>{{
   event.preventDefault();
+  if(brokerPreset.value!=='FxPro'||accountModePreset.value!=='DEMO'){{
+    document.getElementById('bridgeStatus').textContent='Only FxPro MT5 Demo verification is supported. Live account connections are disabled.';
+    return;
+  }}
   const login=document.getElementById('login').value.trim();
   const server=document.getElementById('server').value.trim();
   const button=document.getElementById('verifyButton');
