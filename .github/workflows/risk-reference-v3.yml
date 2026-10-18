@@ -1,0 +1,27 @@
+name: risk-reference-v3-focused
+
+on:
+  push:
+    branches: [atlas-risk-reference-v3-20261018]
+  pull_request:
+    paths:
+      - 'app/intelligence/council.py'
+      - 'app/intelligence/risk_reference.py'
+      - 'knowledge/risk_management_v3.json'
+      - 'tests/test_risk_reference_v3.py'
+
+jobs:
+  focused-council-risk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m compileall -q app/intelligence/council.py app/intelligence/risk_reference.py
+      - name: Risk reference and Council regression
+        env:
+          ATLAS_LIVE_TRADING: 'false'
+          ATLAS_DASHBOARD_ONLY: 'true'
+        run: python -m pytest -q tests/test_risk_reference_v3.py tests/test_atlas_council_adapters.py tests/test_atlas_executive_paper_architecture.py
