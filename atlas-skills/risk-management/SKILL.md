@@ -18,3 +18,11 @@ metadata:
 
 ## Rules
 Risk rejection is final for the current setup. Never let an AI-generated rationale override the deterministic risk gate.
+
+
+## Educational reference: Risk Management tut V3
+
+The user-uploaded 40-page study guide is indexed in `knowledge/risk_management_v3.json`.
+Read it using `app.intelligence.risk_reference.risk_study_topics()` or `risk_study_topic(key)` when explaining a topic to a human or discussing a PAPER scenario. The Council records the read-only reference metadata in `risk_education_reference` for traceability.
+
+The guide discusses Trading Trident, drawdown recovery, reward/risk, sizing, leverage, candlesticks, and discretionary trade management. It is study material, not ATLAS risk policy. Never copy its leverage or risk-per-trade suggestions into live defaults, bypass protective stops, or override an existing risk rejection. The uploaded PDF itself is not hosted or committed here.
