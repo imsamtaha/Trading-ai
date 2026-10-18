@@ -5,7 +5,6 @@ from math import isfinite
 from typing import Any, Iterable, Mapping
 
 from app.intelligence.council_training import agent_weight
-from app.intelligence.risk_reference import risk_reference_manifest
 
 
 VALID_DECISIONS = {"BUY", "SELL", "HOLD", "EXIT"}
@@ -106,5 +105,4 @@ class AtlasCouncilCoordinator:
             "data_quality": round(data_quality, 4),
             "calibration_active": bool(agent_profile),
             "training_profile_version": profile_version,
-            "risk_education_reference": risk_reference_manifest(),
         }
