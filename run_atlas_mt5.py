@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
+from app.monitor.runtime import MonitorAlreadyRunning, monitor_lock, operational_log, write_health
 
 
 def _symbols(value: str | None) -> list[str] | None:
@@ -40,6 +41,23 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    try:
+        with monitor_lock(), operational_log() as logger:
+            write_health("STARTING")
+            try:
+                return _run(args)
+            except Exception:
+                write_health("FAILED")
+                logger.exception("Paper worker failed; ledger retained")
+                raise
+            finally:
+                logger.info("Paper worker exited")
+    except MonitorAlreadyRunning as exc:
+        print(str(exc))
+        return 3
+
+
+def _run(args: argparse.Namespace) -> int:
     monitor = AtlasMT5Monitor(
         symbols=_symbols(args.symbols),
         interval=args.interval,
@@ -49,6 +67,7 @@ def main() -> int:
     )
     if args.once:
         print(json.dumps(monitor.run_once(), indent=2, default=str))
+        write_health("STOPPED")
         return 0
 
     monitor.run_forever()
