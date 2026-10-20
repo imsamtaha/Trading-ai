@@ -100,3 +100,13 @@ def test_trading_hub_localizes_live_demo_panel_and_keeps_real_money_boundary():
 def test_canonical_page_does_not_inject_duplicate_refresh_all_control():
     html = _atlas_ultimate_html()
     assert "actions.prepend(all)" not in html
+
+
+def test_bigdata_research_is_first_dashboard_panel_and_not_live():
+    html = _atlas_ultimate_html()
+    assert html.count('id="bigdata-intelligence"') == 1
+    assert html.index('id="bigdata-intelligence"') < html.index('id="hub-account"')
+    assert 'id="bigdata-heading"' in html
+    assert 'Bigdata API غير مفعّل' in html
+    assert 'RESEARCH ONLY · PAPER · HOLD' in html
+    assert 'href="#hub-markets"' in html
