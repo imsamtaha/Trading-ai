@@ -204,3 +204,13 @@ def test_translation_cannot_reverse_a_signed_market_move(monkeypatch):
     result = _arabic_headlines([{'title':'Market moves -2.5%'}])[0]
     assert result['translation_status'] == 'UNAVAILABLE'
     assert not result.get('title_ar')
+
+
+def test_arabic_mode_prefers_partial_native_coverage_without_translation(monkeypatch):
+    session = FeedSession()
+    # Only one Arabic story exists; the other two publishers are English.
+    stories = MarketBriefingService(session=session).headlines(limit=3, language="ar")
+    assert len(stories) == 3
+    assert any(story["source_id"] == "bbc_arabic" and story["title_ar"] for story in stories)
+    assert any(story["translation_status"] == "UNAVAILABLE" for story in stories)
+    assert all(story["source_verified"] for story in stories)
