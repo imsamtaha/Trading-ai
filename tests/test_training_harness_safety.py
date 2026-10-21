@@ -2,6 +2,8 @@ import json
 
 import numpy as np
 import pytest
+pytest.importorskip('pandas')
+pytest.importorskip('sklearn')
 
 from atlas_training.train_agent import calibration_error, evaluate_promotion_gate, write_council_report, champion_score
 

@@ -1,6 +1,7 @@
 import numpy as np
-import pandas as pd
 import pytest
+pd = pytest.importorskip("pandas")
+pytest.importorskip("sklearn")
 from atlas_training.train_agent import (
     evaluate_promotion_gate,
     load_prices,
