@@ -42,7 +42,7 @@ HUB_HEADER = r"""
     <a class="atlas-3d" href="#account" data-hub-en="Sign in" data-hub-ar="تسجيل الدخول">Sign in</a>
     <a class="atlas-3d" href="#hub-overview" data-hub-en="Overview" data-hub-ar="الرئيسية">Overview</a>
     <a class="atlas-3d" href="#hub-account" data-hub-en="Account" data-hub-ar="الحساب">Account</a>
-    <a class="atlas-3d" href="#hub-markets" data-hub-en="Markets & News" data-hub-ar="الأسواق والأخبار">Markets & News</a>
+    <a class="atlas-3d" href="#hub-markets" data-hub-en="Market Analysis" data-hub-ar="تحليل الأسواق">Market Analysis</a>
     <a class="atlas-3d" href="#demo-session" data-hub-en="Live Demo" data-hub-ar="تجريبي مباشر">Live Demo</a>
     <a class="atlas-3d" href="#plans" data-hub-en="Plans" data-hub-ar="الاشتراكات">Plans</a>
   </nav>
