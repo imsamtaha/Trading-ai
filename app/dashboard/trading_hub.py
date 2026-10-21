@@ -23,6 +23,72 @@ html[data-theme=light] .atlas-hub-nav a,html[data-theme=light] .btn{background:#
 html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b5480066;color:#703900}
 @media(max-width:700px){.atlas-account{grid-template-columns:1fr;gap:12px}.shell{padding:12px}.section-title{align-items:flex-start}.section-title h2{font-size:21px}.atlas-account-controls .btn{width:100%}select,input{max-width:100%;font-size:16px}}
 @media(prefers-reduced-motion:reduce){.atlas-hub-nav a,.atlas-3d,.btn{transition:none;transform:none!important}}
+
+/* Shared light dashboard design tokens: aligned with ATLAS council and MT5 cards. */
+html[data-theme=light]{
+  --atlas-surface:#ffffff;--atlas-surface-muted:#eaf0fa;--atlas-page:#f5f7fd;
+  --atlas-ink:#263149;--atlas-secondary:#64718a;--atlas-border:#d7dfec;
+  --atlas-primary:#4c60af;--atlas-loss:#bd4b70;--atlas-positive:#087b55;
+  color-scheme:light;
+}
+html[data-theme=light] body{
+  background:radial-gradient(circle at 75% 4%,#e7eefc 0,transparent 40%),
+    linear-gradient(165deg,#f9fbff,#f0f4fc 58%,#f8faff)!important;
+  color:var(--atlas-ink)!important;
+}
+html[data-theme=light] .card,
+html[data-theme=light] .hero,
+html[data-theme=light] .demo-session,
+html[data-theme=light] .atlas-account,
+html[data-theme=light] .atlas-plans{
+  background:var(--atlas-surface)!important;color:var(--atlas-ink)!important;
+  border:1px solid var(--atlas-border)!important;border-radius:24px!important;
+  box-shadow:0 14px 36px #27395e12,0 3px 9px #27395e08!important;
+}
+html[data-theme=light] .atlas-hub-brand{
+  background:linear-gradient(135deg,#fff,#eaf0fb)!important;
+  color:var(--atlas-ink)!important;border-color:var(--atlas-border)!important;
+  box-shadow:0 16px 36px #27395e12!important;
+}
+html[data-theme=light] .atlas-hub-title{color:var(--atlas-ink)!important}
+html[data-theme=light] .big,
+html[data-theme=light] .summary-chip b{color:var(--atlas-primary)}
+html[data-theme=light] .red{color:var(--atlas-loss)!important}
+html[data-theme=light] .green{color:var(--atlas-positive)!important}
+html[data-theme=light] .mini,
+html[data-theme=light] .label,
+html[data-theme=light] .sub,
+html[data-theme=light] .updated{color:var(--atlas-secondary)!important}
+html[data-theme=light] .summary-chip,
+html[data-theme=light] .atlas-hub-status{
+  background:var(--atlas-surface-muted)!important;border-color:var(--atlas-border)!important;
+  color:var(--atlas-ink)!important;
+}
+html[data-theme=light] .row,
+html[data-theme=light] .market,
+html[data-theme=light] .pos,
+html[data-theme=light] .story{border-bottom-color:var(--atlas-border)!important}
+html[data-theme=light] .atlas-hub-nav a,
+html[data-theme=light] .btn,
+html[data-theme=light] select,
+html[data-theme=light] input{
+  background:linear-gradient(#fff,#f2f5fc)!important;color:var(--atlas-ink)!important;
+  border:1px solid var(--atlas-border)!important;box-shadow:0 4px 12px #253a6310!important;
+}
+html[data-theme=light] .btn.primary{background:var(--atlas-primary)!important;color:#fff!important}
+html[data-theme=light] .story{color:var(--atlas-ink)!important}
+html[data-theme=light] .story:hover{background:#f5f8ff}
+html[data-theme=light] .notice{background:#edf2fd!important;border-color:var(--atlas-primary)!important;color:var(--atlas-ink)!important}
+html[data-theme=light] .atlas-hub-nav a:focus-visible,
+html[data-theme=light] .btn:focus-visible{outline:3px solid #526bb388;outline-offset:2px}
+@media(max-width:700px){
+  .atlas-hub-shell,.shell{max-width:100%;min-width:0}
+  .card,.hero{min-width:0}
+  .row,.market,.pos{overflow-wrap:anywhere}
+  .atlas-hub-nav{overscroll-behavior-inline:contain}
+  .atlas-hub-nav a{flex-shrink:0}
+  .story b{overflow-wrap:anywhere}
+}
 </style>
 """
 
