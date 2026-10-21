@@ -17,3 +17,10 @@ def test_navigation_preserves_mobile_and_keyboard_accessibility():
 def test_no_order_execution_controls_added_to_navigation():
     assert "/order" not in HUB_HEADER
     assert "/trade/execute" not in HUB_HEADER
+
+
+def test_light_theme_uses_shared_mobile_design_tokens():
+    assert "--atlas-surface:#ffffff" in HUB_STYLE
+    assert "--atlas-primary:#4c60af" in HUB_STYLE
+    assert "html[data-theme=light] .story" in HUB_STYLE
+    assert "@media(max-width:700px)" in HUB_STYLE
