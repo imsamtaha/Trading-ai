@@ -2,6 +2,7 @@
 param(
     [switch]$Once,
     [switch]$NoDashboard,
+    [switch]$NoCouncilTraining,
     [int]$Port = 8000
 )
 
@@ -22,6 +23,7 @@ New-Item -ItemType Directory -Force (Join-Path $projectRoot "data") | Out-Null
 # The forward-demo launcher always forces safe paper mode.
 $env:ATLAS_LIVE_TRADING = "false"
 $env:ATLAS_ENVIRONMENT = "paper"
+$env:ATLAS_COUNCIL_TRAINING_ENABLED = if ($NoCouncilTraining) { "false" } else { "true" }
 
 & $python scripts\verify_mt5.py
 if ($LASTEXITCODE -ne 0) {
@@ -77,3 +79,4 @@ if ($Once) {
 }
 
 exit $LASTEXITCODE
+
