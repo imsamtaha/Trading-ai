@@ -89,6 +89,49 @@ html[data-theme=light] .btn:focus-visible{outline:3px solid #526bb388;outline-of
   .atlas-hub-nav a{flex-shrink:0}
   .story b{overflow-wrap:anywhere}
 }
+
+/* ATLAS dimensional surfaces: subtle, responsive, and accessible. */
+html[data-theme=light] .card,
+html[data-theme=light] .hero,
+html[data-theme=light] .demo-session,
+html[data-theme=light] .atlas-account,
+html[data-theme=light] .atlas-plans{
+  position:relative;
+  background:linear-gradient(148deg,#fff 0%,#fbfcff 48%,#eaf0fa 100%)!important;
+  border:1px solid #dbe3f1!important;
+  box-shadow:inset 1px 1px 0 #fff, inset -1px -1px 0 #dce4f3,
+    0 3px 0 #d3dced,0 9px 14px #263b6220,0 25px 44px #263b6215!important;
+  transform:translateZ(0);
+}
+html[data-theme=light] .summary-chip,
+html[data-theme=light] .atlas-hub-status{
+  background:linear-gradient(145deg,#f6f9ff,#e3eaf8)!important;
+  box-shadow:inset 1px 1px 1px #fff, inset -2px -2px 4px #cad5e9,
+    0 6px 12px #253a6316!important;
+  border-radius:15px;
+}
+html[data-theme=light] .atlas-hub-nav a,
+html[data-theme=light] .btn,
+html[data-theme=light] select{
+  background:linear-gradient(155deg,#fff 5%,#edf2fc 95%)!important;
+  box-shadow:inset 1px 1px 0 #fff,0 3px 0 #d0d9e9,0 7px 13px #24385e24!important;
+  border-radius:13px;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+  html[data-theme=light] .atlas-hub-nav a:hover,
+  html[data-theme=light] .btn:hover{transform:translateY(-2px);
+    box-shadow:inset 1px 1px 0 #fff,0 5px 0 #cbd5e7,0 12px 20px #24385e2b!important}
+}
+html[data-theme=light] .atlas-hub-nav a:active,
+html[data-theme=light] .btn:active{transform:translateY(2px);
+  box-shadow:inset 1px 1px 0 #fff,0 1px 2px #24385e22!important}
+html[data-theme=light] .red{ text-shadow:0 1px 0 #fff; }
+html[data-theme=light] .big{ text-shadow:0 2px 1px #fff,0 4px 8px #425b9a1b; }
+@media(prefers-reduced-motion:reduce){
+  html[data-theme=light] .atlas-hub-nav a,
+  html[data-theme=light] .btn{transition:none!important;transform:none!important}
+}
 </style>
 """
 
