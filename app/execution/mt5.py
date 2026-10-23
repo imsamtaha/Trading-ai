@@ -441,7 +441,14 @@ class MT5Broker:
         journal = SubmissionJournal()
         if journal.status(identity)['blocked']:
             raise MT5ExecutionError('Unresolved MT5 submission; reconcile before further execution.')
-        identifier, request = journal.begin(identity, request)
+        demo_account = identity['trade_mode'] == 0
+        daily_limit = int(os.getenv('ATLAS_DEMO_MAX_DAILY_ENTRIES', '15')) if demo_account else None
+        open_limit = int(os.getenv('ATLAS_DEMO_MAX_OPEN_POSITIONS', '5')) if demo_account else None
+        if demo_account and (
+            daily_limit <= 0 or open_limit <= 0 or daily_limit > 15 or open_limit > 5
+        ):
+            raise MT5ExecutionError('Invalid demo entry limits; maximums are 15 daily entries and 5 open positions.')
+        identifier, request = journal.begin(identity, request, max_daily_entries=daily_limit)
         # Keep these reads at the last boundary. No pricing/sizing work follows.
         # External terminals still cannot be locked by this local process.
         try:
@@ -449,6 +456,8 @@ class MT5Broker:
             orders = mt5.orders_get()
             if positions is None or orders is None:
                 raise MT5ExecutionError('Final portfolio unavailable; execution refused.')
+            if demo_account and len(positions) >= open_limit:
+                raise MT5ExecutionError('Maximum open demo positions reached.')
             if (expected_position_fingerprint is not None
                     and self.position_fingerprint(positions) != expected_position_fingerprint):
                 raise MT5ExecutionError('Portfolio exposure changed after risk approval.')

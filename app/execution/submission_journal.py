@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import sqlite3
 import time
+from datetime import datetime, time as day_time, timedelta
+from zoneinfo import ZoneInfo
 from uuid import uuid4
 
 
@@ -52,7 +54,7 @@ class SubmissionJournal:
     def account_key(account):
         return json.dumps(account, sort_keys=True, separators=(',', ':'))
 
-    def begin(self, account, request, *, position_identifier=None):
+    def begin(self, account, request, *, position_identifier=None, max_daily_entries=None):
         identifier = uuid4().hex[:24]
         request = {**request, 'comment': 'ATLAS-' + identifier}
         with self._connection() as connection:
@@ -61,6 +63,19 @@ class SubmissionJournal:
             if connection.execute("SELECT 1 FROM submissions WHERE account=? AND state IN ('SUBMITTING','UNCERTAIN')",
                                   (key,)).fetchone():
                 raise UnresolvedSubmission('Unresolved MT5 submission; reconcile before further execution.')
+            if max_daily_entries is not None and 'position' not in request:
+                if type(max_daily_entries) is not int or max_daily_entries <= 0:
+                    raise SubmissionJournalError('Invalid daily demo entry limit.')
+                zone = ZoneInfo('Asia/Beirut')
+                today = datetime.now(zone).date()
+                start = datetime.combine(today, day_time.min, zone).timestamp()
+                end = datetime.combine(today + timedelta(days=1), day_time.min, zone).timestamp()
+                rows = connection.execute(
+                    "SELECT request FROM submissions WHERE account=? AND created_at>=? AND created_at<? AND state IN ('FILLED','SUBMITTING','UNCERTAIN')",
+                    (key, start, end)).fetchall()
+                entries = sum('position' not in json.loads(row['request']) for row in rows)
+                if entries >= max_daily_entries:
+                    raise SubmissionJournalError('Maximum daily demo entries reached.')
             connection.execute('INSERT INTO submissions(id,account,symbol,requested_volume,created_at,state,request,position_identifier) VALUES(?,?,?,?,?,?,?,?)',
                                (identifier, key, request['symbol'], request['volume'], time.time(),
                                 'SUBMITTING', json.dumps(request, allow_nan=False), position_identifier))

@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--count", type=int, default=200)
     parser.add_argument("--forever", action="store_true")
     parser.add_argument("--cycle-seconds", type=int, default=30)
+    parser.add_argument("--demo-only", action="store_true", help="Refuse any non-demo account before analysis.")
     return parser.parse_args()
 
 
@@ -96,11 +97,13 @@ def _decision(candidate: dict, context: dict | None = None) -> dict:
         return blocked
 
 
-def run_cycle(symbol: str, interval: str, count: int) -> dict:
+def run_cycle(symbol: str, interval: str, count: int, *, demo_only: bool = False) -> dict:
     broker = MT5Broker(MT5Config.from_env())
     coordinator = AutoExecutionCoordinator(broker=broker)
     try:
         account = broker.connect()
+        if demo_only and account.get('trade_mode') != 0:
+            raise MT5ExecutionError('Demo worker requires a verified demo account.')
         candles = broker.candles(symbol, _timeframe(interval), count)
         if len(candles) < 50:
             raise MT5ExecutionError(f"{symbol}: at least 50 candles are required.")
@@ -174,7 +177,7 @@ def main() -> int:
 
     while True:
         try:
-            result = run_cycle(args.symbol.upper(), args.interval, args.count)
+            result = run_cycle(args.symbol.upper(), args.interval, args.count, demo_only=args.demo_only)
             print(json.dumps(result, indent=2, default=str), flush=True)
         except Exception as exc:
             print(json.dumps({"status": "ERROR", "error": str(exc)}, indent=2), flush=True)

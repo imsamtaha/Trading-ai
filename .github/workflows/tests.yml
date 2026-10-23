@@ -56,6 +56,7 @@ jobs:
           node --test tests/test_atlas_news.cjs
           node --test tests/test_demo_model.cjs
           node --test tests/test_google_auth.mjs
+          node --test tests/test_risk_language.cjs
           node --check web/assets/google-auth.js
           python scripts/build_website.py
 

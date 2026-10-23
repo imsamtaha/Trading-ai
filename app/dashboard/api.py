@@ -232,10 +232,13 @@ def atlas_dashboard_state() -> dict[str, Any]:
             _env_bool("ATLAS_LIVE_DEMO", False)
             and account_type == "DEMO"
         )
+        broker_demo = (live_demo and _env_bool('ATLAS_LIVE_TRADING', False)
+                       and _env_bool('ATLAS_AUTO_EXECUTION_ENABLED', False)
+                       and _env_bool('MT5_REQUIRE_DEMO', False))
         return {
             "status": "ONLINE",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "mode": "LIVE_EXECUTION" if execution_enabled else ("LIVE_DEMO" if live_demo else "READ_ONLY"),
+            "mode": "LIVE_EXECUTION" if execution_enabled else ("BROKER_DEMO_CONFIGURED" if broker_demo else "LIVE_DEMO" if live_demo else "READ_ONLY"),
             "account": _public_account(account, raw_account),
             "verified_live_account": account_type == "REAL",
             "symbols": symbols,
@@ -248,11 +251,13 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "services": {
                 "mt5": "ONLINE",
                 "supabase": journal_status,
-                "execution_gate": "ENABLED" if execution_enabled else ("DEMO_SIMULATED" if live_demo else "DISABLED"),
+                "execution_gate": "ENABLED" if execution_enabled else ("DEMO_BROKER" if broker_demo else "DEMO_SIMULATED" if live_demo else "DISABLED"),
                 "subscriber_access": "LIVE_DEMO" if live_demo else "READ_ONLY",
                 "financial_markets": financial_market["status"],
             },
             "disclaimer": (
+                "Broker demo delivery is configured. Worker activity and fills require separate runtime evidence. Real-money accounts are refused by the demo worker."
+                if broker_demo else
                 "LIVE DEMO uses real-time MT5 demo data with simulated ATLAS execution. Real-money trading is off."
                 if live_demo
                 else "Account and strategy telemetry only. Past or current results do not guarantee future performance."
