@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {safeURL, newsCards, guides, filterCards} = require('../web/assets/atlas-discover.js');
+const {safeURL, newsCards, guides, filterCards, validSavedNews, combineNewsCards} = require('../web/assets/atlas-discover.js');
 
 test('news URLs reject executable, credential-bearing and lookalike destinations', () => {
   for (const url of ['javascript:alert(1)','http://bbc.com/news','https://bbc.com.evil.test/a','https://user:pass@bbc.com/news','https://bbc.com:444/a','/private']) assert.equal(safeURL(url),null);
@@ -31,4 +31,36 @@ test('guide destinations remain in the existing website or dashboard', () => {
     for(const card of cards) assert.match(card.href,/^#[a-z-]+$/);
     assert.equal(cards[0].href,dashboard?'#hub-markets':'#demo');
   }
+});
+
+test('bookmarked cards survive a failed briefing and discard unsafe stored values', () => {
+  const url='https://www.bbc.com/news/saved-example';
+  const card=newsCards([{url,title:'Archive article',published_at:'2026-10-01T12:00:00Z'}],'en')[0];
+  const stored=JSON.parse(JSON.stringify([card]));
+  const recovered=validSavedNews([...stored,{...card,id:'news:https://evil.test',href:'https://evil.test/a'},{...card,id:'wrong'},null]);
+  assert.equal(recovered.length,1);
+  assert.equal(recovered[0].href,url);
+  assert.equal(recovered[0].category,'news');
+  assert.equal(combineNewsCards([],recovered,new Set([card.id])).length,1);
+  assert.equal(filterCards(combineNewsCards([],recovered,new Set([card.id])),'saved','archive',new Set([card.id])).length,1);
+  assert.equal(combineNewsCards([],recovered,new Set()).length,0);
+});
+test('live articles replace cached duplicates with refreshed source metadata', () => {
+  const url='https://bbc.com/news/item';
+  const cached=newsCards([{url,title:'Old title'}],'en');
+  const fresh=newsCards([{url,title:'Current title'}],'en');
+  const cards=combineNewsCards(fresh,cached,new Set([fresh[0].id]));
+  assert.equal(cards.length,1);
+  assert.equal(cards[0].title,'Current title');
+});
+test('dashboard shares the market-briefing request and Discover defaults to dark colors',()=>{
+  const fs=require('node:fs');
+  const view=fs.readFileSync(require('node:path').join(__dirname,'../app/dashboard/views.py'),'utf8');
+  const css=fs.readFileSync(require('node:path').join(__dirname,'../web/assets/atlas-discover.css'),'utf8');
+  const discover=fs.readFileSync(require('node:path').join(__dirname,'../web/assets/atlas-discover.js'),'utf8');
+  assert.match(view,/window\.atlasGetMarketBriefing=atlasGetMarketBriefing/);
+  assert.match(view,/let d=await atlasGetMarketBriefing\(language\)/);
+  assert.match(discover,/data=await window\.atlasGetMarketBriefing\(requestLang\)/);
+  assert.match(css,/\.atlas-discover\{--dc-bg:#111925;/);
+  assert.match(css,/html\[data-theme=light\] \.atlas-discover/);
 });

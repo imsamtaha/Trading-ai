@@ -44,7 +44,33 @@
     const term = String(query || '').trim().normalize('NFKC').toLocaleLowerCase();
     return cards.filter(card => (category === 'all' || (category === 'saved' ? saved.has(card.id) : category === card.category)) && (!term || [card.title,card.body,card.meta].join(' ').normalize('NFKC').toLocaleLowerCase().includes(term)));
   }
-  const api = {safeURL,newsCards,guides,filterCards};
+  // Persist only verified, bounded public news-card fields. Never trust stored links or markup.
+  function validSavedNews(raw) {
+    if (!Array.isArray(raw)) return [];
+    const result = [], seen = new Set();
+    for (const item of raw.slice(-120)) {
+      if (!item || typeof item !== 'object') continue;
+      const href = safeURL(item.href);
+      if (!href || item.id !== 'news:' + href || seen.has(href) ||
+          typeof item.title !== 'string' || !item.title.trim()) continue;
+      seen.add(href);
+      result.push({
+        id:'news:' + href,category:'news',art:'news',external:true,href,
+        title:item.title.slice(0,240),body:typeof item.body==='string'?item.body.slice(0,240):new URL(href).hostname,
+        meta:typeof item.meta==='string'?item.meta.slice(0,240):'',
+        dir:item.dir==='rtl'?'rtl':'ltr'
+      });
+    }
+    return result;
+  }
+  function combineNewsCards(fresh, archived, saved) {
+    const cards = [...fresh], ids = new Set(cards.map(x=>x.id));
+    for (const card of validSavedNews(archived)) {
+      if (saved.has(card.id) && !ids.has(card.id)) {cards.push(card);ids.add(card.id);}
+    }
+    return cards;
+  }
+  const api = {safeURL,newsCards,guides,filterCards,validSavedNews,combineNewsCards};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof document === 'undefined') return;
   const host = document.getElementById('atlas-discover');
@@ -54,6 +80,11 @@
   let category = 'all', query = '', stories = [], state = 'loading', request = 0;
   let saved = new Set();
   try { const stored = JSON.parse(localStorage.getItem('atlas-discover-saved-v1') || '[]'); if (Array.isArray(stored)) saved = new Set(stored.filter(x => typeof x === 'string').slice(0,500)); } catch {}
+  let savedNews = new Map();
+  try {
+    const archived = validSavedNews(JSON.parse(localStorage.getItem('atlas-discover-news-v1') || '[]'));
+    savedNews = new Map(archived.map(card=>[card.id,card]));
+  } catch {}
   const make = (tag,cls,text) => { const el = document.createElement(tag); if(cls)el.className=cls; if(text!==undefined)el.textContent=text; return el; };
   host.classList.add('atlas-discover');
   const head=make('div','discover-heading'), heading=make('div');
@@ -81,7 +112,7 @@
     buttons.forEach((b,i)=>{b.textContent=copy(keys[i],lang);b.setAttribute('aria-pressed',String(category===keys[i]));});
     status.textContent=copy(state,lang);retry.textContent=copy('retry',lang);retry.disabled=state==='loading';
     note.textContent=copy('local',lang);
-    const cards=filterCards([...newsCards(stories,lang),...guides(lang,dashboard)],category,query,saved);
+    const cards=filterCards([...combineNewsCards(newsCards(stories,lang),[...savedNews.values()],saved),...guides(lang,dashboard)],category,query,saved);
     count.textContent=lang==='ar'?'عدد البطاقات: '+cards.length:cards.length+(cards.length===1?' card':' cards');
     grid.replaceChildren();
     for(const card of cards) {
@@ -92,27 +123,63 @@
       const footer=make('div','discover-card-footer'), link=make('a','discover-open',copy('open',lang)+' ↗');link.href=card.href;
       if(card.external){link.target='_blank';link.rel='noopener noreferrer';}
       const save=make('button','discover-save',copy(saved.has(card.id)?'remove':'save',lang));save.type='button';save.setAttribute('aria-pressed',String(saved.has(card.id)));save.setAttribute('aria-label',save.textContent+': '+card.title);
-      save.onclick=()=>{const wasSaved=saved.has(card.id);if(wasSaved)saved.delete(card.id);else saved.add(card.id);let failed=false;try{localStorage.setItem('atlas-discover-saved-v1',JSON.stringify([...saved].slice(-500)));}catch{failed=true;}draw();if(failed)note.textContent=copy('failed',lang);const next=[...grid.querySelectorAll('.discover-save')].find(b=>b.dataset.id===card.id);if(next)next.focus();else buttons.find(b=>b.dataset.category===category).focus();};save.dataset.id=card.id;
+      save.onclick=()=>{
+        const wasSaved=saved.has(card.id);
+        if(wasSaved){saved.delete(card.id);savedNews.delete(card.id);}
+        else {
+          saved.add(card.id);
+          if(card.category==='news') savedNews.set(card.id,card);
+        }
+        while(savedNews.size>120) savedNews.delete(savedNews.keys().next().value);
+        let failed=false;
+        try {
+          localStorage.setItem('atlas-discover-saved-v1',JSON.stringify([...saved].slice(-500)));
+          localStorage.setItem('atlas-discover-news-v1',JSON.stringify([...savedNews.values()].filter(c=>saved.has(c.id))));
+        } catch {failed=true;}
+        draw();
+        if(failed)note.textContent=copy('failed',lang);
+        const next=[...grid.querySelectorAll('.discover-save')].find(b=>b.dataset.id===card.id);
+        if(next)next.focus();else buttons.find(b=>b.dataset.category===category).focus();
+      };save.dataset.id=card.id;
       footer.append(link,save);content.append(footer);article.append(art,content);grid.append(article);
     }
     if(!cards.length)grid.append(make('p','discover-empty',copy('empty',lang)));
   }
   async function loadNews() {
     const current=++request;const requestLang=lang;state='loading';stories=[];draw();
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    let timer=null;
     try {
-      const response=await fetch('/dashboard/market-briefing?language='+requestLang,{cache:'no-store',credentials:'same-origin',signal:controller.signal});
-      if(!response.ok)throw Error('Unavailable');
-      const data=await response.json();if(current!==request)return;
+      let data;
+      if(dashboard && typeof window.atlasGetMarketBriefing === 'function') {
+        // Share the dashboard's in-flight request and short-lived response cache.
+        data=await window.atlasGetMarketBriefing(requestLang);
+      } else {
+        const controller=new AbortController();
+        timer=setTimeout(()=>controller.abort(),12000);
+        const response=await fetch('/dashboard/market-briefing?language='+requestLang,{cache:'no-store',credentials:'same-origin',signal:controller.signal});
+        if(!response.ok)throw Error('Unavailable');
+        data=await response.json();
+      }
+      if(current!==request)return;
       stories=Array.isArray(data.headlines)?data.headlines:[];state=newsCards(stories,lang).length?'ready':'unavailable';
     } catch {if(current!==request)return;stories=[];state='unavailable';}
-    finally {clearTimeout(timer);if(current===request)draw();}
+    finally {if(timer!==null)clearTimeout(timer);if(current===request)draw();}
   }
   search.addEventListener('input',()=>{query=search.value;draw();});
   clear.onclick=()=>{query='';search.value='';draw();search.focus();};
   const languageChange=()=>{const next=document.documentElement.lang==='ar'?'ar':'en';if(next!==lang){lang=next;loadNews();}};
   document.addEventListener('atlas-language-change',languageChange);window.addEventListener('atlas-language-change',languageChange);
   new MutationObserver(languageChange).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
-  window.addEventListener('storage',e=>{if(e.key!=='atlas-discover-saved-v1')return;try{const list=JSON.parse(e.newValue||'[]');if(Array.isArray(list)){saved=new Set(list.filter(x=>typeof x==='string').slice(0,500));draw();}}catch{}});
+  window.addEventListener('storage',e=>{
+    try {
+      if(e.key==='atlas-discover-saved-v1'){
+        const list=JSON.parse(e.newValue||'[]');
+        if(Array.isArray(list))saved=new Set(list.filter(x=>typeof x==='string').slice(0,500));
+      } else if(e.key==='atlas-discover-news-v1'){
+        savedNews=new Map(validSavedNews(JSON.parse(e.newValue||'[]')).map(card=>[card.id,card]));
+      } else return;
+      draw();
+    }catch{}
+  });
   loadNews();
 })(typeof globalThis !== 'undefined' ? globalThis : this);
