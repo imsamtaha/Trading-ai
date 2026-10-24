@@ -29,7 +29,9 @@ def website_asset(name: str):
     if name not in {
         "site.css", "centers.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
         "atlas-brand.css", "atlas-main-logo.svg", "atlas-news.js",
+        "atlas-discover.css", "atlas-discover.js",
     }:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(WEB_ROOT / "assets" / name)
+
 

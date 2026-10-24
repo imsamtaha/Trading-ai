@@ -53,6 +53,8 @@ jobs:
         run: |
           node --check web/assets/site.js
           node --check web/assets/atlas-news.js
+          node --check web/assets/atlas-discover.js
+          node --test tests/test_atlas_discover.cjs
           node --test tests/test_atlas_news.cjs
           node --test tests/test_demo_model.cjs
           node --test tests/test_google_auth.mjs
@@ -94,4 +96,5 @@ jobs:
           ATLAS_LIVE_TRADING: 'false'
           ATLAS_DASHBOARD_ONLY: 'true'
         run: python -m pytest -q
+
 

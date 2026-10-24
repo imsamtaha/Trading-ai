@@ -12,9 +12,11 @@ def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
         assert page.status_code == 200
         assert "text/html" in page.headers["content-type"]
         assert "ATLAS ULTIMATE" in page.text
+        assert 'id="atlas-discover" data-context="dashboard"' in page.text
+        assert 'src="/assets/atlas-discover.js"' in page.text
         for asset in (
             "site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
-            "atlas-brand.css", "atlas-main-logo.svg",
+            "atlas-brand.css", "atlas-main-logo.svg", "atlas-discover.css", "atlas-discover.js",
         ):
             assert client.get(f"/assets/{asset}").status_code == 200
         assert client.get("/api").json()["system"] == "ATLAS ULTIMATE"
@@ -32,3 +34,4 @@ def test_public_assets_cannot_read_private_files_and_orders_stay_blocked(monkeyp
 
 def test_public_package_is_complete_and_has_no_private_configuration():
     validate()
+
