@@ -1,0 +1,365 @@
+diff --git a/client/control-center.css b/client/control-center.css
+index 01e1606..5cdef6a 100644
+--- a/client/control-center.css
++++ b/client/control-center.css
+@@ -6,3 +6,27 @@
+ @media(max-width:1100px){.control-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ @media(max-width:550px){.control-summary{padding:16px;margin-block:16px}.control-summary-grid{grid-template-columns:minmax(0,1fr);gap:10px}.control-summary-card{padding:16px}.control-observation{max-height:none}.control-summary-note{font-size:13px}.sidebar .nav-link,.topbar button,.sam-action{min-height:44px;min-width:44px}.topbar-actions{flex-wrap:wrap}.topbar{height:auto;min-height:60px}.topbar .breadcrumb{min-width:0}.command-operations{flex-wrap:wrap}}
+ @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;animation-iteration-count:1!important}}
++
++/* Evidence comes first on the owner page; retain the original dimensional cards. */
++.control-summary:first-child{margin-block-start:0}
++@media(max-width:650px){
++ .control-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
++ .control-summary-card{padding:12px}
++ .control-summary-card h3{font-size:16px}
++ .control-category{font-size:10px;letter-spacing:.02em}
++ .control-observation{margin:10px 0;max-height:5.4em}
++ .control-summary-note{line-height:1.7}
++ .tech-command-deck .deck-pulse{padding:12px}
++ .tech-command-deck .deck-connection{margin-block:8px}
++ .tech-command-deck .deck-details{margin:8px 0;padding-top:8px}
++ .tech-command-deck .deck-connect{min-height:44px}
++ .tech-command-deck .deck-shortcuts a{min-height:56px;padding:8px}
++}
++@media(max-width:550px){
++ .sidebar nav .nav-link{flex:0 0 auto;min-width:62px;min-height:52px;display:flex;flex-direction:column;gap:2px;padding:4px 7px}
++ .sidebar nav .nav-link>span[data-i18n],.sidebar nav .nav-link>span:not(.nav-number):not(.pill){display:block;font-size:10px;line-height:1.4}
++ .sidebar nav .nav-link .nav-number,.sidebar nav .nav-link .pill{display:none}
++ .sidebar nav .nav-link i{width:25px;height:25px;box-shadow:none}
++ .sidebar nav .nav-link i svg{width:17px;height:17px}
++}
++@media(max-width:360px){.control-summary-grid{grid-template-columns:minmax(0,1fr)}.control-observation{max-height:none}}
+diff --git a/client/control-center.js b/client/control-center.js
+index c07f6d3..2713e39 100644
+--- a/client/control-center.js
++++ b/client/control-center.js
+@@ -4,13 +4,13 @@ export function initializeControlCenter(){
+  const root=document.getElementById('control-center-summary');
+  if(!root||document.body.dataset.workspace!=='owner')return;
+  const rows=[
+-  {key:'market',title:'Market Analysis',ar:'تحليل الأسواق',target:'market-analysis',source:'#analysis-market-quote',scope:'MT5 Demo · market observations',arScope:'أسعار MT5 التجريبي · قراءات السوق'},
+-  {key:'shadow',title:'Shadow Learning',ar:'التعلّم التجريبي',target:'sam-shadow-control',source:'[data-sam="state"]',scope:'PAPER · training evaluations',arScope:'PAPER · تقييمات التدريب'},
+-  {key:'mt5',title:'MT5 Demo',ar:'حساب MT5 التجريبي',target:'overview',source:'#connection-message',scope:'Demo account · read only',arScope:'حساب تجريبي · قراءة فقط'},
+-  {key:'agents',title:'Agent monitoring',ar:'مراقبة الوكلاء',target:'council',source:'#council-status',scope:'PAPER · council and training',arScope:'PAPER · المجلس والتدريب'}
++  {key:'market',title:'Market Analysis',ar:'تحليل الأسواق',target:'market-analysis',href:'/sam/analysis',source:'#analysis-market-quote',scope:'MT5 Demo · market observations',arScope:'أسعار MT5 التجريبي · قراءات السوق'},
++  {key:'shadow',title:'Shadow Learning',ar:'التعلّم التجريبي',target:'sam-shadow-control',href:'/sam#sam-shadow-control',source:'[data-sam="state"]',scope:'PAPER · training evaluations',arScope:'PAPER · تقييمات التدريب'},
++  {key:'mt5',title:'MT5 Demo',ar:'حساب MT5 التجريبي',target:'owner-control',href:'/sam/account',source:'#connection-message',scope:'Demo account · read only',arScope:'حساب تجريبي · قراءة فقط'},
++  {key:'agents',title:'Agent monitoring',ar:'مراقبة الوكلاء',target:'council',href:'/sam/training',source:'#council-status',scope:'PAPER · council and training',arScope:'PAPER · المجلس والتدريب'}
+  ];
+  const ar=()=>document.documentElement.lang!=='en';
+- root.innerHTML='<div class="control-summary-heading"><div><span class="tiny-kicker">ATLAS / CONTROL CENTER</span><h2 data-control-title></h2></div><span class="control-policy" data-control-policy></span></div><p data-control-note class="control-summary-note"></p><div class="control-summary-grid">'+rows.map(r=>`<article class="control-summary-card"><span class="control-category" dir="ltr">${r.title}</span><h3 data-control-name="${r.key}"></h3><p class="control-source" data-control-scope="${r.key}"></p><p class="control-observation" data-control-state="${r.key}"></p><a href="#${r.target}" data-control-open="${r.key}"></a></article>`).join('')+'</div>';
++ root.innerHTML='<div class="control-summary-heading"><div><span class="tiny-kicker">ATLAS / CONTROL CENTER</span><h2 data-control-title></h2></div><span class="control-policy" data-control-policy></span></div><p data-control-note class="control-summary-note"></p><div class="control-summary-grid">'+rows.map(r=>`<article class="control-summary-card"><span class="control-category" dir="ltr">${r.title}</span><h3 data-control-name="${r.key}"></h3><p class="control-source" data-control-scope="${r.key}"></p><p class="control-observation" data-control-state="${r.key}"></p><a href="${r.href}" data-control-open="${r.key}"></a></article>`).join('')+'</div>';
+  function render(){
+   root.querySelector('[data-control-title]').textContent=ar()?'من المصدر إلى القرار':'From evidence to decisions';
+   root.querySelector('[data-control-policy]').textContent=ar()?'التداول الحقيقي معطّل':'Live trading disabled';
+diff --git a/client/index.html b/client/index.html
+index 4e6074a..5feae2e 100644
+--- a/client/index.html
++++ b/client/index.html
+@@ -10,10 +10,10 @@
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css?v=20261018-binance-links">
+- <link rel="stylesheet" href="/control-center.css?v=20261021-private-control">
++ <link rel="stylesheet" href="/control-center.css?v=20261024-ui-ux">
+  <link rel="stylesheet" href="/branding.css?v=20261018-orange-emblem">
+  <link rel="stylesheet" href="/market-analysis.css?v=20261016-mt5-market">
+- <link rel="stylesheet" href="/shadow-learning.css?v=20261018-shadow">
++ <link rel="stylesheet" href="/shadow-learning.css?v=20261024-ui-ux">
+  <link rel="icon" type="image/webp" href="/brand/atlas-logo.webp?v=20261018-orange-emblem">
+ </head>
+ <body data-workspace="owner">
+@@ -43,6 +43,7 @@
+    <div class="topbar-actions"><span class="session-state"><span class="status-dot amber"></span><span data-i18n="previewMode">تقارير للقراءة فقط</span></span><a id="sign-in" href="/signin-with-chatgpt?return_to=%2Fsam" target="_top" class="text-button" data-i18n="signIn" hidden>دخول</a><a id="sign-out" href="/signout-with-chatgpt?return_to=%2Fsam" target="_top" class="text-button" data-i18n="signOut">خروج</a><button id="language" class="language-button" aria-label="Switch to English"><i data-icon="globe"></i><span>English</span></button><button id="theme-toggle" type="button" class="theme-button" aria-pressed="false" aria-label="تفعيل الخلفية السوداء"><span class="theme-swatch" aria-hidden="true"></span><span>Black</span></button><button class="icon-button" data-dialog="connect" data-label="connections" aria-label="إعدادات الربط"><i data-icon="settings"></i></button><span class="avatar small">S</span></div>
+   </header>
+   <main id="main" tabindex="-1">
++   <section id="control-center-summary" class="control-summary" aria-label="Control Center"></section>
+    <!-- MagicPath ATLAS Smart Command Deck · component 460683834850168832 · revision 461722143877656576. Adapted to the existing protected portal. -->
+    <section id="command-deck" class="atlas-brand-hero tech-command-deck" aria-label="ATLAS Smart Command Deck">
+     <svg class="deck-circuit" viewBox="0 0 1200 280" preserveAspectRatio="none" aria-hidden="true"><path d="M0 80H260L310 130H455M1200 80H940L890 130H745M0 220H310L360 175H455M1200 220H890L840 175H745"/><circle cx="310" cy="130" r="4"/><circle cx="890" cy="130" r="4"/></svg>
+@@ -65,7 +66,6 @@
+     </article>
+     <div class="deck-status-rail"><span class="deck-trust"><i data-icon="shield"></i><span data-i18n="deckTrust">التحقق من المصدر قبل عرض النتائج</span></span><div class="deck-clock"><span data-i18n="deckBeirut">بيروت</span><time id="deck-time-beirut" dir="ltr">—</time></div><div class="deck-clock"><span dir="ltr">UTC</span><time id="deck-time-utc" dir="ltr">—</time></div></div>
+    </section>
+-   <section id="control-center-summary" class="control-summary" aria-label="Control Center"></section>
+    <section class="command-operations" aria-label="ATLAS execution policy"><div><strong dir="ltr">MT5 DEMO · PAPER / SHADOW</strong><p>تقارير المالك الخاصة · تنفيذ أوامر الوسيط معطّل · MT5 Live للعرض فقط</p></div><div class="command-actions"><button id="command-sync" type="button" class="secondary-button">فحص ومزامنة الكل</button><a href="/api/sam/shadow-status" target="_blank" rel="noopener" class="text-button">مصدر Shadow</a></div></section>
+    <section id="sam-shadow-control" class="section-anchor" aria-label="Shadow Learning"></section>
+    <p id="portal-banner" class="portal-banner" role="status" hidden></p>
+diff --git a/client/portal.js b/client/portal.js
+index bbee7b2..66584fc 100644
+--- a/client/portal.js
++++ b/client/portal.js
+@@ -53,7 +53,7 @@ export async function initializePortal({setLanguage,applyDefaultLanguage,onSetti
+    try{const connection=await request('/api/admin/agent-connection');$('#agent-feed-key').value=connection.token;$('#agent-feed-key').hidden=false;$('#agent-feed-status').textContent=t('agentKeyReady');}
+    catch{$('#agent-feed-status').textContent=t('agentKeyFailed');}
+   });
+-  $('#sync-all').addEventListener('click',()=>{['#retry-account','#retry-council','#refresh-chart'].forEach(selector=>$(selector)?.click());document.dispatchEvent(new window.Event('atlas:sync'));});
++  $('#sync-all').addEventListener('click',()=>{['#retry-account','#retry-council','#refresh-chart','#market-refresh'].forEach(selector=>$(selector)?.click());document.dispatchEvent(new window.Event('atlas:sync'));});
+   $('#command-sync')?.addEventListener('click',()=>$('#sync-all').click());
+   $('#owner-accounts').addEventListener('change',()=>{const selected=admin?.accounts.find(account=>account.key===$('#owner-accounts').value);if(selected)onAccount(selected);});
+   $('#portal-settings').addEventListener('submit',async event=>{
+diff --git a/client/shadow-learning.css b/client/shadow-learning.css
+index 9fdc1cb..e7df0a7 100644
+--- a/client/shadow-learning.css
++++ b/client/shadow-learning.css
+@@ -31,3 +31,15 @@
+ #sam-shadow-control .sam-history-list strong{display:block}
+ @media(max-width:610px){#sam-shadow-control .sam-control-card{padding:17px;border-radius:18px}#sam-shadow-control .sam-card-grid{gap:16px 13px}#sam-shadow-control .sam-field-label{font-size:12px}#sam-shadow-control .sam-field-value{font-size:16px}#sam-shadow-control .sam-action{flex:1;min-width:130px}}
+ @media(max-width:340px){#sam-shadow-control .sam-card-grid{grid-template-columns:1fr}}
++
++/* Inherit the original workspace palette, including its saved black preference. */
++#sam-shadow-control .sam-control-card{color:var(--text);background:var(--glass);border-color:var(--line);box-shadow:var(--panel-shadow)}
++#sam-shadow-control h2,#sam-shadow-control .sam-field-value,#sam-shadow-control .sam-metric strong{color:var(--text)}
++#sam-shadow-control .sam-field-label,#sam-shadow-control small,#sam-shadow-control .sam-audit-notice{color:var(--muted)}
++#sam-shadow-control .sam-pill{border-color:var(--accent-line);color:var(--gold);background:var(--accent-wash)}
++#sam-shadow-control .sam-metric,#sam-shadow-control .sam-action,#sam-shadow-control .sam-history-list li{color:var(--text);background:var(--surface-raised);border-color:var(--line)}
++#sam-shadow-control .sam-field-value.good{color:var(--green)}
++#sam-shadow-control .sam-field-value.warn{color:var(--notice-text)}
++#sam-shadow-control .sam-card-footer,#sam-shadow-control .sam-history{border-color:var(--line)}
++#sam-shadow-control .sam-history-list time,#sam-shadow-control .sam-feedback{color:var(--gold)}
++#sam-shadow-control .sam-action{min-height:44px}
+diff --git a/client/shadow-learning.js b/client/shadow-learning.js
+index 2cdcff6..78cfe72 100644
+--- a/client/shadow-learning.js
++++ b/client/shadow-learning.js
+@@ -5,96 +5,106 @@
+   root.innerHTML = `<article class="sam-control-card" dir="rtl">
+     <header class="sam-card-header"><div class="sam-card-headline"><span class="sam-icon" aria-hidden="true">◈</span><h2>Shadow Learning</h2></div><span class="sam-pill">PAPER · SHADOW</span></header>
+     <div class="sam-card-grid">
+-      <div class="sam-field"><span class="sam-field-label">الحالة</span><strong class="sam-field-value" data-sam="state">بانتظار التحقق</strong><small data-sam="mode">غير مؤكّد</small></div>
+-      <div class="sam-field"><span class="sam-field-label">مصدر البيانات</span><strong class="sam-field-value" data-sam="source">غير متاح</strong></div>
+-      <div class="sam-field"><span class="sam-field-label">آخر تحديث</span><strong class="sam-field-value" data-sam="updated">غير متاح</strong><small data-sam="last-prediction"></small></div>
+-      <div class="sam-field"><span class="sam-field-label">الإجراءات المسموحة</span><strong class="sam-field-value">عرض وفحص</strong><small>لا تعديل للصفقات أو الأوزان</small></div>
++      <div class="sam-field"><span class="sam-field-label"><span data-shadow-copy="stateLabel">الحالة</span></span><strong class="sam-field-value" data-sam="state">بانتظار التحقق</strong><small data-sam="mode">غير مؤكّد</small></div>
++      <div class="sam-field"><span class="sam-field-label"><span data-shadow-copy="sourceLabel">مصدر البيانات</span></span><strong class="sam-field-value" data-sam="source">غير متاح</strong></div>
++      <div class="sam-field"><span class="sam-field-label"><span data-shadow-copy="updatedLabel">آخر تحديث</span></span><strong class="sam-field-value" data-sam="updated">غير متاح</strong><small data-sam="last-prediction"></small></div>
++      <div class="sam-field"><span class="sam-field-label"><span data-shadow-copy="actionsLabel">الإجراءات المسموحة</span></span><strong class="sam-field-value"><span data-shadow-copy="readOnly">عرض وفحص</span></strong><small><span data-shadow-copy="noChanges">لا تعديل للصفقات أو الأوزان</span></small></div>
+     </div>
+-    <div class="sam-metrics"><span class="sam-metric">عينات تدريب <strong data-sam="samples">—</strong></span><span class="sam-metric">PAPER · مغلقة <strong data-sam="closed">—</strong></span><span class="sam-metric">PAPER · مفتوحة <strong data-sam="open">—</strong></span><span class="sam-metric">النتيجة المجمّعة <strong data-sam="sum-r" dir="ltr">—</strong></span><span class="sam-metric">أيام بيانات <strong data-sam="days">—</strong></span></div>
+-    <p class="sam-audit-notice">نتيجة PAPER بوحدة R نسبةً للمخاطرة، وليست رصيداً نقدياً. حالة Shadow تعتمد على حداثة تقرير التدريب وتدفّق التوقعات معاً.</p>
++    <div class="sam-metrics"><span class="sam-metric"><span data-shadow-copy="samplesLabel">عينات تدريب</span> <strong data-sam="samples">—</strong></span><span class="sam-metric"><span data-shadow-copy="closedLabel">PAPER · مغلقة</span> <strong data-sam="closed">—</strong></span><span class="sam-metric"><span data-shadow-copy="openLabel">PAPER · مفتوحة</span> <strong data-sam="open">—</strong></span><span class="sam-metric"><span data-shadow-copy="resultLabel">النتيجة المجمّعة</span> <strong data-sam="sum-r" dir="ltr">—</strong></span><span class="sam-metric"><span data-shadow-copy="daysLabel">أيام بيانات</span> <strong data-sam="days">—</strong></span></div>
++    <p class="sam-audit-notice"><span data-shadow-copy="audit">نتيجة PAPER بوحدة R نسبةً للمخاطرة، وليست رصيداً نقدياً. حالة Shadow تعتمد على حداثة تقرير التدريب وتدفّق التوقعات معاً.</span></p>
+     <div class="sam-card-footer">
+-      <p class="sam-audit-notice">تقارير التقييم الموثّقة تبيّن وقت الفحص والتغييرات المطبّقة فعلياً. المقترحات التجريبية ليست تغييرات تشغيل.</p>
++      <p class="sam-audit-notice"><span data-shadow-copy="evidence">تقارير التقييم الموثّقة تبيّن وقت الفحص والتغييرات المطبّقة فعلياً. المقترحات التجريبية ليست تغييرات تشغيل.</span></p>
+       <div class="sam-actions"><button class="sam-action" type="button" data-sam-action="refresh">↻ فحص الحالة</button><button class="sam-action" type="button" data-sam-action="history" aria-expanded="false">◷ سجل التقييمات</button></div>
+       <p class="sam-feedback" data-sam="feedback" role="status" aria-live="polite"></p>
+-      <section class="sam-history" data-sam="history" hidden><h3>سجل تقييمات Shadow</h3><p class="sam-audit-notice">هذه التقارير ليست سجلاً كاملاً لتغييرات المشرف اليدوية.</p><ul class="sam-history-list" data-sam="history-list"></ul></section>
++      <section class="sam-history" data-sam="history" hidden><h3><span data-shadow-copy="historyTitle">سجل تقييمات Shadow</span></h3><p class="sam-audit-notice"><span data-shadow-copy="historyNote">هذه التقارير ليست سجلاً كاملاً لتغييرات المشرف اليدوية.</span></p><ul class="sam-history-list" data-sam="history-list"></ul></section>
+     </div>
+   </article>`;
++  const copy = {"stateLabel": ["الحالة", "Status"], "sourceLabel": ["مصدر البيانات", "Data source"], "updatedLabel": ["آخر تحديث", "Source updated"], "actionsLabel": ["الإجراءات المسموحة", "Allowed actions"], "readOnly": ["عرض وفحص", "View and check"], "noChanges": ["لا تعديل للصفقات أو الأوزان", "No trade or weight changes"], "samplesLabel": ["عينات تدريب", "Training samples"], "closedLabel": ["PAPER · مغلقة", "PAPER · closed"], "openLabel": ["PAPER · مفتوحة", "PAPER · open"], "resultLabel": ["النتيجة المجمّعة", "Aggregate result"], "daysLabel": ["أيام بيانات", "Data days"], "audit": ["نتيجة PAPER بوحدة R نسبةً للمخاطرة، وليست رصيداً نقدياً. حالة Shadow تعتمد على حداثة تقرير التدريب وتدفّق التوقعات معاً.", "PAPER results are risk-normalized R, not a cash balance. Shadow status depends on both the training report and prediction freshness."], "evidence": ["تقارير التقييم الموثّقة تبيّن وقت الفحص والتغييرات المطبّقة فعلياً. المقترحات التجريبية ليست تغييرات تشغيل.", "Verified evaluations show the check time and applied changes. Experimental proposals are not runtime changes."], "historyTitle": ["سجل تقييمات Shadow", "Shadow evaluations"], "historyNote": ["هذه التقارير ليست سجلاً كاملاً لتغييرات المشرف اليدوية.", "These reports are not a complete log of manual administrator changes."], "unavailable": ["غير متاح", "Unavailable"], "signIn": ["جلسة الدخول غير متاحة. سجّل دخولك مجدداً.", "Your session is unavailable. Sign in again."], "ownerOnly": ["الوصول مخصّص لحساب المالك فقط.", "Owner access required."], "sourceError": ["تعذّر الاتصال بمصدر ATLAS. أعد المحاولة.", "ATLAS source unavailable. Try again."], "invalidMode": ["وضع المحاكاة غير مؤكّد.", "Simulation mode could not be verified."], "active": ["نشط · موثّق", "Active · verified"], "stale": ["البيانات متأخرة", "Stale evidence"], "failed": ["تعذّر التحقق", "Verification failed"], "waiting": ["بانتظار التحقق", "Awaiting verification"], "unverified": ["غير مؤكّد", "Unverified"], "mode": ["SHADOW_ONLY · دون تنفيذ حقيقي", "SHADOW_ONLY · no live execution"], "prediction": ["آخر توقع", "Last prediction"], "refresh": ["فحص الحالة", "Check status"], "history": ["سجل التقييمات", "Evaluation history"], "checking": ["جارٍ فحص بيانات Shadow...", "Checking Shadow data…"], "historyLoading": ["جارٍ تحميل سجل التقييمات...", "Loading evaluations…"], "modified": ["سُجّل تعديل في ملف التشغيل", "Runtime profile change recorded"], "evaluation": ["تقييم تجريبي دون تعديل الأوزان", "Experimental evaluation without weight changes"], "emptyHistory": ["لا يوجد سجل تقييمات قابل للقراءة.", "No readable evaluations."], "checked": ["اكتمل الفحص عند {value}. المصدر: ATLAS Windows.", "Checked at {value}. Source: ATLAS Windows."], "loaded": ["تم تحميل {value} تقريراً من أرشيف التدريب.", "Loaded {value} archived evaluations."]};
++  const english = () => document.documentElement.lang === 'en';
++  const t = key => copy[key]?.[english()?1:0] ?? key;
+   const el = key => root.querySelector('[data-sam="' + key + '"]');
+-  const text = (key, value) => { el(key).textContent = value == null ? "—" : String(value); };
++  const text = (key,value) => { el(key).textContent = value == null ? '—' : String(value); };
++  const button = action => root.querySelector('[data-sam-action="' + action + '"]');
+   const date = value => {
+-    if (!value) return "غير متاح";
+-    const parsed = new Date(value);
+-    return Number.isNaN(parsed.getTime()) ? "غير متاح" : parsed.toLocaleString("ar-LB", {dateStyle:"medium", timeStyle:"short", timeZone:"Asia/Beirut"});
++    const parsed = typeof value === 'string' ? new Date(value) : new Date(NaN);
++    return Number.isNaN(parsed.getTime()) ? t('unavailable') : parsed.toLocaleString(english()?'en-GB':'ar-LB',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Beirut'});
+   };
+-  const button = action => root.querySelector('[data-sam-action="' + action + '"]');
+-  async function load(path) {
+-    const controller = new AbortController();
+-    const timer = setTimeout(() => controller.abort(),22000);
+-    try {
+-    const response = await fetch(path, {credentials:"same-origin", cache:"no-store", headers:{Accept:"application/json"},signal:controller.signal});
+-    if (response.status === 401) throw Error("جلسة الدخول غير متاحة. سجّل دخولك مجدداً.");
+-    if (response.status === 403) throw Error("الوصول مخصّص لحساب المالك فقط.");
+-    if (!response.ok) throw Error("تعذّر الاتصال بمصدر ATLAS (HTTP " + response.status + ").");
+-    return await response.json();
+-    } finally { clearTimeout(timer); }
+-  }
+-  function clear() {
+-    lastStatus=null;
+-    for (const key of ["source","samples","open","closed","sum-r","days"]) text(key, "—");
+-    text("updated","غير متاح"); text("last-prediction",""); text("mode","غير مؤكّد");
+-    el("state").classList.remove("good");
+-    el("state").classList.add("warn");
++  let refreshing=false,lastStatus=null,lastHistory=null,historyLoading=false,feedbackKey='',feedbackValue='',failed=false;
++  function feedback(key,value=''){feedbackKey=key;feedbackValue=value;renderFeedback();}
++  function renderFeedback(){text('feedback',feedbackKey?t(feedbackKey).replace('{value}',String(feedbackValue)):'');}
++  async function load(path){
++    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),22000);
++    try{
++      const response=await fetch(path,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'},signal:controller.signal});
++      if(response.status===401)throw Error('signIn');
++      if(response.status===403)throw Error('ownerOnly');
++      if(!response.ok)throw Error('sourceError');
++      return await response.json();
++    }finally{clearTimeout(timer);}
+   }
+-  let refreshing = false,lastStatus=null;
+   function renderFreshness(){
+     if(!lastStatus)return;
+     const updated=typeof lastStatus.updated_at==='string'?Date.parse(lastStatus.updated_at):NaN,age=Date.now()-updated;
+     const prediction=typeof lastStatus.predictions_updated_at==='string'?Date.parse(lastStatus.predictions_updated_at):NaN,predictionAge=Date.now()-prediction;
+     const invalidTime=!Number.isFinite(updated)||age< -300000||!Number.isFinite(prediction)||predictionAge< -300000;
+     const state=lastStatus.state==='ACTIVE'&&invalidTime?'UNAVAILABLE':lastStatus.state==='ACTIVE'&&(age>900000||predictionAge>300000)?'STALE':lastStatus.state;
+-    text("state",state==='ACTIVE'?"نشط · موثّق":state==='STALE'?"البيانات متأخرة":"غير متاح");
+-    el("state").classList.toggle("good",state==='ACTIVE');el("state").classList.toggle("warn",state!=='ACTIVE');
++    text('state',t(state==='ACTIVE'?'active':state==='STALE'?'stale':'unavailable'));
++    el('state').classList.toggle('good',state==='ACTIVE');el('state').classList.toggle('warn',state!=='ACTIVE');
++  }
++  function renderHistory(){
++    if(!lastHistory)return;
++    const list=el('history-list');list.replaceChildren();
++    for(const event of lastHistory){
++      const li=document.createElement('li'),time=document.createElement('time'),title=document.createElement('strong'),details=document.createElement('small');
++      time.textContent=date(event.at);
++      title.textContent=t(event.runtime_profile_modified===true?'modified':'evaluation');
++      const gates=Object.entries(event.gates||{}).map(([agent,result])=>agent+': '+result).join(' | ');
++      details.textContent=t('samplesLabel')+': '+(event.samples??'—')+' · '+gates+' · '+t('sourceLabel')+': '+(event.source||t('unavailable'));
++      li.append(time,title,details);list.append(li);
++    }
++    if(!list.children.length){const li=document.createElement('li');li.textContent=t('emptyHistory');list.append(li);}
++  }
++  function render(){
++    root.querySelector('.sam-control-card').setAttribute('dir',english()?'ltr':'rtl');
++    for(const node of root.querySelectorAll('[data-shadow-copy]'))node.textContent=t(node.dataset.shadowCopy);
++    button('refresh').textContent=t(refreshing?'checking':'refresh');button('history').textContent=t(historyLoading?'historyLoading':'history');
++    if(lastStatus){
++      renderFreshness();text('mode',t('mode'));text('source',lastStatus.source);
++      text('updated',date(lastStatus.updated_at));text('last-prediction',t('prediction')+': '+date(lastStatus.predictions_updated_at));
++    }else{
++      for(const key of ['source','samples','open','closed','sum-r','days'])text(key,'—');
++      text('state',t(failed?'failed':'waiting'));text('updated',t('unavailable'));text('mode',t('unverified'));text('last-prediction','');
++      el('state').classList.remove('good');el('state').classList.add('warn');
++    }
++    renderHistory();
++    if(feedbackKey==='checked')feedbackValue=date(lastStatus?.checked_at);
++    renderFeedback();
+   }
+-  async function refresh() {
+-    if (refreshing) return;
+-    refreshing = true; button("refresh").disabled = true; text("feedback","جارٍ فحص بيانات Shadow...");
+-    try {
+-      const data = await load("/api/sam/shadow-status");
+-      if (data.broker_execution_allowed !== false || data.mode !== "SHADOW_ONLY") throw Error("وضع المحاكاة غير مؤكّد.");
+-      lastStatus=data;renderFreshness();
+-      text("mode","SHADOW_ONLY · دون تنفيذ حقيقي"); text("source",data.source);
+-      text("updated",date(data.updated_at)); text("last-prediction","آخر توقع: " + date(data.predictions_updated_at));
+-      text("samples",data.samples); text("open",data.portfolio?.open);text("closed",data.portfolio?.closed);
+-      text("sum-r",typeof data.portfolio?.sum_r==='number'&&Number.isFinite(data.portfolio.sum_r)?data.portfolio.sum_r.toFixed(4)+' R':'—');text("days",data.independent_days);
+-      text("feedback","اكتمل الفحص عند " + date(data.checked_at) + ". المصدر: ATLAS Windows.");
+-    } catch (error) { clear(); text("state","تعذّر التحقق"); text("feedback",error.message || "فشل التحقق"); }
+-    finally { refreshing = false; button("refresh").disabled = false; }
++  async function refresh(){
++    if(refreshing)return;
++    refreshing=true;button('refresh').disabled=true;root.setAttribute('aria-busy','true');feedback('checking');render();
++    try{
++      const data=await load('/api/sam/shadow-status');
++      if(data.broker_execution_allowed!==false||data.mode!=='SHADOW_ONLY'||!['ACTIVE','STALE','UNAVAILABLE'].includes(data.state))throw Error('invalidMode');
++      lastStatus=data;failed=false;
++      text('samples',data.samples);text('open',data.portfolio?.open);text('closed',data.portfolio?.closed);text('days',data.independent_days);
++      text('sum-r',typeof data.portfolio?.sum_r==='number'&&Number.isFinite(data.portfolio.sum_r)?data.portfolio.sum_r.toFixed(4)+' R':'—');
++      feedback('checked',date(data.checked_at));
++    }catch(error){lastStatus=null;failed=true;feedback(copy[error.message]?error.message:'sourceError');}
++    finally{refreshing=false;button('refresh').disabled=false;root.setAttribute('aria-busy','false');render();}
+   }
+-  async function showHistory() {
+-    const pane = el("history"), btn = button("history");
+-    pane.hidden = !pane.hidden; btn.setAttribute("aria-expanded", String(!pane.hidden));
+-    if (pane.hidden) return;
+-    btn.disabled = true; text("feedback","جارٍ تحميل سجل التقييمات...");
+-    try {
+-      const data = await load("/api/sam/shadow-history"), list = el("history-list");
+-      list.replaceChildren();
+-      for (const event of data.entries || []) {
+-        const li = document.createElement("li"), time = document.createElement("time"), title = document.createElement("strong"), details = document.createElement("small");
+-        time.textContent = date(event.at);
+-        title.textContent = event.runtime_profile_modified === true ? "سُجّل تعديل في ملف التشغيل" : "تقييم تجريبي دون تعديل الأوزان";
+-        const gates = Object.entries(event.gates || {}).map(([agent,result]) => agent + ": " + result).join(" | ");
+-        details.textContent = "عينات: " + (event.samples ?? "—") + " · " + gates + " · المصدر: " + (event.source || "غير معروف");
+-        li.append(time,title,details); list.append(li);
+-      }
+-      if (!list.children.length) { const li = document.createElement("li"); li.textContent = "لا يوجد سجل تقييمات قابل للقراءة."; list.append(li); }
+-      text("feedback","تم تحميل " + (data.entries?.length || 0) + " تقريراً من أرشيف التدريب.");
+-    } catch (error) { text("feedback",error.message || "تعذّر تحميل السجل"); pane.hidden = true; btn.setAttribute("aria-expanded","false"); }
+-    finally { btn.disabled = false; }
++  async function showHistory(){
++    const pane=el('history'),btn=button('history');pane.hidden=!pane.hidden;btn.setAttribute('aria-expanded',String(!pane.hidden));
++    if(pane.hidden)return;
++    historyLoading=true;btn.disabled=true;feedback('historyLoading');render();
++    try{
++      const data=await load('/api/sam/shadow-history');if(!Array.isArray(data.entries))throw Error('sourceError');
++      lastHistory=data.entries;feedback('loaded',data.entries.length);
++    }catch(error){lastHistory=null;el('history-list').replaceChildren();pane.hidden=true;btn.setAttribute('aria-expanded','false');feedback(copy[error.message]?error.message:'sourceError');}
++    finally{historyLoading=false;btn.disabled=false;render();}
+   }
+-  button("refresh").addEventListener("click",refresh);
+-  button("history").addEventListener("click",showHistory);
+-  document.addEventListener("atlas:sync",refresh);
+-  document.addEventListener("visibilitychange",renderFreshness);
++  button('refresh').addEventListener('click',refresh);button('history').addEventListener('click',showHistory);
++  document.addEventListener('atlas:sync',refresh);document.addEventListener('atlas:language',render);document.addEventListener('visibilitychange',renderFreshness);
+   const freshnessTimer=setInterval(renderFreshness,30000);freshnessTimer.unref?.();
+-  void refresh();
++  render();void refresh();
+ })();
+diff --git a/client/trader.html b/client/trader.html
+index f04c94f..6aa63e6 100644
+--- a/client/trader.html
++++ b/client/trader.html
+@@ -9,7 +9,7 @@
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css?v=20261018-binance-links">
+- <link rel="stylesheet" href="/control-center.css?v=20261021-private-control">
++ <link rel="stylesheet" href="/control-center.css?v=20261024-ui-ux">
+  <link rel="stylesheet" href="/branding.css?v=20261018-orange-emblem">
+  <link rel="stylesheet" href="/market-analysis.css?v=20261016-mt5-market">
+  <link rel="icon" type="image/webp" href="/brand/atlas-logo.webp?v=20261018-orange-emblem">
+diff --git a/tests/control-center.test.js b/tests/control-center.test.js
+index 6f832f1..8b9cf0f 100644
+--- a/tests/control-center.test.js
++++ b/tests/control-center.test.js
+@@ -16,7 +16,10 @@ test('owner evidence summary follows source failures and never substitutes sampl
+  assert.equal(document.querySelector('[data-control-state="shadow"]').textContent,'تعذّر التحقق');
+  document.documentElement.lang='en';document.dispatchEvent(new window.Event('atlas:language'));
+  assert.equal(document.querySelector('[data-control-policy]').textContent,'Live trading disabled');
+- assert.equal(document.querySelector('[data-control-open="shadow"]').getAttribute('href'),'#sam-shadow-control');
++ assert.equal(document.querySelector('[data-control-open="shadow"]').getAttribute('href'),'/sam#sam-shadow-control');
++ assert.equal(document.querySelector('[data-control-open="mt5"]').getAttribute('href'),'/sam/account');
++ assert.equal(document.querySelector('[data-control-open="market"]').getAttribute('href'),'/sam/analysis');
++ assert.equal(document.querySelector('[data-control-open="agents"]').getAttribute('href'),'/sam/training');
+  assert.doesNotMatch(document.querySelector('#control-center-summary').textContent,/24,850|68\.4|1,250/);
+  ui.destroy();
+  document.body.dataset.workspace='trader';document.querySelector('#control-center-summary').replaceChildren();
+diff --git a/tests/portal-ui.test.js b/tests/portal-ui.test.js
+index e2cfb57..05c8254 100644
+--- a/tests/portal-ui.test.js
++++ b/tests/portal-ui.test.js
+@@ -22,6 +22,8 @@ test('owner UI loads both accounts and saves actual portal controls',async()=>{
+  };
+  try{
+   await initializePortal({setLanguage(){},onSettings(){},onAccount(account){selected=account;}});
++  const marketButton=document.createElement('button');marketButton.id='market-refresh';document.body.append(marketButton);let marketSyncs=0;marketButton.addEventListener('click',()=>marketSyncs++);
++  document.querySelector('#command-sync').click();assert.equal(marketSyncs,1);
+   assert.equal(document.querySelector('#default-account').textContent,'592031391');assert.equal(selected.accountNumber,'592031391');assert.equal(document.querySelector('#owner-accounts').options.length,2);
+   assert.equal(document.querySelector('#owner-link').value,'https://justai-atlas.online/sam');assert.equal(document.querySelector('#trader-link').value,'https://justai-atlas.online/');
+   assert.match(document.querySelector('#reference-account').textContent,/5057449222.*MetaQuotes-Demo/);
+diff --git a/tests/shadow-learning.test.js b/tests/shadow-learning.test.js
+index 437f07e..3ffba73 100644
+--- a/tests/shadow-learning.test.js
++++ b/tests/shadow-learning.test.js
+@@ -65,6 +65,14 @@ test('owner UI contains mobile RTL card and working button wiring',async()=>{
+  document.querySelector('[data-sam-action="history"]').click();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(calls.at(-1),'/api/sam/shadow-history');assert.equal(calls.length,5);
++ const beforeLanguage=calls.length;
++ document.documentElement.lang='en';document.dispatchEvent(new window.Event('atlas:language'));
++ assert.equal(document.querySelector('.sam-control-card').getAttribute('dir'),'ltr');
++ assert.equal(document.querySelector('[data-sam-action="refresh"]').textContent,'Check status');
++ assert.match(document.querySelector('.sam-history-list').textContent,/evaluation|Evaluation/);
++ assert.equal(calls.length,beforeLanguage);
++ document.documentElement.lang='ar';document.dispatchEvent(new window.Event('atlas:language'));
++ assert.equal(document.querySelector('.sam-control-card').getAttribute('dir'),'rtl');
+  const realNow=Date.now,stamp=new Date(realNow()).toISOString();
+  globalThis.fetch=async()=>Response.json({...status,state:'ACTIVE',updated_at:stamp,predictions_updated_at:stamp});
+  document.querySelector('[data-sam-action="refresh"]').click();await new Promise(resolve=>setTimeout(resolve,0));
