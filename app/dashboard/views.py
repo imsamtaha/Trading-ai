@@ -52,8 +52,10 @@ function resetAnalysis(){
 }
 function statusFor(brief,m){
  const usable=Number(m.usable)||0,stale=Number(m.stale)||0,status=String(brief.status||'UNKNOWN').toUpperCase();
+ const delayed=Array.isArray(brief.market_board)&&brief.market_board.some(item=>String(item.freshness||item.market_state||'').toUpperCase()==='DELAYED');
  if(status!=='ONLINE')return usable>0?'DELAYED':stale>0?'STALE':'UNAVAILABLE';
  if(stale>0)return usable>0?'DELAYED':'STALE';
+ if(delayed)return 'DELAYED';
  return usable>0?'FRESH':'UNAVAILABLE';
 }
 let analysisInFlight=null;
