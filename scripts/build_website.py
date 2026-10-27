@@ -6,7 +6,7 @@ import shutil
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.css", "assets/site.js",
                 "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js",
-                "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-main-logo.svg", "assets/atlas-news.js"}
+                "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-main-logo.svg", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp"}
 
 
 class Links(HTMLParser):
@@ -41,9 +41,9 @@ def validate():
             elif target != "/":
                 assert target.lstrip("/") in PUBLIC_FILES, f"Unexpected link: {target}"
     for name in PUBLIC_FILES:
-        content = (source / name).read_text(encoding="utf-8")
+        content = (source / name).read_bytes()
         for forbidden in ("sk_live_", "sk_test_", "sk-proj-", "SUPABASE_SERVICE_ROLE_KEY", "MT5_PASSWORD"):
-            assert forbidden not in content, f"Private configuration in {name}"
+            assert forbidden.encode() not in content, f"Private configuration in {name}"
     return source
 
 
@@ -63,4 +63,5 @@ def build():
 
 if __name__ == "__main__":
     build()
+
 
