@@ -33,7 +33,7 @@ HUB_HEADER = r"""
       <div class="atlas-hub-kicker"><span class="atlas-tech-token">CUSTOMER TRADING INTERFACE</span></div>
       <div class="atlas-hub-title"><span class="atlas-tech-token">ATLAS</span></div>
       <div class="atlas-hub-descriptor"><span class="atlas-tech-token">TRADING INTELLIGENCE</span></div>
-      <div class="atlas-hub-parent"><span class="atlas-tech-token">JUST AI</span></div>
+      <div class="atlas-hub-parent"><div class="justai-signature" aria-label="JUST AI Design Studio"><img src="/assets/just-ai-icon.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>DESIGN STUDIO</small></span></div></div>
       <div class="atlas-hub-sub" data-hub-en="Your unified FxPro MT5 demo cockpit for markets, account telemetry, analysis and risk context." data-hub-ar="واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.">Unified market intelligence, monitoring and risk context.</div>
     </div>
     <div class="atlas-hub-status"><span class="atlas-hub-status-dot"></span><span data-hub-en="FxPro MT5 workspace" data-hub-ar="مساحة عمل FxPro MT5">FxPro MT5 workspace</span></div>
@@ -68,6 +68,8 @@ def enhance_atlas_html(html: str) -> str:
     """Add the approved Trading Hub shell without changing backend/data semantics."""
     if "atlas-hub-style" in html:
         return html
-    html = html.replace("</head>", HUB_STYLE + "</head>")
+    html = html.replace('<link rel="stylesheet" href="/assets/just-ai-brand.css">', '')
+    html = html.replace("</head>", HUB_STYLE + '<link rel="stylesheet" href="/assets/just-ai-brand.css">' + "</head>")
     html = html.replace("<body>", "<body>" + HUB_HEADER, 1)
     return html.replace("</body>", HUB_SCRIPT + "</body>")
+

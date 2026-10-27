@@ -1,0 +1,17 @@
+{
+  "brand": "JUST AI Design Studio",
+  "approved_on": "2026-10-27",
+  "signal": "#ff5a00",
+  "ink": "#171717",
+  "canvas": "#f7f3ee",
+  "accent_text_on_ivory": "#b83e00",
+  "style": "Subtle dimensional bevels, warm light, soft shadows",
+  "subbrands": {
+    "ATLAS": "Keep ATLAS name and emblem; show JUST AI parent identity"
+  },
+  "constraints": [
+    "Preserve data, permissions, navigation and behavior",
+    "Keep semantic risk, loss and gain colors",
+    "Do not enable live trading"
+  ]
+}
