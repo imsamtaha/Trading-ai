@@ -12,9 +12,10 @@ def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
         assert page.status_code == 200
         assert "text/html" in page.headers["content-type"]
         assert "ATLAS ULTIMATE" in page.text
+        assert '/assets/atlas-tiger-shield.png' in page.text
         for asset in (
             "site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
-            "atlas-brand.css", "atlas-main-logo.svg",
+            "atlas-brand.css", "atlas-main-logo.svg", "atlas-tiger-shield.png",
         ):
             assert client.get(f"/assets/{asset}").status_code == 200
         assert client.get("/api").json()["system"] == "ATLAS ULTIMATE"
@@ -32,3 +33,13 @@ def test_public_assets_cannot_read_private_files_and_orders_stay_blocked(monkeyp
 
 def test_public_package_is_complete_and_has_no_private_configuration():
     validate()
+
+
+def test_legacy_static_pages_use_same_tiger_shield_logo():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "web"
+    logo = root / "assets" / "atlas-tiger-shield.png"
+    assert logo.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+    for path in (root / "index.html", root / "centers" / "index.html"):
+        assert "/assets/atlas-tiger-shield.png" in path.read_text(encoding="utf-8")

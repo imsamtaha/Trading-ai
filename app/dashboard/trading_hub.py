@@ -23,18 +23,22 @@ html[data-theme=light] .atlas-hub-nav a,html[data-theme=light] .btn{background:#
 html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b5480066;color:#703900}
 @media(max-width:700px){.atlas-account{grid-template-columns:1fr;gap:12px}.shell{padding:12px}.section-title{align-items:flex-start}.section-title h2{font-size:21px}.atlas-account-controls .btn{width:100%}select,input{max-width:100%;font-size:16px}}
 @media(prefers-reduced-motion:reduce){.atlas-hub-nav a,.atlas-3d,.btn{transition:none;transform:none!important}}
+.atlas-hub-identity{display:flex;align-items:center;gap:18px;min-width:0}.atlas-hub-identity>div{min-width:0}.atlas-hub-logo{width:104px;height:auto;object-fit:contain;flex:none;border-radius:12px;border:1px solid #ff913855;box-shadow:0 12px 30px #0008}@media(max-width:700px){.atlas-hub-identity{align-items:flex-start;gap:12px}.atlas-hub-logo{width:82px}}
 </style>
 """
 
 HUB_HEADER = r"""
 <div class="atlas-hub-shell" id="hub-overview">
   <header class="atlas-hub-brand">
-    <div>
+    <div class="atlas-hub-identity">
+      <img class="atlas-hub-logo" src="/assets/atlas-tiger-shield.png" alt="" width="104" height="71">
+      <div>
       <div class="atlas-hub-kicker"><span class="atlas-tech-token">CUSTOMER TRADING INTERFACE</span></div>
       <div class="atlas-hub-title"><span class="atlas-tech-token">ATLAS</span></div>
       <div class="atlas-hub-descriptor"><span class="atlas-tech-token">TRADING INTELLIGENCE</span></div>
       <div class="atlas-hub-parent"><div class="justai-signature" aria-label="JUST AI Design Studio"><img src="/assets/just-ai-icon.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>DESIGN STUDIO</small></span></div></div>
       <div class="atlas-hub-sub" data-hub-en="Your unified FxPro MT5 demo cockpit for markets, account telemetry, analysis and risk context." data-hub-ar="واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.">Unified market intelligence, monitoring and risk context.</div>
+      </div>
     </div>
     <div class="atlas-hub-status"><span class="atlas-hub-status-dot"></span><span data-hub-en="FxPro MT5 workspace" data-hub-ar="مساحة عمل FxPro MT5">FxPro MT5 workspace</span></div>
   </header>

@@ -30,8 +30,8 @@ body {
 
 .brand-logo {
   width: 74px;
-  height: 47px;
-  object-fit: cover;
+  height: 51px;
+  object-fit: contain;
   border: 1px solid rgba(255, 122, 24, 0.32);
   border-radius: 12px;
   box-shadow: 0 0 22px rgba(255, 122, 24, 0.26);
