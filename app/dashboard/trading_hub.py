@@ -23,6 +23,24 @@ html[data-theme=light] .atlas-hub-nav a,html[data-theme=light] .btn{background:#
 html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b5480066;color:#703900}
 @media(max-width:700px){.atlas-account{grid-template-columns:1fr;gap:12px}.shell{padding:12px}.section-title{align-items:flex-start}.section-title h2{font-size:21px}.atlas-account-controls .btn{width:100%}select,input{max-width:100%;font-size:16px}}
 @media(prefers-reduced-motion:reduce){.atlas-hub-nav a,.atlas-3d,.btn{transition:none;transform:none!important}}
+
+/* Tiger Shield visual identity (read-only presentation; no trading logic). */
+:root{--hub-orange:#ff6500;--hub-metal:#dce4ed;--hub-deep:#071321;--hub-panel:#101a28}
+.atlas-hub-brand{background:radial-gradient(circle at 92% 0%,#0b5e8d66,transparent 42%),linear-gradient(125deg,#071321,#111821 55%,#251306)!important;border-color:#ff720066;box-shadow:inset 0 1px 0 #ffffff24,0 18px 40px #0008,0 0 28px #ff65001c}
+.atlas-hub-logo{width:clamp(78px,9vw,108px);max-height:96px;object-fit:contain;flex:none;padding:3px;border-radius:14px;border:1px solid #ff9b4f88;background:radial-gradient(circle at 50% 25%,#174675,#09121c 77%);box-shadow:0 8px 26px #000b,0 0 18px #ff650044}
+.atlas-hub-descriptor{color:#edf1f5}
+.atlas-hub-kicker,.atlas-hub-parent{color:#ff9b47}
+.atlas-hub-nav a:focus-visible{outline:3px solid #ff6500;outline-offset:3px}
+html[data-theme=light] body{background:linear-gradient(180deg,#fcf7f0,#f7f3ee);color:#171717}
+html[data-theme=light] .atlas-hub-brand{color:#fff7ed!important;background:radial-gradient(circle at 92% 0%,#0b5e8d66,transparent 42%),linear-gradient(125deg,#071321,#111821 55%,#251306)!important}
+html[data-theme=light] .atlas-hub-title{background:linear-gradient(180deg,#fff,#d3dbe2);-webkit-background-clip:text;color:transparent;text-shadow:none}
+html[data-theme=light] .atlas-hub-descriptor{color:#f3f1ee}
+html[data-theme=light] .atlas-hub-sub{color:#e0e4e9}
+html[data-theme=light] .atlas-hub-status{background:#2d1709;color:#ffe7d2;border-color:#ff9b47}
+html[data-theme=light] .card{background:#fffdfa!important;color:#171717;border-color:#edc6a8!important}
+html[data-theme=light] .atlas-hub-nav a{background:linear-gradient(#fffdfa,#f9f0e8);border-color:#eac4a3;color:#ac3900}
+@media(max-width:700px){.atlas-hub-identity{gap:10px;max-width:100%}.atlas-hub-logo{width:78px;max-height:76px}.atlas-hub-brand{padding:14px}.atlas-hub-nav{max-width:100%}}
+
 /* Tiger Shield / ATLAS palette integration: orange, graphite, silver, and electric blue. */
 .atlas-hub-brand{position:relative;overflow:hidden;border-color:#ff8d3b88;background:radial-gradient(ellipse at 91% 0%,#0b79d038,transparent 46%),linear-gradient(130deg,#050a11,#0b2033 48%,#10131d 78%,#08090d);box-shadow:inset 0 1px 0 #ffffff24,0 18px 44px #0008,0 0 26px #ff7a1a1c}
 .atlas-hub-brand:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,transparent,#ff7a18 28%,#e4eaf2 55%,#19b3fc 82%,transparent);pointer-events:none}
