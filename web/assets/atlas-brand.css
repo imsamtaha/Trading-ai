@@ -223,3 +223,30 @@ footer,
     border-bottom: 0;
   }
 }
+
+/* Tiger Shield header palette: match ATLAS Intelligence logo without replacing layout. */
+.header {
+  background: radial-gradient(ellipse at 92% 0%, rgba(0, 137, 229, 0.18), transparent 45%), linear-gradient(120deg, #060910, #102136 56%, #0a0d14);
+  border-bottom: 1px solid rgba(255, 139, 48, 0.45);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+.brand-logo {
+  object-fit: contain;
+  background: transparent;
+  border-color: rgba(255, 143, 51, 0.58);
+  box-shadow: 0 4px 16px rgba(255, 122, 24, 0.19);
+}
+.header .brand-sub { color: #d2dae3; }
+.header nav a:focus-visible, .header button:focus-visible {
+  outline: 3px solid #ffae60;
+  outline-offset: 3px;
+}
+.hero-logo-card {
+  background: radial-gradient(circle at 70% 0%, rgba(0, 144, 240, 0.18), transparent 54%), #10131b;
+  border-color: rgba(234, 240, 250, 0.24);
+}
+@media (max-width: 700px) {
+  .header { background: linear-gradient(120deg, #070a11, #102033); }
+  .header .brand { min-width: 0; }
+  .header .brand-logo { flex: none; }
+}
