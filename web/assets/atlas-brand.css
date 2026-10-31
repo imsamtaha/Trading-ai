@@ -250,3 +250,10 @@ footer,
   .header .brand { min-width: 0; }
   .header .brand-logo { flex: none; }
 }
+
+/* Tiger Shield palette: molten orange, midnight blue and silver. */
+:root{--atlas-brand-orange:#ff6500;--atlas-brand-blue:#0b2d4b;--atlas-brand-silver:#e0e9f0}
+.header{background:linear-gradient(105deg,#080d15e8,#122c42d9 54%,#1c120cf0);border:1px solid #ff650030;border-radius:14px;box-shadow:0 15px 40px #0005}
+.brand-logo{object-fit:contain;background:radial-gradient(circle at 50% 20%,#174e70,#0b121b 78%);border:1px solid #ff9a4c88;box-shadow:0 0 20px #ff65003a}
+.hero-logo-card{border-color:#ff650055;box-shadow:0 28px 70px #0008,0 0 38px #ff650024}
+@media(max-width:700px){.header{border-radius:0;padding-top:10px;padding-bottom:10px}.brand-logo{object-fit:contain}}
