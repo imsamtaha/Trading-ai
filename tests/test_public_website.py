@@ -43,3 +43,16 @@ def test_legacy_static_pages_use_same_tiger_shield_logo():
     assert logo.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     for path in (root / "index.html", root / "centers" / "index.html"):
         assert "/assets/atlas-tiger-shield.png" in path.read_text(encoding="utf-8")
+
+
+def test_tiger_shield_palette_is_present_on_both_website_and_dashboard_headers():
+    from pathlib import Path
+    from app.dashboard.trading_hub import HUB_HEADER, HUB_STYLE
+
+    root = Path(__file__).resolve().parents[1]
+    css = (root / "web" / "assets" / "atlas-brand.css").read_text(encoding="utf-8")
+    assert "Tiger Shield header palette" in css
+    assert "#102136" in css
+    assert "/assets/atlas-tiger-shield.png" in HUB_HEADER
+    assert "Tiger Shield / ATLAS palette integration" in HUB_STYLE
+    assert "#0b2033" in HUB_STYLE
