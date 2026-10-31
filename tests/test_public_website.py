@@ -56,3 +56,20 @@ def test_tiger_shield_palette_is_present_on_both_website_and_dashboard_headers()
     assert "/assets/atlas-tiger-shield.png" in HUB_HEADER
     assert "Tiger Shield / ATLAS palette integration" in HUB_STYLE
     assert "#0b2033" in HUB_STYLE
+
+
+def test_tiger_shield_theme_is_applied_without_changing_execution_settings():
+    from pathlib import Path
+
+    from app.dashboard.trading_hub import HUB_HEADER, HUB_STYLE
+
+    assert 'src="/assets/atlas-tiger-shield.png"' in HUB_HEADER
+    assert "Tiger Shield visual identity" in HUB_STYLE
+    assert "--hub-orange:#ff6500" in HUB_STYLE
+    assert "html[data-theme=light] .atlas-hub-brand" in HUB_STYLE
+    assert "@media(max-width:700px)" in HUB_STYLE
+    assert "ATLAS_LIVE_TRADING" not in HUB_STYLE
+
+    site_css = (Path(__file__).resolve().parents[1] / "web" / "assets" / "atlas-brand.css").read_text(encoding="utf-8")
+    assert "--atlas-brand-orange:#ff6500" in site_css
+    assert "--atlas-brand-blue:#0b2d4b" in site_css
