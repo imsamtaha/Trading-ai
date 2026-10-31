@@ -23,6 +23,17 @@ html[data-theme=light] .atlas-hub-nav a,html[data-theme=light] .btn{background:#
 html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b5480066;color:#703900}
 @media(max-width:700px){.atlas-account{grid-template-columns:1fr;gap:12px}.shell{padding:12px}.section-title{align-items:flex-start}.section-title h2{font-size:21px}.atlas-account-controls .btn{width:100%}select,input{max-width:100%;font-size:16px}}
 @media(prefers-reduced-motion:reduce){.atlas-hub-nav a,.atlas-3d,.btn{transition:none;transform:none!important}}
+/* Tiger Shield / ATLAS palette integration: orange, graphite, silver, and electric blue. */
+.atlas-hub-brand{position:relative;overflow:hidden;border-color:#ff8d3b88;background:radial-gradient(ellipse at 91% 0%,#0b79d038,transparent 46%),linear-gradient(130deg,#050a11,#0b2033 48%,#10131d 78%,#08090d);box-shadow:inset 0 1px 0 #ffffff24,0 18px 44px #0008,0 0 26px #ff7a1a1c}
+.atlas-hub-brand:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,transparent,#ff7a18 28%,#e4eaf2 55%,#19b3fc 82%,transparent);pointer-events:none}
+.atlas-hub-identity,.atlas-hub-status{position:relative;z-index:1}
+.atlas-hub-logo{border:0;border-radius:0;background:transparent;box-shadow:none;filter:drop-shadow(0 6px 12px #ff7a1866);max-width:25vw}
+.atlas-hub-nav a{border-color:#52647c9c;background:linear-gradient(180deg,#152c42,#090e16)}
+.atlas-hub-nav a:focus-visible{outline-color:#ff9c48;outline-offset:3px}
+html[data-theme=light] .atlas-hub-brand{background:radial-gradient(ellipse at 90% 0%,#4d9dd01b,transparent 46%),linear-gradient(120deg,#fffaf3,#e9eff4);color:#152033;border-color:#ff8d3b88}
+html[data-theme=light] .atlas-hub-nav a{background:#fff;color:#152033}
+@media(max-width:700px){.atlas-hub-logo{width:76px;max-width:25vw}.atlas-hub-brand{overflow:hidden}.atlas-hub-identity{width:100%;gap:12px}.atlas-hub-descriptor{overflow-wrap:anywhere}}
+@media(prefers-reduced-motion:reduce){.atlas-hub-logo{transition:none}}
 .atlas-hub-identity{display:flex;align-items:center;gap:18px;min-width:0}.atlas-hub-identity>div{min-width:0}.atlas-hub-logo{width:104px;height:auto;object-fit:contain;flex:none;border-radius:12px;border:1px solid #ff913855;box-shadow:0 12px 30px #0008}@media(max-width:700px){.atlas-hub-identity{align-items:flex-start;gap:12px}.atlas-hub-logo{width:82px}}
 </style>
 """
