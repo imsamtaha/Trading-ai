@@ -31,6 +31,35 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _replacement_backup(target: Path) -> Path:
+    return target.with_name(target.name + ".replacement.bak")
+
+
+def _win_replace_existing(temporary: Path, target: Path) -> None:
+    """Atomic Windows replacement when MoveFileEx cannot replace an open target.
+
+    Retain the original in a recovery backup if Windows only partly completes
+    replacement. The caller holds the ledger lock; an unresolved backup blocks
+    subsequent loads rather than allowing a missing ledger to become empty.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    backup = _replacement_backup(target)
+    if backup.exists():
+        raise OSError(f"Ledger recovery required: preserve and inspect {backup}")
+    replace = ctypes.WinDLL("kernel32", use_last_error=True).ReplaceFileW
+    replace.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p,
+        ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p,
+    ]
+    replace.restype = wintypes.BOOL
+    if not replace(str(target), str(temporary), str(backup), 0, None, None):
+        raise ctypes.WinError(ctypes.get_last_error())
+    # A crash or cleanup failure leaves the backup as a recovery interlock.
+    backup.unlink()
+
+
 class MT5PaperLedger:
     """File-backed paper-trade ledger for one or more ATLAS demo workers.
 
@@ -73,6 +102,9 @@ class MT5PaperLedger:
         self._state = self._load()
 
     def _load(self) -> dict[str, list[dict[str, Any]]]:
+        backup = _replacement_backup(self.path)
+        if backup.exists():
+            raise PaperLedgerError(f"Ledger recovery required: preserve and inspect {backup}")
         if not self.path.exists():
             return {"open_positions": [], "closed_trades": []}
 
@@ -119,7 +151,7 @@ class MT5PaperLedger:
             raise PaperLedgerError(f"Cannot lock demo ledger {self.path}: {exc}") from exc
 
     def _persist(self) -> None:
-        temporary = self.path.with_suffix(f"{self.path.suffix}.tmp")
+        temporary = self.path.with_name(f"{self.path.name}.{os.getpid()}.{uuid4().hex}.tmp")
         try:
             with temporary.open("w", encoding="utf-8") as handle:
                 json.dump(self._state, handle, indent=2, sort_keys=True, default=str)
@@ -132,10 +164,21 @@ class MT5PaperLedger:
                     break
                 except PermissionError:
                     if attempt == 5:
+                        # Windows MoveFileEx can reject a target held open by a
+                        # reader even though ReplaceFileW can swap it atomically.
+                        if os.name == "nt" and self.path.is_file():
+                            _win_replace_existing(temporary, self.path)
+                            break
                         raise
                     time.sleep(0.02 * (2 ** attempt))
         except OSError as exc:
             raise PaperLedgerError(f"Cannot persist demo ledger {self.path}: {exc}") from exc
+        finally:
+            # Failed atomic swaps must not accumulate copies containing Paper data.
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass  # Preserve the original persistence error and fail closed.
 
     def open_positions(self) -> list[dict[str, Any]]:
         with self._locked_state():

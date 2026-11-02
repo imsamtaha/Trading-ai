@@ -101,3 +101,86 @@ def test_log_from_before_recovery_does_not_reset_start_budget(server_dir):
     assert result["components"]["paper"]["state"] == "HEARTBEAT_UNAVAILABLE"
     state = json.loads((server_dir / "recovery-state.json").read_text())
     assert state["paper"]["starts"] == 1
+
+
+def test_recent_persistence_error_marks_running_paper_degraded(server_dir):
+    paper_dir = server_dir.parent / "paper"
+    paper_dir.mkdir()
+    log = paper_dir / "paper-monitor.log"
+    log.write_text(
+        "{'timestamp': '1970-01-01T00:16:40+00:00', "
+        "'status': 'MT5_ERROR', "
+        "'reason': 'Cannot persist demo ledger: WinError 5'}\n"
+    )
+    os.utime(log, (1000, 1000))
+    ledger = paper_dir / "atlas_demo_ledger.json"
+    ledger.write_text('{"open_positions": [], "closed_trades": []}')
+    os.utime(ledger, (900, 900))
+    result = cycle(server_dir, task_state="Running", now=1000)
+    assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+    assert result["actions"] == []
+    assert result["components"]["paper"]["last_ledger_error_utc"] == "1970-01-01T00:16:40Z"
+
+    # A stopped task with an unresolved persistence fault must not auto-restart.
+    for now in range(1001, 1400, 100):
+        result = cycle(server_dir, task_state="Ready", now=now)
+        assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+        assert result["actions"] == []
+
+    # A verified more recent durable ledger update clears the failure.
+    ledger.write_text('{"open_positions": [], "closed_trades": []}')
+    os.utime(ledger, (1400, 1400))
+    os.utime(log, (1401, 1401))
+    result = cycle(server_dir, task_state="Running", now=1401)
+    assert result["components"]["paper"]["state"] == "HEALTHY"
+    state = json.loads((server_dir / "recovery-state.json").read_text())
+    assert "ledger_failure_at" not in state["paper"]
+
+
+def test_persistence_failure_survives_log_rotation_and_disabled_task(server_dir):
+    paper_dir = server_dir.parent / "paper"
+    paper_dir.mkdir()
+    log = paper_dir / "paper-monitor.log"
+    log.write_text(json.dumps({"timestamp": "1970-01-01T00:16:40Z",
+                               "reason": "Cannot persist demo ledger: WinError 5"}))
+    os.utime(log, (1000, 1000))
+    result = cycle(server_dir, task_state="Disabled")
+    assert result["components"]["paper"]["state"] == "TASK_REQUIRES_ATTENTION"
+    assert result["actions"] == []
+    log.write_text("rotated heartbeat without old error")
+    os.utime(log, (1100, 1100))
+    for task_state in ("Running", "Ready"):
+        result = cycle(server_dir, task_state=task_state, now=1100)
+        assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+        assert result["actions"] == []
+
+
+@pytest.mark.parametrize("invalid_ledger", ["", "not json", "{}",
+                                          '{"open_positions": {}, "closed_trades": []}'])
+def test_newer_invalid_ledger_cannot_clear_persistence_fault(server_dir, invalid_ledger):
+    paper_dir = server_dir.parent / "paper"
+    paper_dir.mkdir()
+    (server_dir / "recovery-state.json").write_text(
+        json.dumps({"paper": {"ledger_failure_at": 1000, "starts": 3}}))
+    ledger = paper_dir / "atlas_demo_ledger.json"
+    ledger.write_text(invalid_ledger)
+    os.utime(ledger, (1100, 1100))
+    log = paper_dir / "paper-monitor.log"
+    log.write_text("fresh heartbeat")
+    os.utime(log, (1100, 1100))
+    result = cycle(server_dir, task_state="Running", now=1100)
+    assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+    assert result["actions"] == []
+    state = json.loads((server_dir / "recovery-state.json").read_text())
+    assert state["paper"]["starts"] == 3
+
+
+def test_windows_recovery_backup_blocks_watchdog_restarts(server_dir):
+    paper_dir = server_dir.parent / "paper"
+    paper_dir.mkdir()
+    (paper_dir / "atlas_demo_ledger.json.replacement.bak").write_text(
+        '{"open_positions": [], "closed_trades": []}')
+    for now in range(1000, 1400, 100):
+        result = cycle(server_dir, now=now)
+        assert result["components"]["paper"]["state"] == "LEDGER_PERSISTENCE_FAILED"
+        assert result["actions"] == []
