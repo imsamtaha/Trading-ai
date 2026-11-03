@@ -59,7 +59,7 @@ class AtlasHeartbeat:
             headers=headers,
         )
         try:
-            with urllib.request.urlopen(request, timeout=10) as response:
+            with urllib.request.urlopen(request, timeout=float(os.getenv("ATLAS_SUPABASE_TIMEOUT", "10"))) as response:
                 raw = response.read()
                 self.last_error = None
                 return json.loads(raw) if raw else None
@@ -89,22 +89,47 @@ class AtlasHeartbeat:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         if self.connection_id:
-            self._request(
+            rows = self._request(
                 f"atlas_mt5_connections?id=eq.{self.connection_id}",
                 "PATCH",
                 payload,
             )
+            if rows == []:
+                self.last_error = (
+                    "Supabase audit failed: PATCH updated no connection records."
+                )
+                logger.warning(self.last_error)
             return
 
         rows = self._request("atlas_mt5_connections", "POST", payload)
-        if isinstance(rows, list) and rows:
-            self.connection_id = rows[0].get("id")
+        if (isinstance(rows, list) and rows
+                and isinstance(rows[0], dict) and rows[0].get("id")):
+            self.connection_id = rows[0]["id"]
+        elif self.last_error is None:
+            self.last_error = (
+                "Supabase audit failed: POST returned no confirmed connection record."
+            )
+            logger.warning(self.last_error)
 
     def heartbeat(self) -> dict[str, Any]:
         try:
             account = self.broker.connect()
-            self.publish_connection(account, "connected")
-            return {"status": "connected", "account": account}
+            if self.url and self.key:
+                self.last_error = None
+                self.publish_connection(account, "connected")
+                audit_status = "error" if self.last_error else "connected"
+            else:
+                self.last_error = (
+                    "Supabase audit disabled: missing URL or API key."
+                )
+                audit_status = "disabled"
+            return {
+                "status": "connected",
+                "mt5_status": "connected",
+                "audit_status": audit_status,
+                "audit_error": self.last_error,
+                "account": account,
+            }
         except MT5ExecutionError as exc:
             self.publish_connection({"server": None, "login": None}, "error")
             return {"status": "error", "error": str(exc)}
