@@ -1,7 +1,22 @@
+import shutil
+import subprocess
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.dashboard import _atlas_ultimate_html
 from app.main import app
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required to parse browser JavaScript")
+def test_served_active_setups_script_parses_as_javascript():
+    response = TestClient(app).get("/ui/setups-panel.js")
+    assert response.status_code == 200
+    result = subprocess.run(
+        ["node", "--check"], input=response.text, text=True, capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_dashboard_loads_active_setups_panel_script():
