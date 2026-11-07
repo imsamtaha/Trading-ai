@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>ATLAS INTELLIGENCE | Owner Control Center</title>
+<link rel="stylesheet" href="/sam/assets/owner.css">
+<script src="/sam/assets/owner.js" defer></script>
+</head>
+<body>
+<div class="site">
+  <aside class="sidebar" aria-label="ATLAS Owner navigation">
+    <a class="brand" href="/sam" aria-label="ATLAS Owner">
+      <span class="brand-orb">A<span class="brand-orb-dot">•</span></span>
+      <span><strong>ATLAS <em>INTELLIGENCE</em></strong><small>BY JUST AI · PRIVATE CONTROL</small></span>
+    </a>
+    <div class="sidebar-title" data-i18n="workspace">مساحة الإدارة</div>
+    <nav id="nav" aria-label="Dashboard sections">
+      <button data-view="overview" class="nav-link active" type="button"><span class="icon">◈</span><span data-i18n="overview">نظرة عامة</span></button>
+      <button data-view="council" class="nav-link" type="button"><span class="icon">◉</span><span data-i18n="council">مجلس الوكلاء</span></button>
+      <button data-view="signals" class="nav-link" type="button"><span class="icon">⌁</span><span data-i18n="signals">الإشارات</span></button>
+      <button data-view="risk" class="nav-link" type="button"><span class="icon">⬡</span><span data-i18n="risk">ضوابط المخاطر</span></button>
+      <button data-view="training" class="nav-link" type="button"><span class="icon">▤</span><span data-i18n="training">التدريب</span></button>
+      <button data-view="evidence" class="nav-link" type="button"><span class="icon">▣</span><span data-i18n="evidence">أدلة القرارات</span></button>
+      <button data-view="history" class="nav-link" type="button"><span class="icon">◷</span><span data-i18n="history">سجل PAPER</span></button>
+      <button data-view="shadow" class="nav-link" type="button"><span class="icon">✦</span><span data-i18n="shadow">Shadow Learning</span></button>
+      <button data-view="mt5" class="nav-link" type="button"><span class="icon">⊞</span><span data-i18n="mt5">حالة MT5 Demo</span></button>
+      <button data-view="runtime" class="nav-link" type="button"><span class="icon">⌘</span><span data-i18n="runtime">صحة Windows</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="lock-icon">⬡</span>
+      <div><b data-i18n="readonly">مراقبة فقط</b><p data-i18n="sidelock">لا إرسال أوامر للوسيط</p></div>
+    </div>
+  </aside>
+  <div class="workspace">
+    <header class="header">
+      <div class="breadcrumbs"><span>JUST AI</span><span class="chevron">/</span><strong>ATLAS</strong><span class="chevron">/</span><span data-i18n="owner">المالك</span></div>
+      <div class="head-actions">
+        <span class="private-pill"><span class="dot"></span><span data-i18n="private">OWNER · PRIVATE</span></span>
+        <button class="button quiet" type="button" id="languageToggle" aria-label="Change language">English</button>
+        <button class="button quiet" type="button" id="historyAction" data-i18n="historyButton">السجل</button>
+        <button class="button primary" type="button" id="refreshAction"><span class="refresh-icon">↻</span> <span data-i18n="refresh">تحديث</span></button>
+      </div>
+    </header>
+    <main class="content">
+      <section class="intro">
+        <div>
+          <div class="overline"><span class="small-diamond"></span> <span data-i18n="controlCenter">ATLAS / CONTROL CENTER</span></div>
+          <h1 data-i18n="pageTitle">لوحة التحكم التنفيذية</h1>
+          <p data-i18n="pageSubtitle">مراقبة قرارات المجلس والتعلّم الورقي، من دون تنفيذ تداول حقيقي.</p>
+        </div>
+        <div class="timestamp" role="status"><span class="pulse"></span><span data-i18n="lastRefresh">آخر قراءة</span> <b id="fetchedAt">—</b></div>
+      </section>
+      <section class="safety-banner" role="note">
+        <div class="safety-icon">◈</div>
+        <div><strong data-i18n="safeTitle">LIVE TRADING DISABLED</strong><p data-i18n="safeDesc">لا يُسمح بأوامر بأموال حقيقية. هذه اللوحة للعرض والتدقيق فقط، وليست منصة لتنفيذ الصفقات.</p></div>
+        <span class="safe-tag" data-i18n="paperOnly">PAPER ONLY</span>
+      </section>
+      <div id="runtimeAlert" class="alert" hidden role="alert"></div>
+      <section class="kpi-grid" id="metrics" aria-label="Verified metrics"></section>
+      <section class="content-card data-status-card">
+        <div class="card-heading"><div><span class="card-kicker" data-i18n="verification">إثبات المصدر</span><h2 data-i18n="dataQuality">حالة التحقق من البيانات</h2></div><span id="sourceSummary" class="pill neutral">—</span></div>
+        <div id="dataQualityList" class="quality-list"></div>
+      </section>
+      <section class="content-card detail-card">
+        <div class="card-heading"><div><span class="card-kicker" id="sectionKicker">ATLAS EVIDENCE</span><h2 id="sectionTitle"></h2></div><span id="sectionStatus" class="pill neutral">—</span></div>
+        <div id="sectionBody" class="section-body"></div>
+      </section>
+      <footer><span>ATLAS Trading Intelligence · JUST AI Ecosystem</span><span data-i18n="footer">Verified exports only · No broker orders · Read only</span></footer>
+    </main>
+  </div>
+</div>
+</body>
+</html>
