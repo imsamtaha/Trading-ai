@@ -46,8 +46,8 @@ def owner_only(credentials: HTTPBasicCredentials | None = Depends(security)) -> 
     if not user or not password:
         raise HTTPException(503, "Owner authentication is not configured")
     valid = (credentials is not None
-             and secrets.compare_digest(credentials.username, user)
-             and secrets.compare_digest(credentials.password, password))
+             and secrets.compare_digest(credentials.username.encode('utf-8'), user.encode('utf-8'))
+             and secrets.compare_digest(credentials.password.encode('utf-8'), password.encode('utf-8')))
     if not valid:
         raise HTTPException(401, "Owner only", headers={"WWW-Authenticate": 'Basic realm="ATLAS Owner"'})
 
@@ -90,7 +90,7 @@ def _allowed(row: Any, keys: tuple[str, ...]) -> dict[str, Any]:
 def read_evidence() -> dict[str, Any]:
     location = os.getenv("ATLAS_OWNER_SNAPSHOT_PATH", "").strip()
     signing_key = os.getenv("ATLAS_OWNER_SNAPSHOT_HMAC_KEY", "")
-    if not location or not signing_key:
+    if not location or len(signing_key) < 32:
         return _missing("SNAPSHOT_OR_SIGNATURE_KEY_NOT_CONFIGURED")
     try:
         path = Path(location).expanduser().resolve(strict=True)
