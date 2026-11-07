@@ -375,6 +375,19 @@ class AtlasMT5Monitor:
         for symbol in symbols:
             try:
                 quote = self.broker.quote(symbol)
+                valid, reason = self._validate_quote_freshness(quote)
+                if not valid:
+                    event = {
+                        "timestamp": timestamp,
+                        "symbol": symbol,
+                        "timeframe": self.interval,
+                        "status": "PAPER_QUOTE_REJECTED",
+                        "reason": reason,
+                        "decision": {"decision": "WAIT"},
+                    }
+                    self._record_event(event)
+                    events.append(event)
+                    continue
                 for trade in self.ledger.close_due_positions(
                     symbol,
                     bid=float(quote["bid"]),
