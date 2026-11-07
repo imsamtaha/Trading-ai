@@ -1,4 +1,17 @@
 {
+  "schema_version": 2,
+  "policy": {
+    "execution_environment": "PAPER",
+    "broker_execution_allowed": false,
+    "execution_threshold": 0.25,
+    "min_agents": 2,
+    "min_roles": 2,
+    "max_daily_drawdown": 0.03,
+    "max_cvar_99_pct": 0.03,
+    "max_spread_pips": 2.5,
+    "min_margin_level_pct": 150.0,
+    "max_paper_lot_size": 1.0
+  },
   "roles": {
     "MOMENTUM": {
       "base_weight": 0.35,

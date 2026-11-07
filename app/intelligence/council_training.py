@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import isfinite
@@ -85,6 +86,8 @@ class AtlasCouncilTrainer:
             total_examples += 1
             for opinion in example.opinions:
                 agent = str(opinion.get("agent", "")).strip()
+                if agent in {"risk_executive", "recovery_guardian", "macro_analyst"}:
+                    continue
                 decision = str(opinion.get("decision", "")).upper()
                 if not agent or decision not in VALID_OUTCOMES:
                     continue
@@ -126,6 +129,8 @@ class AtlasCouncilTrainer:
 
 
 def agent_weight(profile: Mapping[str, Any] | None, agent: str) -> float:
+    if agent in {"risk_executive", "recovery_guardian", "macro_analyst"}:
+        return 1.0
     if not profile:
         return 1.0
     agents = profile.get("agents")
@@ -185,5 +190,14 @@ class CouncilTrainingJournal:
 def save_profile(profile: Mapping[str, Any], path: str | None = None) -> Path:
     target = Path(path or os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json"))
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(dict(profile), indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
+    encoded = json.dumps(dict(profile), indent=2, sort_keys=True, allow_nan=False) + "\n"
+    fd, name = tempfile.mkstemp(prefix=target.name + ".", suffix=".tmp", dir=target.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, target)
+    finally:
+        Path(name).unlink(missing_ok=True)
     return target
