@@ -43,7 +43,10 @@ METRIC_KEYS = {"oos_accuracy", "ece", "samples", "win_rate", "profit_factor",
 def owner_only(credentials: HTTPBasicCredentials | None = Depends(security)) -> None:
     user = os.getenv("ATLAS_OWNER_DASHBOARD_USER", "").strip()
     password = os.getenv("ATLAS_OWNER_DASHBOARD_PASSWORD", "")
-    if not user or not password:
+    if (os.getenv("ATLAS_DASHBOARD_ONLY", "false").strip().lower() != "true"
+            or os.getenv("ATLAS_LIVE_TRADING", "false").strip().lower() != "false"):
+        raise HTTPException(503, "Owner dashboard requires PAPER read-only mode")
+    if not user or len(password) < 16:
         raise HTTPException(503, "Owner authentication is not configured")
     valid = (credentials is not None
              and secrets.compare_digest(credentials.username.encode('utf-8'), user.encode('utf-8'))
