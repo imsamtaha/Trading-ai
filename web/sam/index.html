@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>ATLAS Intelligence | Owner Control Center</title>
+<style>
+:root{color-scheme:dark;--bg:#070808;--panel:#151413;--line:#36312e;--text:#f7f3ee;--muted:#b8aca4;--orange:#ff5a00;--amber:#ffc076;--ok:#4add9c;--bad:#ff7180}
+*{box-sizing:border-box}body{margin:0;color:var(--text);font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(ellipse at 78% -30%,#a3451c4c,transparent 52%),linear-gradient(130deg,#0e0d0b,#09090a 64%,#1c110e);min-height:100vh}
+button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.shell{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh;max-width:1800px;margin:auto}
+aside{border-inline-end:1px solid #ffffff1a;padding:25px 15px;background:#0b0a0acb;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;gap:12px;align-items:center;margin:0 0 28px 5px}.emblem{height:47px;width:47px;display:grid;place-items:center;font-weight:1000;font-size:26px;background:linear-gradient(145deg,#ffc076,#ff5a00 55%,#9a2f00);color:#15100c;border:1px solid #ffc076;border-radius:14px;box-shadow:inset 0 2px 3px #ffffff70,0 12px 27px #ff5a0040,0 4px 0 #522104;transform:perspective(200px) rotateY(-8deg)}
+.brand strong{display:block;letter-spacing:.08em;font-size:18px}.sub{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+nav{display:grid;gap:6px}.navbtn{width:100%;text-align:start;border:1px solid transparent;background:transparent;border-radius:12px;color:#bfb6ad;padding:12px 13px}
+.navbtn.active,.navbtn:hover{background:linear-gradient(115deg,#ff5a002c,#ff5a000d);color:#fff;border-color:#ff5a0070;box-shadow:inset 3px 0 0 var(--orange)}
+.side-note{color:#9b8f84;font-size:11px;line-height:1.7;border-top:1px solid var(--line);padding:18px 8px;margin-top:26px}
+main{padding:26px clamp(15px,3vw,44px) 70px;min-width:0}
+.topbar{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;flex-wrap:wrap}.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--amber);font-weight:800}
+h1{font-size:clamp(24px,3vw,39px);margin:7px 0 8px;letter-spacing:-.04em}h2{font-size:19px;margin:0 0 15px}p{margin:6px 0;line-height:1.6;color:var(--muted)}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.btn{border:1px solid #6d554a;border-radius:11px;background:#221d19;color:#fff;padding:10px 13px;font-weight:700}.btn:hover{border-color:var(--orange)}.btn.primary{background:linear-gradient(135deg,#ffb168,#ff5a00);color:#1d1006;border-color:var(--amber);box-shadow:0 8px 25px #ff5a0040}.btn:disabled{opacity:.5;cursor:not-allowed}
+.safety{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid #fa783a77;background:linear-gradient(110deg,#4e230f80,#201612 70%);box-shadow:inset 0 1px 0 #ffb27c33,0 15px 28px #0006;border-radius:16px;padding:15px 18px;margin:22px 0}
+.safety strong{color:#ffc08b}.safety span{display:inline-block;border:1px solid #ff906d88;border-radius:99px;padding:6px 10px;color:#ffbb9c;font-size:11px;font-weight:800}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 19px;color:var(--muted);font-size:12px}.pill{border-radius:99px;border:1px solid #666;padding:5px 10px;color:#eee;font-weight:800}.pill.VERIFIED{color:var(--ok);border-color:#4add9c70}.pill.STALE{color:var(--amber);border-color:#ffc07670}.pill.UNAVAILABLE,.pill.UNVERIFIED,.pill.ERROR{color:var(--bad);border-color:#ff718080}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{min-width:0;background:linear-gradient(155deg,#25211d,#151515 65%,#101112);border:1px solid #ffffff22;box-shadow:inset 0 1px 0 #ffffff16,0 15px 32px #0008,0 3px 0 #080707;border-radius:18px;padding:19px}
+.card .label{color:#c6b5a8;font-size:12px}.card .value{font-size:clamp(22px,2.7vw,33px);font-weight:850;margin-top:10px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.card .foot{color:#9f9186;font-size:11px;margin-top:9px}
+.wide{grid-column:span 2}.full{grid-column:1/-1}.content{margin-top:18px}.muted{color:var(--muted)}.sectionintro{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:24px 0 12px}
+.fieldgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.field{padding:13px;border:1px solid #39312d;background:#161413;border-radius:12px;min-width:0}.field small{color:#b6a69a;display:block;margin-bottom:6px}.field b{overflow-wrap:anywhere;font-size:15px}
+.tablebar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.filter{background:#161413;color:#eee;border:1px solid #58463b;border-radius:10px;padding:10px;min-width:175px;max-width:100%;flex:1}
+.scroller{overflow-x:auto;border:1px solid #40332d;border-radius:13px}table{border-collapse:collapse;width:100%;min-width:650px;font-variant-numeric:tabular-nums}th,td{border-bottom:1px solid #37302c;text-align:start;padding:12px 13px;max-width:300px;overflow-wrap:anywhere;vertical-align:top}th{background:#261d18;color:var(--amber);position:sticky;top:0}th button{border:0;background:none;color:inherit;font-weight:750;white-space:nowrap}td{color:#e1d4ca}tbody tr:nth-child(even){background:#ffffff05}tbody tr:hover{background:#ff5a0010}tbody tr:last-child td{border-bottom:0}
+.empty{padding:28px;color:var(--muted);border:1px dashed #59463a;border-radius:14px;text-align:center}.error{font-size:11px;color:var(--bad)}
+@media(max-width:1050px){.shell{grid-template-columns:1fr}aside{position:static;height:auto;padding:13px 15px;border-inline-end:0;border-bottom:1px solid #ffffff18}.brand{margin:0 0 12px}.side-note{display:none}nav{display:flex;overflow-x:auto;padding-bottom:3px;gap:7px}.navbtn{min-width:max-content;text-align:center;padding:9px 11px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}main{padding-top:22px}}
+@media(max-width:540px){.grid{grid-template-columns:1fr 1fr;gap:10px}.card{padding:14px}.card.wide{grid-column:1/-1}.card .value{font-size:22px}.topbar{display:block}.actions{margin-top:12px}.safety{align-items:flex-start}.fieldgrid{grid-template-columns:1fr 1fr}.field{padding:10px}.eyebrow{letter-spacing:.12em}}
+@media(prefers-reduced-motion:no-preference){.btn,.navbtn{transition:background .18s,border-color .18s,transform .18s}.btn:hover{transform:translateY(-1px)}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside aria-label="ATLAS navigation">
+ <div class="brand"><div class="emblem" aria-hidden="true">A</div><div><strong>ATLAS</strong><span class="sub">JUST AI / OWNER</span></div></div>
+ <nav id="nav" aria-label="Sections"></nav>
+ <div class="side-note" id="side-note"></div>
+</aside>
+<main>
+ <div class="topbar">
+   <div><div class="eyebrow">ATLAS TRADING INTELLIGENCE / PRIVATE</div><h1 id="page-title"></h1><p id="page-subtitle"></p></div>
+   <div class="actions"><button class="btn" id="lang" type="button">English</button><button class="btn" id="history" type="button">History</button><button class="btn primary" id="refresh" type="button">↻ Refresh</button></div>
+ </div>
+ <div class="safety" role="status"><div><strong id="safe-title"></strong><p id="safe-text"></p></div><span>LIVE TRADING DISABLED · NO REAL-MONEY ORDERS</span></div>
+ <div class="meta" aria-live="polite"><span class="pill UNAVAILABLE" id="state">UNAVAILABLE</span><span id="stamp"></span><span id="source"></span><span id="message" class="error"></span></div>
+ <section class="content" id="content" aria-live="polite"></section>
+</main></div>
+<script>
+"use strict";
+const STRINGS={
+ ar:{title:"مركز تحكّم المالك",subtitle:"قراءة فقط · مصادر PAPER موثّقة · لا يوجد تنفيذ عبر الوسيط",nav:["نظرة عامة","وكلاء المجلس","حساب MT5 التجريبي","الإشارات","ضوابط المخاطر","تقدّم التدريب","أدلة القرارات","سجل صفقات PAPER","صحة تشغيل Windows","Shadow Learning"],
+ safe:"تنفيذ التداول الحقيقي معطّل",safeText:"هذه الواجهة لا تملك أي إجراء لإرسال الأوامر. جميع البيانات المعروضة ورقية ومحكومة بالمصدر وتاريخ التحقّق.",
+ side:"يُمنع عرض أرقام غير موثّقة كأنها نتائج فعلية. لا تعرض هذه الواجهة بيانات حسابات حقيقية.",
+ history:"السجل",refresh:"تحديث",unavailable:"لا توجد بيانات PAPER موثّقة لهذا القسم.",search:"ابحث ضمن الجدول",all:"الكل",rows:"سجل",source:"المصدر",updated:"آخر تحديث",reason:"السبب",notAvailable:"غير متاح",before:"قبل",after:"بعد",change:"التغيّر",metric:"المؤشر",count:"عدد السجلات",verified:"موثّق المصدر",label:"حالة المعلومة",
+ summaryTitles:["وكلاء المجلس","الإشارات المسجّلة","صفقات PAPER","عينات Shadow Learning"],agreement:"متوسط ثقة المجلس",conflict:"متوسط تعارض الوكلاء",na:"غير متاح",safety:"سلامة التنفيذ",status:"الحالة"},
+ en:{title:"Owner Control Center",subtitle:"Read-only · attested PAPER sources · no broker execution",nav:["Overview","Council agents","MT5 demo","Signals","Risk controls","Training progress","Decision evidence","PAPER trade history","Windows runtime","Shadow Learning"],
+ safe:"Live trading is disabled",safeText:"This interface has no order-placement actions. Data is PAPER-only and always tied to provenance and freshness.",
+ side:"Unattested numbers are never presented as actual performance. No real account information is displayed.",
+ history:"History",refresh:"Refresh",unavailable:"No attested PAPER records available in this section.",search:"Search table",all:"All",rows:"records",source:"Source",updated:"Updated",reason:"Reason",notAvailable:"Unavailable",before:"Before",after:"After",change:"Change",metric:"Metric",count:"Records",verified:"Source-attested",label:"Evidence status",
+ summaryTitles:["Council agents","Recorded signals","PAPER trades","Shadow Learning samples"],agreement:"Average council confidence",conflict:"Average agent conflict",na:"Unavailable",safety:"Execution safety",status:"Status"}
+};
+const KEYS=["overview","council_agents","mt5_demo","signals","risk_controls","training_progress","decision_evidence","paper_trade_history","windows_runtime","shadow_learning"];
+const TABLES={
+ council_agents:["agent","decision","confidence","calibrated_confidence","weight","conflict_score","updated_at","source"],
+ signals:["id","timestamp","symbol","decision","confidence","risk_gate","evidence_id","status"],
+ decision_evidence:["decision_id","timestamp","symbol","snapshot_id","decision","risk_veto","outcome","conflict_score","provenance","council_votes"],
+ paper_trade_history:["trade_id","opened_at","closed_at","symbol","direction","status","result_r","evidence_id","source"]
+};
+const OBJ={
+ mt5_demo:["status","account_type","broker","server","login_masked","timestamp"],
+ risk_controls:["status","daily_loss_limit_pct","max_open_risk_pct","max_positions","margin_level_min_pct","daily_loss_actual_pct","veto_count"],
+ windows_runtime:["status","heartbeat","cycle_seconds","process_count","service","last_error"]
+};
+const $=id=>document.getElementById(id);
+let language="ar",active="overview",payload=null,filterBy={},sortBy={},statusBy={},busy=false;
+const t=()=>STRINGS[language];
+function elem(tag,cl,text){const n=document.createElement(tag);if(cl)n.className=cl;if(text!==undefined)n.textContent=text;return n}
+function value(v){if(v===null||v===undefined||v==="")return "—";if(Array.isArray(v))return v.map(x=>typeof x==="object"?Object.entries(x).map(([k,n])=>k+": "+n).join(", "):String(x)).join("; ");return String(v)}
+function current(){return payload&&payload.verified===true?payload.data:null}
+function tile(label,val,foot){const d=elem("article","card");d.append(elem("div","label",label),elem("div","value",value(val)),elem("div","foot",foot||"PAPER"));return d}
+function section(title){const s=elem("div","sectionintro");s.append(elem("h2","",title));return s}
+function noData(){return elem("div","empty",t().unavailable)}
+function addFields(parent,obj,keys){const box=elem("div","fieldgrid");let present=false;for(const key of keys){if(obj[key]===undefined||obj[key]===null)continue;present=true;const d=elem("div","field");d.append(elem("small","",key.replaceAll("_"," ")),elem("b","",value(obj[key])));box.append(d)}parent.append(present?box:noData())}
+function metricComparison(parent,obj){const before=obj&&obj.before,after=obj&&obj.after;const keys=[...new Set([...Object.keys(before||{}),...Object.keys(after||{})])];if(!keys.length){parent.append(noData());return}const wrap=elem("div","scroller"),table=elem("table"),thead=elem("thead"),tr=elem("tr");for(const title of [t().metric,t().before,t().after,t().change])tr.append(elem("th","",title));thead.append(tr);const tbody=elem("tbody");for(const key of keys){const row=elem("tr");let delta="—";if(typeof before?.[key]==="number"&&typeof after?.[key]==="number")delta=(after[key]-before[key]).toFixed(4);for(const cell of [key,value(before?.[key]),value(after?.[key]),delta])row.append(elem("td","",cell));tbody.append(row)}table.append(thead,tbody);wrap.append(table);parent.append(wrap)}
+function renderTable(parent,key){const d=current(),rows=d&&Array.isArray(d[key])?d[key]:[];if(!rows.length){parent.append(noData());return}
+ const tools=elem("div","tablebar"),search=elem("input","filter");search.type="search";search.placeholder=t().search;search.value=filterBy[key]||"";search.setAttribute("aria-label",t().search);
+ const select=elem("select","filter");const options=[...new Set(rows.map(r=>r.status||r.decision).filter(Boolean))];for(const opt of ["",...options]){const o=elem("option","",opt||t().all);o.value=opt;select.append(o)}select.value=statusBy[key]||"";select.setAttribute("aria-label",t().status);
+ tools.append(search,select);parent.append(tools);
+ const count=elem("p","muted"),holder=elem("div","scroller");parent.append(count,holder);
+ function draw(){const q=search.value.trim().toLocaleLowerCase(),status=select.value;let list=rows.filter(r=>(!q||Object.values(r).some(v=>value(v).toLocaleLowerCase().includes(q)))&&(!status||(r.status||r.decision)===status));const sort=sortBy[key];if(sort){list=[...list].sort((a,b)=>{const av=a[sort.column],bv=b[sort.column];return sort.direction*(typeof av==="number"&&typeof bv==="number"?av-bv:String(av??"").localeCompare(String(bv??""),undefined,{numeric:true}))})}
+ count.textContent=list.length+" "+t().rows;holder.replaceChildren();const table=elem("table"),thead=elem("thead"),tr=elem("tr");for(const column of TABLES[key]){const th=elem("th"),btn=elem("button","",column.replaceAll("_"," ")+(sort?.column===column?(sort.direction===1?" ↑":" ↓"):""));btn.type="button";btn.addEventListener("click",()=>{sortBy[key]={column,direction:sort?.column===column&&sort.direction===1?-1:1};draw()});th.append(btn);tr.append(th)}thead.append(tr);const tbody=elem("tbody");for(const row of list){const tr=elem("tr");for(const field of TABLES[key])tr.append(elem("td","",value(row[field])));tbody.append(tr)}table.append(thead,tbody);holder.append(table)}
+ search.addEventListener("input",()=>{filterBy[key]=search.value;draw()});select.addEventListener("change",()=>{statusBy[key]=select.value;draw()});draw()
+}
+function renderSummary(parent){const d=current(),count=d?[
+ d.council_agents?.length,d.signals?.length,d.paper_trade_history?.length,d.shadow_learning?.samples
+ ]:[null,null,null,null];const grid=elem("div","grid");t().summaryTitles.forEach((label,i)=>grid.append(tile(label,count[i],t().verified)));parent.append(grid);
+ const cards=elem("div","grid");cards.style.marginTop="15px";const agents=d?.council_agents||[];for(const [title,field] of [[t().agreement,"calibrated_confidence"],[t().conflict,"conflict_score"]]){const scores=agents.map(a=>a[field]).filter(v=>typeof v==="number"&&Number.isFinite(v));cards.append(tile(title,scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(3):null,"PAPER Council"))}parent.append(cards);
+ parent.append(section(t().nav[5]));metricComparison(parent,d?.training_progress);
+ parent.append(section(t().nav[4]));addFields(parent,d?.risk_controls||{},OBJ.risk_controls);
+ parent.append(section(t().nav[8]));addFields(parent,d?.windows_runtime||{},OBJ.windows_runtime)
+}
+function render(){const index=KEYS.indexOf(active),d=current(),out=$("content");$("page-title").textContent=active==="overview"?t().title:t().nav[index];$("page-subtitle").textContent=t().subtitle;$("safe-title").textContent=t().safe;$("safe-text").textContent=t().safeText;$("side-note").textContent=t().side;$("history").textContent=t().history;$("refresh").textContent=busy?"…":("↻ "+t().refresh);$("lang").textContent=language==="ar"?"English":"العربية";$("refresh").disabled=busy;
+ $("state").textContent=payload?.status||"UNAVAILABLE";$("state").className="pill "+(payload?.status||"UNAVAILABLE");
+ $("stamp").textContent=payload?.as_of?(t().updated+": "+new Date(payload.as_of).toLocaleString(language==="ar"?"ar-LB":"en-GB")):"";$("source").textContent=payload?.source_id?(t().source+": "+payload.source_id):"";
+ $("message").textContent=payload?.reason||"";out.replaceChildren();
+ if(active==="overview"){renderSummary(out);return}
+ const panel=elem("article","card");if(TABLES[active])renderTable(panel,active);else if(active==="training_progress"||active==="shadow_learning"){const object=d?.[active]||{};const details=Object.keys(object).filter(k=>!["before","after","agent_weights"].includes(k));addFields(panel,object,details);panel.append(section(t().nav[index]+" · "+t().before+" / "+t().after));metricComparison(panel,object);if(active==="shadow_learning"&&object.agent_weights){panel.append(section("Agent weights"));addFields(panel,object.agent_weights,Object.keys(object.agent_weights))}}else addFields(panel,d?.[active]||{},OBJ[active]||[]);
+ out.append(panel)
+}
+function nav(){const n=$("nav");n.replaceChildren();KEYS.forEach((key,i)=>{const b=elem("button","navbtn"+(active===key?" active":""),t().nav[i]);b.type="button";b.addEventListener("click",()=>{active=key;nav();render()});n.append(b)})}
+async function refresh(){busy=true;render();try{const resp=await fetch("/sam/api/snapshot",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});if(!resp.ok)throw new Error("HTTP "+resp.status);payload=await resp.json()}catch(e){payload={status:"UNAVAILABLE",reason:"SNAPSHOT_FETCH_FAILED",verified:false,as_of:null,data:{}}}finally{busy=false;render()}}
+$("lang").addEventListener("click",()=>{language=language==="ar"?"en":"ar";document.documentElement.lang=language;document.documentElement.dir=language==="ar"?"rtl":"ltr";nav();render()});
+$("history").addEventListener("click",()=>{active="paper_trade_history";nav();render()});
+$("refresh").addEventListener("click",refresh);
+nav();render();refresh();
+</script>
+</body></html>
