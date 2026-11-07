@@ -21,7 +21,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 router = APIRouter(prefix="/sam", tags=["owner"])
 security = HTTPBasic(auto_error=False)
-WEB = Path(__file__).resolve().parents[1] / "web" / "sam" / "index.html"
+WEB = Path(__file__).resolve().parent / "owner_ui" / "index.html"
 
 TABLE_KEYS = {
     "council_agents": ("agent", "decision", "confidence", "calibrated_confidence", "weight", "conflict_score", "updated_at", "source"),
