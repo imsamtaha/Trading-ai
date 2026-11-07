@@ -18,6 +18,8 @@ KEY = "unit-test-key-with-more-than-32-bytes-123456"
 
 
 def _configured(monkeypatch):
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
     monkeypatch.setenv("ATLAS_OWNER_DASHBOARD_USER", AUTH[0])
     monkeypatch.setenv("ATLAS_OWNER_DASHBOARD_PASSWORD", AUTH[1])
     monkeypatch.setenv("ATLAS_OWNER_SNAPSHOT_HMAC_KEY", KEY)
@@ -58,6 +60,15 @@ def test_owner_requires_auth_for_page_and_snapshot(monkeypatch):
     assert client.get("/sam", auth=AUTH).status_code == 200
     assert "dir=\"rtl\"" in client.get("/sam", auth=AUTH).text
     assert "LIVE TRADING DISABLED" in client.get("/sam", auth=AUTH).text
+
+
+def test_owner_refuses_unsafe_execution_configuration(monkeypatch):
+    _configured(monkeypatch)
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "true")
+    assert client.get("/sam", auth=AUTH).status_code == 503
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "false")
+    assert client.get("/sam/api/snapshot", auth=AUTH).status_code == 503
 
 
 def test_unconfigured_snapshot_never_invents_metrics(monkeypatch):
