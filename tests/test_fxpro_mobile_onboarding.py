@@ -128,3 +128,20 @@ def test_fxpro_mt5_verify_rejects_different_demo_account(monkeypatch):
 
     assert response.status_code == 409
     assert "does not match" in response.json()["detail"]
+
+
+def test_mt5_broker_server_presets_are_reference_only_for_non_fxpro():
+    from app.dashboard.fxpro_onboarding import _page
+    html = _page()
+    assert 'id="brokerPreset"' in html
+    assert 'id="accountModePreset"' in html
+    for broker in ("FxPro", "Exness", "IC Markets", "Pepperstone", "XM", "MetaQuotes", "Other"):
+        assert f'value="{broker}"' in html
+    assert '<option value="DEMO" selected>MT5 Demo</option>' in html
+    assert '<option value="LIVE">MT5 Live (reference only)</option>' in html
+    assert 'value="FxPro-MT5 Demo"' in html
+    assert 'id="knownMt5DemoServers"' in html
+    assert "verifyButton.disabled=!canVerify" in html
+    assert "brokerPreset.value!=='FxPro'||accountModePreset.value!=='DEMO'" in html
+    assert 'MT5 Live is for reference only' in html
+    assert 'name="password"' not in html.lower()
