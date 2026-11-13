@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hmac
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
@@ -22,8 +23,8 @@ def _expected_token() -> str:
 def _require_token(authorization: str | None) -> None:
     expected = _expected_token()
     if not expected:
-        return
-    if authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=503, detail="Bridge token is not configured.")
+    if not hmac.compare_digest(authorization or "", f"Bearer {expected}"):
         raise HTTPException(status_code=401, detail="Unauthorized telemetry request.")
 
 

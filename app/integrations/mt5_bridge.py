@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
+from math import isfinite
 from typing import Any
 from urllib.parse import urlparse
 
@@ -58,6 +60,19 @@ def fetch_remote_mt5_telemetry() -> dict[str, Any]:
         raise RemoteMT5BridgeError(
             "Windows MT5 bridge payload is not demo/read-only; telemetry rejected."
         )
+
+    # Reject missing, future, or stale snapshots rather than presenting old quotes as live.
+    stamp = payload.get("timestamp")
+    try:
+        captured = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        if captured.tzinfo is None:
+            raise ValueError("Timezone missing")
+        age = (datetime.now(timezone.utc) - captured.astimezone(timezone.utc)).total_seconds()
+        max_age = float(os.getenv("ATLAS_MT5_BRIDGE_MAX_AGE_SECONDS", "30"))
+        if not isfinite(max_age) or max_age <= 0 or not -5 <= age <= max_age:
+            raise ValueError("Snapshot outside freshness window")
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise RemoteMT5BridgeError("Windows MT5 bridge snapshot is missing, stale, or invalid.") from exc
 
     services = payload.setdefault("services", {})
     if isinstance(services, dict):
