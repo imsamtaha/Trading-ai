@@ -78,6 +78,7 @@ logout.addEventListener('click',async()=>{
   finally {busy=false;render();}
 });
 document.addEventListener('atlas-language-change',render);
+window.addEventListener('atlas-language-change',render);
 if(client) {
   client.auth.onAuthStateChange(event=>{
     if(event==='SIGNED_OUT'){++verification;user=null;busy=false;message='signedOut';render();}

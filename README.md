@@ -1,209 +1,158 @@
-# ATLAS Market
+# ATLAS Trading Intelligence
 
-The public website for ATLAS Trading AI provides a responsive introduction and
-an interactive, explicitly synthetic demo. It works without accounts, API keys,
-payment details, or an MT5 terminal. No browser requests reach private telemetry.
-Optional Google signup is implemented through Supabase Auth, but Google provider
-activation is pending. See [Google sign-in setup](docs/GOOGLE_SIGN_IN.md).
+ATLAS is an AI-assisted market-intelligence and risk-control platform with a strict Paper-first boundary.
+
+## Canonical architecture
+
+Market Data -> Specialist Analysis -> ATLAS Council -> Senior Risk Management -> Executive Agent -> PAPER TradeIntent -> Paper Journal -> Council Calibration
+
+The Council and Executive layers do not own a broker adapter and do not send MT5 orders.
+
+## Current safe runtime
+
+Default safety flags:
+- ATLAS_LIVE_TRADING=false
+- ATLAS_DASHBOARD_ONLY=true
+- ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false
+
+Core rules:
+- Senior Risk must explicitly return RISK_ACCEPTABLE before an actionable Paper intent can be produced.
+- Missing, malformed, stale, non-finite, low-quality, or highly conflicting input fails closed to HOLD.
+- Executive output is always PAPER and broker_execution_allowed is false.
+- Council training accepts only settled Paper outcomes.
+- Old trades without Council opinion metadata are not used for learning.
+- Agent weights remain at baseline until the minimum sample threshold is reached.
+
+See docs/ATLAS_STRUCTURE.md for the final repository and runtime structure.
+
+## Repository layout
+
+app/analysis
+Deterministic technical and structure analysis.
+
+app/agent
+Assistant APIs and safe tools.
+
+app/billing
+Subscription and payment surfaces.
+
+app/dashboard
+Dashboard APIs and UI helpers.
+
+app/data
+Market-data providers and normalization.
+
+app/database
+Local Paper account and trade persistence.
+
+app/execution
+Isolated broker adapters. This layer must not be imported into Council training.
+
+app/intelligence
+Council, Executive, scoring, regime, adapters, journal, and training.
+
+app/monitor
+Compatibility and runtime monitoring.
+
+app/paper_trading
+Simulated Paper position engine and ledgers.
+
+app/risk
+Deterministic Senior Risk controls.
+
+app/strategies
+Signal and trade-candidate logic.
+
+scripts/
+Validation, build, runtime, and Council-training utilities.
+
+tests/
+Python and Node regression and safety tests.
+
+web/
+Public static website.
+
+frontend/
+Source for the browser authentication bundle.
+
+docs/
+Architecture, deployment, and operations documentation.
+
+supabase/
+Database migrations and policies. Migration history is preserved.
+
+cloudflare/
+Tunnel and deployment support.
+
+atlas-skills/
+ATLAS skill definitions.
+
+Runtime data, caches, local databases, generated builds, logs, secrets, backup files, and temporary files are excluded from Git.
+
+## Council training
+
+The Paper-only learning path is implemented by:
+- app/intelligence/council.py
+- app/intelligence/executive.py
+- app/intelligence/council_adapters.py
+- app/intelligence/council_training.py
+- scripts/train_atlas_council.py
+
+Training is conservative. Each agent begins at weight 1.0 and does not receive a learned weight until enough settled Paper examples exist. Learned weights are bounded so a small sample cannot dominate the Council.
+
+## Local API
+
+Create the Python environment, install requirements, then start Uvicorn with live trading disabled and dashboard-only enabled.
+
+Recommended local API port: 8012.
+
+Health endpoint: GET /health
+
+Public dashboard and website surfaces must not expose private broker telemetry or broker-write permissions.
 
 ## Public website
 
-Preview from the repository root:
+The public website is under web/.
 
-```sh
-python -m http.server 4173 --bind 127.0.0.1 --directory web
-```
+It may contain clearly labelled synthetic examples for explanation. Synthetic examples must never be represented as broker P/L, live account state, or verified performance.
 
-Visit `http://127.0.0.1:4173`. The private FastAPI application also serves this
-website at `/`; the previous JSON service metadata is now at `/api`.
-Existing `/subscribe`, `/billing/*`, and `/dashboard*` routes remain intact.
+Build and validation utilities are under scripts/.
 
-## Publish on Vercel or Netlify
+## MT5
 
-Suggested project name: **atlas-market**. A provider must confirm subdomain
-availability; no paid domain has been purchased or reserved.
+MT5 is a separate Windows-side integration boundary.
 
-- Vercel: import `imsamtaha/Trading-ai`, select the integration branch until it
-  is merged, choose **Other**, and use the repository's `vercel.json`. No install
-  or build command; output directory `web`. The `.vercelignore` allowlist excludes
-  the Python application and secrets from CLI uploads.
-- Netlify: import the same repository/branch. `netlify.toml` publishes `web` with
-  no build command. Only the files in that directory become website assets.
-- Sites: run `python scripts/build_website.py`, then package the configured
-  `out` directory through the Sites publishing workflow.
+Read README_MT5.md and ATLAS_LAUNCH.md before changing the connector.
 
-The public site is a marketing and demonstration surface. It is **not** the
-private Python/MT5 service. Do not deploy private broker/account endpoints as
-unauthenticated public APIs. MT5 still requires its persistent Windows host.
+Council training, Paper simulation, and dashboard rendering must remain usable without broker-write access.
 
-## Validate
+## Validation
 
-```sh
-python -m pip install -r requirements.txt
+Full Python suite:
 python -m pytest -q
+
+Focused Council suite:
+python -m pytest -q tests/test_atlas_executive_paper_architecture.py tests/test_atlas_council_training.py tests/test_atlas_council_adapters.py
+
+Browser/auth checks:
+node --test tests/test_google_auth.mjs
 node --test tests/test_demo_model.cjs
-python scripts/build_website.py
-```
 
-The static builder checks local links, section anchors, an exact public-file
-allowlist, and private-configuration markers. API tests check that the page and
-assets work in dashboard-only mode and execution routes remain blocked.
+## Deployment references
 
-## Private service readiness
+- docs/GOOGLE_CLOUD_DEPLOY.md
+- docs/GOOGLE_SIGN_IN.md
+- docs/DEPLOY_EXECUTION_STATUS.md
+- docs/DEMO_OPERATIONS.md
 
-Keep `ATLAS_LIVE_TRADING=false` and `ATLAS_DASHBOARD_ONLY=true`.
-See [README_MT5.md](README_MT5.md) and [ATLAS_LAUNCH.md](ATLAS_LAUNCH.md).
-Subscriber authentication, licensed market-data display, payment configuration,
-and webhook-to-access provisioning must be verified before selling access.
-Existing paid-plan code is preserved; this public preview does not start Checkout.
+Some demo-named modules and scripts remain only because current compatibility tests and runtime workflows still reference them. They are not the canonical architecture. New work should target the Council -> Senior Risk -> Executive -> Paper flow.
 
-## Advertising
+## Repository hygiene
 
-Direct visitors to the published homepage or its `#demo` section. The website
-includes a share-link button and search/social metadata. Sample copy is in
-[docs/ADVERTISING.md](docs/ADVERTISING.md). No advertising campaigns, spending,
-tracking pixels, return claims, or performance testimonials are configured.
-## ATLAS Trading AI Demo
+Do not commit secrets, .env files, local databases, runtime data, logs, caches, generated build output, or backup/temp artifacts.
 
-ATLAS is a deterministic multi-asset trading-analysis demo cockpit.
+Supabase migrations are historical database state and must not be deleted merely because files look similar.
 
-It shows live market-data analysis, ATLAS scoring, risk-gated decisions, and paper-trading candidate status.
+## Product boundary
 
-> Safety boundary: this repository does **not** place live trades from the dashboard demo. The demo is for analysis, testing, and paper-trading validation only.
-
-## Current demo features
-
-- Live market-data dashboard
-- ATLAS decision matrix
-- Long/short scoring
-- Risk vetoes
-- Trade-gate candidate status
-- Paper/demo mode
-- Multi-asset watchlist:
-  - XAUUSD
-  - SILVER
-  - GAS
-  - EURUSD
-  - SOLUSDT
-  - XRPUSDT
-
-## Quick start on Windows PowerShell
-
-From the project folder:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-$env:ATLAS_LIVE_TRADING="false"
-$env:ATLAS_DASHBOARD_ONLY="true"
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload
-```
-
-Open:
-
-```text
-http://127.0.0.1:8010/dashboard
-```
-
-## Run tests
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m pytest tests/test_atlas_scoring_engine.py tests/test_atlas_pipeline_integration.py tests/test_atlas_trade_gate.py tests/test_atlas_dashboard_demo.py -v
-```
-
-Expected result:
-
-```text
-22 passed
-```
-
-## Let friends try it from your computer on the same Wi-Fi
-
-1. Start the server on all local interfaces:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:ATLAS_LIVE_TRADING="false"
-$env:ATLAS_DASHBOARD_ONLY="true"
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
-```
-
-2. Find your local IP:
-
-```powershell
-ipconfig
-```
-
-Look for your Wi-Fi IPv4 address, for example:
-
-```text
-192.168.1.45
-```
-
-3. Friends on the same Wi-Fi open:
-
-```text
-http://192.168.1.45:8010/dashboard
-```
-
-Replace `192.168.1.45` with your real IPv4 address.
-
-## Windows firewall note
-
-If friends cannot open the page, Windows Firewall may be blocking Python/Uvicorn. Allow Python on Private networks only.
-
-Do not expose this demo publicly with real credentials or trading permissions.
-
-## Recommended sharing options
-
-### Option A — GitHub sharing
-
-Send friends the repository link and this command path:
-
-```powershell
-git clone https://github.com/imsamtaha/Trading-ai.git
-cd Trading-ai
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-$env:ATLAS_LIVE_TRADING="false"
-$env:ATLAS_DASHBOARD_ONLY="true"
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8010
-```
-
-### Option B — Same Wi-Fi live demo
-
-Run the server with:
-
-```powershell
-$env:ATLAS_LIVE_TRADING="false"
-$env:ATLAS_DASHBOARD_ONLY="true"
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
-```
-
-Then share your local network URL:
-
-```text
-http://YOUR_IPV4_ADDRESS:8010/dashboard
-```
-
-### Option C — Screen-share demo
-
-Use Zoom, Google Meet, Discord, or WhatsApp screen share and keep the app running locally.
-
-This is the safest method while the system is still in validation mode.
-
-## Production warning
-
-Before any real-money use, ATLAS still requires:
-
-- Historical backtesting
-- Out-of-sample validation
-- Persistent demo journaling
-- Broker/MT5 read-only verification
-- Explicit execution authorization layer
-- Hard kill-switch and account-risk controls
-
-The current version is a strong demo, not a licensed financial advisory or autonomous live-trading product.
+ATLAS provides market intelligence, risk controls, Paper simulation, monitoring, and decision-support context. It does not guarantee outcomes. Public and subscriber surfaces must not silently acquire broker execution permissions.

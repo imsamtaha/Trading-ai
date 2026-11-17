@@ -22,43 +22,83 @@ class UniverseSymbol:
         return asdict(self)
 
 
-CORE_CANONICAL = {
-    "XAUUSD": ("METALS", 1),
-    "XAGUSD": ("METALS", 1),
-    "NGAS": ("ENERGY", 1),
-    "NATGAS": ("ENERGY", 1),
-    "USOIL": ("ENERGY", 1),
-    "WTI": ("ENERGY", 1),
-    "UKOIL": ("ENERGY", 2),
-    "BRENT": ("ENERGY", 2),
-    "EURUSD": ("FOREX", 1),
-    "GBPUSD": ("FOREX", 1),
-    "USDJPY": ("FOREX", 1),
-    "USDCHF": ("FOREX", 2),
-    "AUDUSD": ("FOREX", 2),
-    "USDCAD": ("FOREX", 2),
-    "NZDUSD": ("FOREX", 2),
-    "EURJPY": ("FOREX", 2),
-    "GBPJPY": ("FOREX", 2),
-    "EURGBP": ("FOREX", 3),
-    "NAS100": ("INDICES", 1),
-    "USTEC": ("INDICES", 1),
-    "US500": ("INDICES", 1),
-    "SPX500": ("INDICES", 1),
-    "US30": ("INDICES", 2),
-    "GER40": ("INDICES", 2),
-    "DE40": ("INDICES", 2),
-    "UK100": ("INDICES", 3),
-    "BTCUSD": ("CRYPTO", 1),
-    "BTCUSDT": ("CRYPTO", 1),
-    "ETHUSD": ("CRYPTO", 1),
-    "ETHUSDT": ("CRYPTO", 1),
-    "SOLUSD": ("CRYPTO", 2),
-    "SOLUSDT": ("CRYPTO", 2),
-    "XRPUSD": ("CRYPTO", 2),
-    "XRPUSDT": ("CRYPTO", 2),
-    "BNBUSD": ("CRYPTO", 3),
-    "BNBUSDT": ("CRYPTO", 3),
+# ATLAS organizes supported instruments by market category. These categories
+# guide discovery and ranking; they are not a fixed "main assets" limitation.
+ASSET_CATEGORIES = {
+    "METALS": {
+        "XAUUSD": 1,
+        "XAGUSD": 1,
+        "XPTUSD": 2,
+        "XPDUSD": 3,
+    },
+    "ENERGY": {
+        "NGAS": 1,
+        "NATGAS": 1,
+        "USOIL": 1,
+        "WTI": 1,
+        "UKOIL": 2,
+        "BRENT": 2,
+    },
+    "FOREX": {
+        "EURUSD": 1,
+        "GBPUSD": 1,
+        "USDJPY": 1,
+        "USDCHF": 2,
+        "AUDUSD": 2,
+        "USDCAD": 2,
+        "NZDUSD": 2,
+        "EURJPY": 2,
+        "GBPJPY": 2,
+        "EURGBP": 3,
+        "AUDJPY": 2,
+        "CADJPY": 3,
+        "EURAUD": 3,
+        "EURCAD": 3,
+    },
+    "INDICES": {
+        "NAS100": 1,
+        "USTEC": 1,
+        "US500": 1,
+        "SPX500": 1,
+        "US30": 2,
+        "GER40": 2,
+        "DE40": 2,
+        "UK100": 3,
+        "JP225": 2,
+        "HK50": 3,
+        "FRA40": 3,
+        "AUS200": 3,
+        "EU50": 3,
+    },
+    "CRYPTO": {
+        "BTCUSD": 1,
+        "BTCUSDT": 1,
+        "ETHUSD": 1,
+        "ETHUSDT": 1,
+        "SOLUSD": 2,
+        "SOLUSDT": 2,
+        "XRPUSD": 2,
+        "XRPUSDT": 2,
+        "BNBUSD": 3,
+        "BNBUSDT": 3,
+        "ADAUSD": 3,
+        "DOGEUSD": 3,
+        "LTCUSD": 3,
+        "AVAXUSD": 3,
+        "LINKUSD": 3,
+    },
+    "COMMODITIES": {
+        "WHEAT": 3,
+        "CORN": 3,
+        "COCOA": 3,
+        "COFFEE": 3,
+    },
+}
+
+CATEGORY_SYMBOLS = {
+    symbol: (category, priority)
+    for category, symbols in ASSET_CATEGORIES.items()
+    for symbol, priority in symbols.items()
 }
 
 ALIASES = {
@@ -76,28 +116,45 @@ ALIASES = {
     "SPX500": "US500",
     "DAX40": "GER40",
     "DE40": "GER40",
+    "PLATINUM": "XPTUSD",
+    "PALLADIUM": "XPDUSD",
+    "NIKKEI": "JP225",
+    "NIKKEI225": "JP225",
+    "JPN225": "JP225",
+    "CAC40": "FRA40",
+    "ASX200": "AUS200",
+    "STOXX50": "EU50",
+    "EUROSTOXX50": "EU50",
 }
 
 
 def normalize_symbol(symbol: str) -> str:
     token = re.sub(r"[^A-Z0-9]", "", symbol.upper())
-    # Broker suffixes/prefixes frequently append m, pro, cash, etc. Prefer
-    # known canonical tokens contained in the broker symbol.
-    for canonical in sorted(CORE_CANONICAL, key=len, reverse=True):
-        if canonical in token:
-            return ALIASES.get(canonical, canonical)
-    for alias, canonical in ALIASES.items():
-        if alias in token:
-            return canonical
+
+    # Exact matches first.
+    if token in ALIASES:
+        return ALIASES[token]
+    if token in CATEGORY_SYMBOLS:
+        return token
+
+    # Only broker-style prefixes/suffixes are accepted.
+    # Do not classify arbitrary internal substrings such as FAKEXAUUSDTEST.
+    candidates = sorted(
+        set(CATEGORY_SYMBOLS) | set(ALIASES),
+        key=len,
+        reverse=True,
+    )
+    for candidate in candidates:
+        if token.startswith(candidate) or token.endswith(candidate):
+            return ALIASES.get(candidate, candidate)
+
     return token
 
-
 def classify_symbol(canonical: str) -> tuple[str, int] | None:
-    if canonical in CORE_CANONICAL:
-        return CORE_CANONICAL[canonical]
-    # Normalize aliases that map onto entries not explicitly duplicated.
+    if canonical in CATEGORY_SYMBOLS:
+        return CATEGORY_SYMBOLS[canonical]
     mapped = ALIASES.get(canonical, canonical)
-    return CORE_CANONICAL.get(mapped)
+    return CATEGORY_SYMBOLS.get(mapped)
 
 
 def score_symbol(priority: int, spread_ratio: float, tradeable: bool) -> float:
@@ -154,3 +211,35 @@ def build_universe(raw_symbols: Iterable[dict], top_n: int = 30) -> list[Univers
 
     ranked.sort(key=lambda x: (-x.opportunity_score, x.priority, x.canonical_symbol))
     return ranked[:max(1, int(top_n))]
+
+
+def diversify_universe(
+    ranked: Iterable[UniverseSymbol],
+    top_n: int = 12,
+) -> list[UniverseSymbol]:
+    """Diversify discovery without changing opportunity scores."""
+    limit = max(1, int(top_n))
+    candidates = [item for item in ranked if item.tradeable]
+
+    selected: list[UniverseSymbol] = []
+    selected_symbols: set[str] = set()
+    covered_classes: set[str] = set()
+
+    for item in candidates:
+        if item.asset_class in covered_classes:
+            continue
+        selected.append(item)
+        selected_symbols.add(item.canonical_symbol)
+        covered_classes.add(item.asset_class)
+        if len(selected) >= limit:
+            return selected
+
+    for item in candidates:
+        if item.canonical_symbol in selected_symbols:
+            continue
+        selected.append(item)
+        selected_symbols.add(item.canonical_symbol)
+        if len(selected) >= limit:
+            break
+
+    return selected

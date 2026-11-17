@@ -15,6 +15,8 @@ from app.execution.mt5 import MT5Config, MT5ExecutionError
 def client(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
+    monkeypatch.setenv("ATLAS_WHISH_ENABLED", "false")
+    monkeypatch.setenv("ATLAS_AGENT_PAPER_EXECUTION_ENABLED", "false")
     # A blocked route must never reach market providers or the execution service.
     monkeypatch.setattr(main, "_mt5_service", Mock(side_effect=AssertionError("Execution reached")))
     monkeypatch.setattr(main.MT5Broker, "connect", Mock(side_effect=AssertionError("MT5 reached")))
@@ -85,3 +87,16 @@ def test_disabled_guard_passes_through_without_enabling_trading(client, monkeypa
     assert response.status_code == 200
     assert response.json() == {"symbol": "EURUSD"}
     assert MT5Config.from_env().dry_run is True
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"],
+)
+def test_public_analysis_posts_can_be_disabled(client, monkeypatch, path):
+    monkeypatch.setenv("ATLAS_PUBLIC_ANALYSIS_ENABLED", "false")
+
+    response = client.post(path)
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Dashboard-only mode is enabled."}

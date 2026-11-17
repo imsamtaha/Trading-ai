@@ -16,9 +16,20 @@ def website() -> HTMLResponse:
     return HTMLResponse(_atlas_ultimate_html())
 
 
+@router.get("/centers", include_in_schema=False)
+@router.get("/centers/", include_in_schema=False)
+def centers_hub():
+    """Standalone read-only navigation hub; destination access stays independently protected."""
+    return FileResponse(WEB_ROOT / "centers" / "index.html")
+
+
 @router.get("/assets/{name}", include_in_schema=False)
 def website_asset(name: str):
     # Explicit public allowlist; never expose a source directory or .env.
-    if name not in {"site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js"}:
+    if name not in {
+        "site.css", "centers.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
+        "atlas-brand.css", "atlas-main-logo.svg", "atlas-news.js",
+    }:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(WEB_ROOT / "assets" / name)
+

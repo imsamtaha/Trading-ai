@@ -19,6 +19,7 @@ def _stripe_links() -> dict[str, str]:
 @router.get("/methods")
 def payment_methods() -> dict:
     links = _stripe_links()
+    whish = whish_settings()
     return {
         "stripe": {
             "available": len(links) == 2,
@@ -26,8 +27,10 @@ def payment_methods() -> dict:
             "plans": sorted(links.keys()),
         },
         "whish": {
-            "available": whish_settings()["available"],
-            "mode": "manual_review",
+            "provider": "Whish Pay",
+            "available": whish["available"],
+            "mode": "manual_review" if whish["available"] else "merchant_activation_pending",
+            "checkout_type": "wallet_payment_gateway",
         },
     }
 

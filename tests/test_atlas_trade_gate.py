@@ -61,11 +61,12 @@ def test_valid_atlas_decision_creates_trade_candidate():
     )
 
     assert candidate["status"] == "TRADE_CANDIDATE"
-    assert candidate["source"] == "ATLAS"
+    assert candidate["source"] == "ATLAS_SEAL"
     assert candidate["direction"] == "LONG"
     assert candidate["entry"] == 100.0
     assert candidate["stop_loss"] == pytest.approx(97.0)
     assert candidate["take_profit"] == pytest.approx(106.0)
+    assert candidate["executor"]["executor_decision"] == "APPROVE_EXECUTION"
     assert candidate["risk"]["approved"] is True
     assert candidate["risk"]["risk_reward"] == 2.0
 

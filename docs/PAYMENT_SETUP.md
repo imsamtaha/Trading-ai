@@ -13,13 +13,12 @@ Merchant credentials and the official integration contract are required before
 automated verification can be enabled. This ATLAS release uses no undocumented
 API and does not approve payments automatically.
 
-For this setup, the display contact is **Samir Taha — +961 76 420 910**
-(also the WhatsApp support number). Configure the private server environment:
+For this setup, the Whish Money transfer number is **76420910**. Configure the private server environment:
 
 ```text
 ATLAS_WHISH_ENABLED=true
-ATLAS_WHISH_RECIPIENT=Samir Taha
-ATLAS_WHISH_SUPPORT=+96176420910
+ATLAS_WHISH_RECIPIENT=76420910
+ATLAS_WHISH_SUPPORT=info@justai-atlas.online
 ATLAS_WHISH_DB=data/whish_requests.sqlite3
 ```
 

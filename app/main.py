@@ -1,13 +1,15 @@
 from pathlib import Path
+from types import SimpleNamespace
 from dotenv import load_dotenv
 
 # Load Windows server configuration before constructing routers/services.
 # Existing process environment variables retain precedence.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.website import router as website_router
+from app.owner_dashboard import router as owner_dashboard_router
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -17,6 +19,8 @@ from app.strategies.trade import create_trade_candidate
 from app.ai.analyst import analyze_market
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
+from app.execution.auto import AutoExecutionCoordinator
+from app.execution.live_gate import LiveAuthorizationError, authorize_live_order
 from app.execution.mt5_state import MT5CockpitAdapter
 from app.database.repository import get_account, get_trades
 from app.performance.metrics import calculate_metrics
@@ -25,12 +29,13 @@ from app.subscription import router as subscription_router
 from app.billing import router as billing_router
 from app.dashboard.preferences import router as preferences_router
 from app.agent.api import router as agent_router
+from app.evolution.api import router as evolution_router, engine as evolution_engine
 
 
 app = FastAPI(
     title="ATLAS ULTIMATE",
     description="Unified multi-asset AI trading intelligence, decision support, and MT5 gateway",
-    version="1.7.0",
+    version="1.8.1",
 )
 
 app.include_router(dashboard_router)
@@ -38,7 +43,9 @@ app.include_router(subscription_router)
 app.include_router(billing_router)
 app.include_router(preferences_router)
 app.include_router(agent_router)
+app.include_router(evolution_router)
 app.include_router(website_router)
+app.include_router(owner_dashboard_router)
 
 
 @app.middleware("http")
@@ -49,20 +56,42 @@ async def dashboard_only_guard(request: Request, call_next):
     if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":
         path = request.url.path
         read_paths = {
-            "/", "/atlas-ultimate", "/health", "/api", "/subscribe",
-            "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js",
+            "/", "/centers", "/centers/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5", "/connect/fxpro-mt5/status",
+            "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
-            "/dashboard/demo-status", "/dashboard/mt5-state",
+            "/dashboard/demo-status", "/dashboard/trader-view",
+            "/sam", "/sam/", "/sam/api/snapshot", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
-            "/billing/methods", "/billing/plans", "/billing/whish/reader", "/billing/whish/pro",
+            "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
+            "/evolution/status", "/runtime/status",
             "/docs", "/openapi.json",
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
+        paper_demo_execute = (
+            request.method == "POST"
+            and path == "/agent/paper/execute"
+            and os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true"
+            and os.getenv("ATLAS_AGENT_PAPER_EXECUTION_ENABLED", "false").lower() == "true"
+        )
+        whish_request = (
+            request.method == "POST"
+            and path.startswith("/billing/whish/")
+            and path.endswith("/request")
+            and os.getenv("ATLAS_WHISH_ENABLED", "false").lower() == "true"
+        )
+        public_analysis_enabled = (
+            os.getenv("ATLAS_PUBLIC_ANALYSIS_ENABLED", "true").lower() == "true"
+        )
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or (request.method == "POST" and path in analysis_paths)
+        ) or whish_request or fxpro_demo_verify or paper_demo_execute or (
+            public_analysis_enabled
+            and request.method == "POST"
+            and path in analysis_paths
+        )
         if not allowed:
             return JSONResponse(
                 status_code=403,
@@ -93,24 +122,48 @@ def _redact_cockpit_state(state: dict) -> dict:
 
 @app.get("/api")
 def root():
+    import os
+    mode = "live_demo" if os.getenv("ATLAS_LIVE_DEMO", "false").lower() == "true" else "live_gateway_disabled_by_default"
     return {
         "system": "ATLAS ULTIMATE",
         "status": "online",
-        "mode": "live_gateway_disabled_by_default",
-        "version": "1.7.0",
-        "main_ui": "/atlas-ultimate",
+        "mode": mode,
+        "version": "1.8.1",
+        "main_ui": "/",
         "mt5_cockpit": "/mt5/cockpit-state",
         "market_briefing": "/dashboard/market-briefing",
         "agent": "/agent/capabilities",
         "right_hand": "/agent/right-hand/capabilities",
         "right_hand_chat": "/agent/right-hand/chat",
         "right_hand_tools": "/agent/right-hand/tools",
+        "evolution": "/evolution/status",
+        "runtime_status": "/runtime/status",
     }
 
 
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "atlas-ultimate-api"}
+
+
+@app.get("/runtime/status")
+def runtime_status():
+    auto = AutoExecutionCoordinator()
+    return {
+        "status": "online",
+        "version": "1.8.1",
+        "auto_execution": auto.status(),
+        "evolution": evolution_engine.status(),
+        "evolution_influences_decisions": False,
+        "pipeline": [
+            "atlas_decision",
+            "risk_manager",
+            "execution_gate",
+            "mt5",
+        ],
+    }
+
+
 
 
 @app.get("/market/{symbol}")
@@ -227,14 +280,24 @@ def mt5_test_order(
     volume: float,
     stop_loss: float,
     take_profit: float,
+    confirmed: bool = False,
+    authorization: str | None = Header(default=None),
 ):
-    """Route an order only through the private ATLAS execution gate.
-
-    The default is dry-run; dashboard-only mode blocks this endpoint.
-    """
+    """Owner-confirmed real-account order through the private execution gate."""
     service = _mt5_service()
+    if service.broker.config.dry_run:
+        raise HTTPException(status_code=403, detail="Live execution is disabled.")
     try:
-        service.broker.connect()
+        account = service.broker.connect()
+        authorize_live_order(
+            authorization=authorization,
+            confirmed=confirmed,
+            account=SimpleNamespace(**{
+                "login": account["login"],
+                "trade_mode": account["trade_mode"],
+                "trade_allowed": account["trade_allowed"],
+            }),
+        )
         decision = {
             "decision": direction.upper(),
             "confidence": 100.0,
@@ -247,6 +310,8 @@ def mt5_test_order(
             stop_loss=stop_loss,
             take_profit=take_profit,
         )
+    except LiveAuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     except MT5ExecutionError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     finally:
@@ -266,3 +331,4 @@ def performance(account_id: int):
         "metrics": metrics,
         "trades": trades,
     }
+

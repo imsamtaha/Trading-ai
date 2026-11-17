@@ -4,8 +4,9 @@ from pathlib import Path
 import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_FILES = {"index.html", "robots.txt", "assets/site.css", "assets/site.js",
-                "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js"}
+PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.css", "assets/site.js",
+                "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js",
+                "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-main-logo.svg", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp"}
 
 
 class Links(HTMLParser):
@@ -28,18 +29,21 @@ def validate():
     source = ROOT / "web"
     found = {p.relative_to(source).as_posix() for p in source.rglob("*") if p.is_file()}
     assert found == PUBLIC_FILES, f"Unexpected or missing public files: {found ^ PUBLIC_FILES}"
-    page = (source / "index.html").read_text(encoding="utf-8")
-    links = Links()
-    links.feed(page)
-    for target in links.targets:
-        if target.startswith("#"):
-            assert target[1:] in links.ids, f"Missing anchor: {target}"
-        elif target != "/":
-            assert target.lstrip("/") in PUBLIC_FILES, f"Unexpected link: {target}"
+    for html_file in ("index.html", "centers/index.html"):
+        page = (source / html_file).read_text(encoding="utf-8")
+        links = Links()
+        links.feed(page)
+        for target in links.targets:
+            if target.startswith("#"):
+                assert target[1:] in links.ids, f"Missing anchor: {target}"
+            elif target.startswith(("https://justai-atlas.online/sam", "https://justai-atlas.online/traders#market-analysis")):
+                assert target in {"https://justai-atlas.online/sam", "https://justai-atlas.online/traders#market-analysis"}, f"Unexpected destination: {target}"
+            elif target != "/":
+                assert target.lstrip("/") in PUBLIC_FILES, f"Unexpected link: {target}"
     for name in PUBLIC_FILES:
-        content = (source / name).read_text(encoding="utf-8")
+        content = (source / name).read_bytes()
         for forbidden in ("sk_live_", "sk_test_", "sk-proj-", "SUPABASE_SERVICE_ROLE_KEY", "MT5_PASSWORD"):
-            assert forbidden not in content, f"Private configuration in {name}"
+            assert forbidden.encode() not in content, f"Private configuration in {name}"
     return source
 
 
@@ -59,3 +63,5 @@ def build():
 
 if __name__ == "__main__":
     build()
+
+

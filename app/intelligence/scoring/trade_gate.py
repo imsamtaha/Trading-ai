@@ -2,13 +2,15 @@
 
 This module converts a deterministic AtlasDecision into the legacy strategy
 trade-candidate format. It does not execute trades. It only produces a paper-
-trading candidate after the scoring engine and risk manager both approve.
+trading candidate after the scoring engine, SEAL execution gate, and risk
+manager approve.
 """
 
 from __future__ import annotations
 
 from typing import Mapping
 
+from app.intelligence.seal_adapter import ExecutionGatekeeper
 from app.risk.manager import calculate_risk
 
 from .engine import AtlasDecision, Bias, DecisionStatus
@@ -20,8 +22,19 @@ CONVICTION_CONFIDENCE = {
     "low": 55,
 }
 
+PIP_SIZE_BY_ASSET_PREFIX = {
+    "XAU": 0.10,
+    "XAG": 0.01,
+}
 
-def _reject(reason: str, *, decision: AtlasDecision | None = None, risk: Mapping | None = None) -> dict:
+
+def _reject(
+    reason: str,
+    *,
+    decision: AtlasDecision | None = None,
+    risk: Mapping | None = None,
+    executor: Mapping | None = None,
+) -> dict:
     payload = {
         "status": "NO_TRADE",
         "reason": reason,
@@ -30,7 +43,23 @@ def _reject(reason: str, *, decision: AtlasDecision | None = None, risk: Mapping
         payload["atlas_decision"] = decision.to_dict()
     if risk is not None:
         payload["risk"] = dict(risk)
+    if executor is not None:
+        payload["executor"] = dict(executor)
     return payload
+
+
+def _pip_size(asset: str) -> float:
+    normalized = asset.upper()
+    for prefix, size in PIP_SIZE_BY_ASSET_PREFIX.items():
+        if normalized.startswith(prefix):
+            return size
+    if "JPY" in normalized:
+        return 0.01
+    return 0.0001
+
+
+def _distance_to_pips(asset: str, distance: float) -> float:
+    return abs(distance) / _pip_size(asset)
 
 
 def atlas_decision_to_signal(decision: AtlasDecision) -> dict:
@@ -67,6 +96,35 @@ def atlas_decision_to_signal(decision: AtlasDecision) -> dict:
     }
 
 
+def _seal_gate_payload(
+    *,
+    decision: AtlasDecision,
+    signal: Mapping,
+    stop_loss_pips: float,
+    take_profit_pips: float,
+) -> dict:
+    if decision.bias is Bias.LONG:
+        seal_signal = "buy"
+    elif decision.bias is Bias.SHORT:
+        seal_signal = "sell"
+    else:
+        seal_signal = "hold"
+
+    return {
+        "signal": seal_signal,
+        "confidence": float(signal.get("confidence", 0.0)) / 100.0,
+        "stop_loss_pips": stop_loss_pips,
+        "take_profit_pips": take_profit_pips,
+        "supporting_factors": list(decision.confluence_factors),
+        "counter_signals": list(decision.veto_reasons),
+        "data_quality_concerns": [
+            reason
+            for reason in decision.veto_reasons
+            if "data" in reason or "undefined" in reason
+        ],
+    }
+
+
 def create_atlas_trade_candidate(
     *,
     decision: AtlasDecision,
@@ -75,6 +133,8 @@ def create_atlas_trade_candidate(
     risk_percent: float | None = None,
     stop_atr_multiplier: float = 1.5,
     target_atr_multiplier: float = 3.0,
+    execution_gatekeeper: ExecutionGatekeeper | None = None,
+    market_context: Mapping | None = None,
 ) -> dict:
     """Gate an AtlasDecision into a risk-approved trade candidate.
 
@@ -82,6 +142,7 @@ def create_atlas_trade_candidate(
     - ATLAS status must be VALID.
     - Bias must be LONG or SHORT.
     - Current price and ATR must be available.
+    - SEAL execution gate must approve confirmation quality and stop/target.
     - Risk manager must approve direction, stop, target, and R:R.
     - Account risk remains capped by the risk manager at 2%.
     """
@@ -115,6 +176,23 @@ def create_atlas_trade_candidate(
         stop_loss = price + (stop_atr_multiplier * atr)
         take_profit = price - (target_atr_multiplier * atr)
 
+    signal = atlas_decision_to_signal(decision)
+    stop_loss_pips = _distance_to_pips(decision.asset, price - stop_loss)
+    take_profit_pips = _distance_to_pips(decision.asset, take_profit - price)
+    gatekeeper = execution_gatekeeper or ExecutionGatekeeper()
+    executor = gatekeeper.evaluate(
+        _seal_gate_payload(
+            decision=decision,
+            signal=signal,
+            stop_loss_pips=stop_loss_pips,
+            take_profit_pips=take_profit_pips,
+        ),
+        market_context=market_context,
+    )
+
+    if executor["executor_decision"] != "APPROVE_EXECUTION":
+        return _reject(executor["executor_reason"], decision=decision, executor=executor)
+
     risk_kwargs = {
         "direction": direction,
         "entry": price,
@@ -128,20 +206,21 @@ def create_atlas_trade_candidate(
     risk = calculate_risk(**risk_kwargs)
 
     if not risk["approved"]:
-        return _reject(risk["reason"], decision=decision, risk=risk)
-
-    signal = atlas_decision_to_signal(decision)
+        return _reject(risk["reason"], decision=decision, risk=risk, executor=executor)
 
     return {
         "status": "TRADE_CANDIDATE",
-        "source": "ATLAS",
+        "source": "ATLAS_SEAL",
         "direction": direction,
         "confidence": signal["confidence"],
         "conviction": signal["conviction"],
         "entry": price,
         "stop_loss": stop_loss,
         "take_profit": take_profit,
+        "stop_loss_pips": stop_loss_pips,
+        "take_profit_pips": take_profit_pips,
         "signal": signal,
+        "executor": executor,
         "risk": risk,
         "atlas_decision": decision.to_dict(),
     }

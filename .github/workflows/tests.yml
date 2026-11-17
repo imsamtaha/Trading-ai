@@ -27,6 +27,23 @@ jobs:
           ATLAS_DASHBOARD_ONLY: 'true'
         run: python -m pytest -q
 
+      - name: Build and smoke-test Cloud Run container
+        run: |
+          docker build --tag atlas-cloud-run-test .
+          container_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env PORT=8080 --env ATLAS_DASHBOARD_ONLY=true --env ATLAS_PUBLIC_ANALYSIS_ENABLED=false atlas-cloud-run-test)
+          trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
+          healthy=false
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:8080/health | grep --quiet '"status":"healthy"'; then
+              healthy=true
+              break
+            fi
+            sleep 1
+          done
+          test "$healthy" = "true"
+          status=$(curl --silent --output /tmp/atlas-write-response.json --write-out '%{http_code}' --request POST http://127.0.0.1:8080/mt5/test-order)
+          test "$status" = "403"
+
       - name: Set up Node for public demo validation
         uses: actions/setup-node@v4
         with:
@@ -35,7 +52,46 @@ jobs:
       - name: Validate public website
         run: |
           node --check web/assets/site.js
+          node --check web/assets/atlas-news.js
+          node --test tests/test_atlas_news.cjs
           node --test tests/test_demo_model.cjs
           node --test tests/test_google_auth.mjs
           node --check web/assets/google-auth.js
           python scripts/build_website.py
+
+  journal-integrity-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Parse Google Cloud deployment script
+        shell: pwsh
+        run: |
+          $source = Get-Content scripts/deploy_google_cloud.ps1 -Raw
+          $null = [scriptblock]::Create($source)
+
+      - name: Parse ATLAS runtime switch
+        shell: pwsh
+        run: |
+          $source = Get-Content ATLAS_SWITCH.ps1 -Raw
+          $null = [scriptblock]::Create($source)
+
+      - name: Verify ATLAS switch mode isolation
+        shell: pwsh
+        run: ./tests/test_atlas_switch_modes.ps1
+
+      - name: Verify full ATLAS suite on Windows without execution
+        env:
+          ATLAS_LIVE_TRADING: 'false'
+          ATLAS_DASHBOARD_ONLY: 'true'
+        run: python -m pytest -q
+

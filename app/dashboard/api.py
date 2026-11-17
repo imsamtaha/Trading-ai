@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 try:
     import MetaTrader5 as mt5
@@ -12,14 +12,18 @@ except ImportError:  # pragma: no cover - Windows worker dependency
 from fastapi import APIRouter, HTTPException
 
 from app.dashboard.market_briefing import get_market_briefing
+from app.data.market import get_candles
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
+from app.integrations.mt5_bridge import RemoteMT5BridgeError, fetch_remote_mt5_telemetry
 from app.dashboard.market_intelligence import MarketIntelligenceFeed
 from app.strategy.universe import build_universe
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 _market_intelligence = MarketIntelligenceFeed()
+_CHART_SYMBOLS = {"XAUUSD", "XAGUSD", "GAS", "EURUSD", "XRPUSDT", "SOLUSDT"}
+_CHART_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -122,14 +126,43 @@ def financial_market_state() -> dict[str, Any]:
     return _market_intelligence.snapshot()
 
 
+@router.get("/chart-data")
+def chart_data(symbol: str = "XAUUSD", interval: str = "15m", limit: int = 120) -> dict[str, Any]:
+    symbol = symbol.strip().upper()
+    interval = interval.strip().lower()
+    if symbol not in _CHART_SYMBOLS:
+        raise HTTPException(status_code=400, detail="Unsupported chart symbol.")
+    if interval not in _CHART_INTERVALS:
+        raise HTTPException(status_code=400, detail="Unsupported chart interval.")
+    if not 20 <= limit <= 300:
+        raise HTTPException(status_code=400, detail="Chart limit must be between 20 and 300.")
+    try:
+        payload = get_candles(symbol, interval, limit)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Chart data is temporarily unavailable.") from exc
+    return {
+        "symbol": payload.get("symbol", symbol),
+        "interval": payload.get("interval", interval),
+        "count": int(payload.get("count", 0)),
+        "candles": payload.get("candles", []),
+        "source": "ATLAS market data",
+    }
+
+
 @router.get("/market-briefing")
-def market_briefing() -> dict[str, Any]:
-    return get_market_briefing()
+def market_briefing(language: Literal["ar", "en"] = "ar") -> dict[str, Any]:
+    return get_market_briefing(language=language)
 
 
 @router.get("/state")
 @router.get("/atlas")
 def atlas_dashboard_state() -> dict[str, Any]:
+    if os.getenv("ATLAS_MT5_BRIDGE_URL", "").strip():
+        try:
+            return fetch_remote_mt5_telemetry()
+        except RemoteMT5BridgeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     broker = MT5Broker(MT5Config.from_env())
     try:
         account = broker.connect()
@@ -192,12 +225,17 @@ def atlas_dashboard_state() -> dict[str, Any]:
         account_type = _account_type(raw_account)
         execution_enabled = (
             _env_bool("ATLAS_LIVE_TRADING", False)
+            and account_type == "REAL"
             and bool(account.get("trade_allowed", False))
+        )
+        live_demo = (
+            _env_bool("ATLAS_LIVE_DEMO", False)
+            and account_type == "DEMO"
         )
         return {
             "status": "ONLINE",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "mode": "LIVE_EXECUTION" if execution_enabled else "READ_ONLY",
+            "mode": "LIVE_EXECUTION" if execution_enabled else ("LIVE_DEMO" if live_demo else "READ_ONLY"),
             "account": _public_account(account, raw_account),
             "verified_live_account": account_type == "REAL",
             "symbols": symbols,
@@ -210,13 +248,18 @@ def atlas_dashboard_state() -> dict[str, Any]:
             "services": {
                 "mt5": "ONLINE",
                 "supabase": journal_status,
-                "execution_gate": "ENABLED" if execution_enabled else "DISABLED",
-                "subscriber_access": "READ_ONLY",
+                "execution_gate": "ENABLED" if execution_enabled else ("DEMO_SIMULATED" if live_demo else "DISABLED"),
+                "subscriber_access": "LIVE_DEMO" if live_demo else "READ_ONLY",
                 "financial_markets": financial_market["status"],
             },
-            "disclaimer": "Read-only account and strategy telemetry. Past or current results do not guarantee future performance.",
+            "disclaimer": (
+                "LIVE DEMO uses real-time MT5 demo data with simulated ATLAS execution. Real-money trading is off."
+                if live_demo
+                else "Account and strategy telemetry only. Past or current results do not guarantee future performance."
+            ),
         }
     except MT5ExecutionError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     finally:
         broker.disconnect()
+

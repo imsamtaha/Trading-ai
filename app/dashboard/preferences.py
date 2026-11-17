@@ -3,104 +3,46 @@ from fastapi.responses import Response
 
 router = APIRouter()
 
-
 @router.get("/ui/preferences.js", include_in_schema=False)
 def preferences_script():
     return Response(SCRIPT, media_type="application/javascript")
 
-
 SCRIPT = r"""
 (()=>{
 const translations={
- 'ATLAS THE ULTIMATE':'أطلس',
- 'Read the market. Keep control.':'اقرأ السوق. وابقَ متحكّماً.',
- 'Reader plans provide observational access to ATLAS telemetry and market context. They do not provide account control, personal investment advice, or any promise of returns.':'تتيح خطط القرّاء متابعة بيانات أطلس وسياق السوق فقط. لا تمنح التحكم بالحساب أو استشارات استثمارية شخصية أو وعوداً بالعوائد.',
- 'ATLAS READER':'أطلس للقارئ','ATLAS PRO READER':'أطلس للقارئ المتقدّم',
- '/month':'/شهرياً','3-day free trial':'تجربة مجانية لمدة 3 أيام',
- 'Live read-only MT5 telemetry':'متابعة بيانات MT5 للقراءة فقط',
- 'Wall Street and financial-news board':'لوحة وول ستريت والأخبار المالية',
- 'Open positions and floating P/L':'الصفقات المفتوحة والربح والخسارة غير المحقّقين',
- 'Everything in Reader':'كل مزايا خطة القارئ',
- 'Expanded multi-asset opportunity matrix':'متابعة موسّعة لفرص الأسواق المتعددة',
- 'Priority subscriber briefings':'إحاطات المشتركين ذات الأولوية',
- 'Start free trial':'ابدأ التجربة المجانية','Pay with Whish Money':'الدفع عبر Whish Money',
- 'Whish requests are reviewed manually. Automatic renewal is not available.':'تُراجع طلبات Whish يدوياً. التجديد التلقائي غير متاح.',
- 'Subscriber Observatory · Read-only live telemetry':'لوحة المشتركين · بيانات مباشرة للقراءة فقط',
- 'Reader plans':'خطط القرّاء','CONNECTING':'جارٍ الاتصال','OFFLINE':'غير متصل','ONLINE':'متصل',
- 'VERIFIED LIVE':'حساب حقيقي تم التحقّق منه','Account Type':'نوع الحساب',
- 'Equity':'حقوق الحساب','Balance':'الرصيد','Floating P/L':'الربح والخسارة غير المحقّقين',
- 'Open Positions':'الصفقات المفتوحة','Execution Gate':'حالة التنفيذ',
- 'ATLAS Opportunity Matrix':'فرص الأسواق في أطلس','Verified Account':'الحساب المتحقّق منه',
- 'Wall Street Board · Context only':'لوحة وول ستريت · للسياق فقط',
- 'Financial News · Context only':'الأخبار المالية · للسياق فقط',
- 'Read-only telemetry. Trading involves risk.':'بيانات للقراءة فقط. التداول ينطوي على مخاطر.',
- 'Read-only account and strategy telemetry. Past or current results do not guarantee future performance.':'بيانات الحساب والاستراتيجية للقراءة فقط. النتائج السابقة أو الحالية لا تضمن الأداء المستقبلي.',
- 'No markets available.':'لا توجد أسواق متاحة.','No open positions.':'لا توجد صفقات مفتوحة.',
- 'Market data temporarily unavailable.':'بيانات السوق غير متاحة مؤقتاً.',
- 'Financial headlines temporarily unavailable.':'الأخبار المالية غير متاحة مؤقتاً.',
- 'Market board unavailable.':'لوحة السوق غير متاحة.','Headlines unavailable.':'الأخبار غير متاحة.',
- 'PRIVATE':'خاص','DEMO':'تجريبي','REAL':'حقيقي','UNKNOWN':'غير معروف',
- 'ENABLED':'مفعّل','DISABLED':'معطّل','WAIT':'انتظار','BUY':'شراء','SELL':'بيع',
- 'BULLISH':'صاعد','BEARISH':'هابط','NEUTRAL':'محايد','NO_TRADE':'لا صفقة',
- 'Manual payment review':'مراجعة الدفع يدوياً',
- 'Request your 3-day trial first. Contact support to confirm the start date and payment instructions. Monthly renewals are manual.':'اطلب تجربتك لمدة 3 أيام أولاً. تواصل مع الدعم لتأكيد تاريخ البدء وتعليمات الدفع. التجديد الشهري يدوي.',
- 'A request or receipt does not activate access. Payment must be verified by the owner.':'الطلب أو الإيصال لا يفعّل الوصول. يجب أن يتحقّق صاحب المنصة من الدفع.',
- 'Email address':'البريد الإلكتروني','Request Whish payment':'طلب الدفع عبر Whish',
- 'Back to plans':'العودة إلى الخطط','Reference':'رقم المرجع','Status':'الحالة',
- 'Pending review':'بانتظار المراجعة','Monthly price':'السعر الشهري',
- 'Recipient':'المستلم','Support':'الدعم',
- 'Whish Money is not configured yet.':'الدفع عبر Whish Money غير مُعدّ بعد.',
- 'Payment request unavailable.':'طلب الدفع غير متاح.',
- 'Payment request storage unavailable.':'تعذّر حفظ طلب الدفع.',
+ 'JUST AI · Unified Trading Intelligence':'JUST AI · منظومة متكاملة لذكاء الأسواق',
+ 'Markets':'الأسواق','Reader plans':'خطط الاشتراك','Plans':'خطط الاشتراك','Refresh All':'تحديث الكل','Refresh':'تحديث','Refreshing…':'جارٍ التحديث…','Updated':'آخر تحديث',
+ 'CONNECTING':'جارٍ الاتصال','OFFLINE':'غير متصل','ONLINE':'متصل','VERIFIED LIVE':'حساب حقيقي موثّق',
+ 'AI MARKET OBSERVATORY':'مرصد الأسواق الذكي','One intelligence layer.':'منظومة ذكاء واحدة.','Every market signal.':'رؤية أوضح لكل حركة في السوق.',
+ 'Live MT5 demo telemetry, multi-asset opportunity analysis, Wall Street context and financial headlines — consolidated into one ATLAS ULTIMATE command center.':'بيانات MT5 تجريبية مباشرة، وتحليل للفرص عبر أصول متعددة، ومؤشرات وول ستريت، وأبرز الأخبار المالية — ضمن مركز ATLAS ULTIMATE موحّد.',
+ 'Core':'النظام الأساسي','Live telemetry':'بيانات مباشرة','Engine':'المحرّك','Decision support':'دعم القرار','Coverage':'نطاق التغطية','Multi-Asset':'متعدد الأصول','Mode':'الوضع','LIVE DEMO':'تجريبي مباشر','Execution isolated':'التنفيذ معزول',
+ 'LIVE ACCOUNT TELEMETRY':'بيانات الحساب المباشرة','Trading cockpit':'لوحة مراقبة التداول','Account Type':'نوع الحساب','Equity':'صافي قيمة الحساب','Balance':'الرصيد','Floating P/L':'الربح والخسارة غير المحقّقين','Open Positions':'المراكز المفتوحة','Execution Gate':'بوابة التنفيذ',
+ 'ATLAS ANALYTICS':'تحليلات ATLAS','Opportunity matrix & account state':'مصفوفة الفرص وحالة الحساب','ATLAS Opportunity Matrix':'مصفوفة فرص ATLAS','Verified Account':'الحساب الموثّق',
+ 'GLOBAL CONTEXT':'المشهد العالمي','Wall Street board & financial news':'مؤشرات وول ستريت والأخبار المالية','ATLAS Market Intelligence Boards':'لوحات ذكاء الأسواق من ATLAS','Wall Street Board · Context only':'لوحة وول ستريت · للسياق التحليلي فقط','Financial News · Context only':'الأخبار المالية · للسياق التحليلي فقط',
+ 'Breadth':'اتساع السوق','Rising':'الأسواق الصاعدة','Falling':'الأسواق المتراجعة','Tracked':'الأسواق المتابعة','Usable':'بيانات صالحة للتحليل','Stale':'بيانات قديمة',
+ 'FRESH':'محدّثة','DELAYED':'متأخرة','STALE':'قديمة','UNAVAILABLE':'غير متاح','No quote time':'وقت السعر غير متاح','Quote':'وقت السعر',
+ 'LIVE DEMO telemetry. ATLAS simulated demo execution is active; real-money trading is off.':'بيانات تجريبية مباشرة. تنفيذ ATLAS التجريبي المحاكى مفعّل، والتداول بأموال حقيقية متوقف.','Unified market intelligence interface. MT5 execution remains isolated from public subscriber access. Market information is decision-support context and does not guarantee outcomes.':'واجهة موحّدة لذكاء الأسواق. يبقى تنفيذ MT5 معزولاً عن المشتركين، وتُستخدم معلومات السوق لدعم القرار من دون ضمان أي نتائج.','AI is for everyone.':'الذكاء الاصطناعي للجميع.',
+ 'No markets available.':'لا تتوفر بيانات للأسواق حالياً.','No open positions.':'لا توجد مراكز مفتوحة.','Market data temporarily unavailable.':'بيانات السوق غير متاحة مؤقتاً.','Financial headlines temporarily unavailable.':'الأخبار المالية غير متاحة مؤقتاً.','Market board unavailable.':'تعذّر تحميل لوحة السوق.','Headlines unavailable.':'تعذّر تحميل الأخبار.',
+ 'score':'التقييم','confidence':'درجة الثقة','opportunity':'الفرصة','Context only':'للسياق فقط','Forex':'سوق العملات','Metals':'المعادن','Crypto':'الأصول الرقمية','Indices':'المؤشرات','Commodities':'السلع','US Equities':'الأسهم الأميركية','Volatility':'التقلبات','Digital Assets':'الأصول الرقمية','FX':'سوق العملات',
+ 'Market Breadth':'اتساع حركة السوق','Risk Level':'مستوى المخاطر','Market Direction':'اتجاه السوق','Market Structure':'هيكل السوق','Key Levels':'المستويات الرئيسية','UP':'ارتفاع','DOWN':'تراجع','FLAT':'استقرار',
+ 'PRIVATE':'خاص','DEMO':'تجريبي','REAL':'حقيقي','UNKNOWN':'غير معروف','ENABLED':'مفعّل','DISABLED':'معطّل','WAIT':'انتظار','BUY':'شراء','SELL':'بيع','BULLISH':'اتجاه صاعد','BEARISH':'اتجاه هابط','NEUTRAL':'اتجاه محايد','NO_TRADE':'لا توجد صفقة',
+ 'ATLAS ULTIMATE ACCESS':'اشتراكات ATLAS ULTIMATE','Choose your intelligence level.':'اختر مستوى ذكاء الأسواق المناسب لك.','Market Watch':'مراقبة الأسواق','ATLAS Signals':'إشارات ATLAS','Enterprise':'المؤسسات','Custom':'حسب الطلب','/ month':'/ شهرياً','Stripe activation pending':'تفعيل Stripe قيد الانتظار','Whish Money':'Whish Money','Whish Pay':'Whish Pay','Pay with Whish Pay':'الدفع عبر Whish Pay','Apply / Contact CEO':'تقديم طلب / التواصل مع الإدارة',
+ 'Live financial news board · Market direction and bias · Market structure · Key levels · Strategy and setup context.':'أخبار مالية مباشرة · اتجاه السوق وانحيازه · هيكل السوق · المستويات الرئيسية · سياق الاستراتيجيات وفرص الإعداد.',
+ 'Everything in Market Watch · Manual-execution signals · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.':'كل مزايا مراقبة الأسواق · إشارات للتنفيذ اليدوي · مناطق الدخول والمرجع · الأهداف · مستويات وقف الخسارة وإبطال السيناريو · تقييم المخاطر ودرجة الثقة.',
+ 'Everything in Signals · Continuous multi-asset analysis · Opportunity matrix · Risk/position monitoring · Exit and stop alerts · Priority intelligence briefings.':'كل مزايا الإشارات · تحليل متواصل عبر أصول متعددة · مصفوفة الفرص · مراقبة المخاطر والمراكز · تنبيهات الخروج ووقف الخسارة · إحاطات سوقية ذات أولوية.',
+ 'Manual application and review · Team access · Custom integrations and deployment planning · Commercial quote based on required services.':'طلب ومراجعة يدوية · وصول للفريق · تكاملات مخصّصة وتخطيط للنشر · عرض تجاري وفق الخدمات المطلوبة.',
+ 'Three paid intelligence levels. No free demo and no free trial. Market information is decision-support; broker execution remains under the trader\'s control.':'ثلاثة مستويات مدفوعة لذكاء الأسواق، من دون نسخة أو فترة تجريبية مجانية. معلومات السوق مخصّصة لدعم القرار، ويبقى تنفيذ أوامر الوسيط تحت سيطرة المتداول.',
+ 'Subscriptions provide market intelligence and monitoring. They do not guarantee outcomes or authorize public subscriber broker execution.':'توفر الاشتراكات تحليلات ومراقبة للأسواق، ولا تضمن النتائج أو تمنح المشترك صلاحية تنفيذ أوامر الوسيط عبر المنصة.',
+ 'Manual payment review':'مراجعة الدفع يدوياً','ATLAS subscription payment':'دفع اشتراك ATLAS','Whish Pay merchant checkout is being activated. Until merchant credentials are approved, this page uses a manual payment-review fallback.':'يجري تفعيل بوابة Whish Pay للتجار. إلى حين اعتماد بيانات التاجر، تستخدم هذه الصفحة مراجعة دفع يدوية.','A request or receipt does not activate access. Payment must be verified before subscription access is granted.':'لا يؤدي الطلب أو الإيصال إلى تفعيل الوصول. يجب التحقق من الدفع قبل منح صلاحية الاشتراك.','Email address':'البريد الإلكتروني','Request Whish payment':'طلب الدفع عبر Whish','Request Whish Pay payment':'طلب الدفع عبر Whish Pay','Back to plans':'العودة إلى الخطط','Reference':'رقم المرجع','Status':'الحالة','Pending review':'قيد المراجعة','Monthly price':'السعر الشهري','Recipient':'المستلم','Support':'الدعم','Whish Money is not configured yet.':'الدفع عبر Whish Money غير مُعدّ بعد.','Whish Pay is not configured yet.':'الدفع عبر Whish Pay غير مُعدّ بعد.','Provider':'مزود الدفع','Payment request unavailable.':'طلب الدفع غير متاح.','Payment request storage unavailable.':'تعذّر حفظ طلب الدفع.'
 };
-const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch{return f}};
-const save=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
-let lang=read('atlas-language','en'),theme=read('atlas-theme','dark');
-if(!['en','ar'].includes(lang))lang='en';
-if(!['light','dark'].includes(theme))theme='dark';
+const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch{return f}};const save=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
+let lang=read('atlas-language','ar'),theme=read('atlas-theme','dark');if(!['en','ar'].includes(lang))lang='ar';if(!['light','dark'].includes(theme))theme='dark';
 const reverse=new Map(Object.entries(translations).map(([a,b])=>[b,a]));
-const style=document.createElement('style');
-style.textContent=`
-.atlas-preferences{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid #526078;position:relative;z-index:10}
-.atlas-preferences label{display:flex;align-items:center;gap:6px;font:14px system-ui}
-.atlas-preferences select{padding:8px;border:1px solid #718096;border-radius:8px;background:#101620;color:#f3f5f7;font:inherit}
-html{color-scheme:dark}html[data-theme=light]{color-scheme:light}
-html[data-theme=light] body{--bg:#f7f5ef;--card:#fff;--line:#ccd2dc;--text:#152033;--muted:#475569;--orange:#b54800;--green:#087a43;--red:#b32338;--yellow:#805e00;background:#f7f5ef;color:#152033}
-html[data-theme=light] .card{background:#fff;color:#152033;border-color:#ccd2dc;box-shadow:0 8px 24px #17233612}
-html[data-theme=light] .notice{background:#fff2e5;color:#374151}
-html[data-theme=light] .atlas-preferences select,html[data-theme=light] input{background:#fff;color:#152033}
-html[data-theme=light] p,html[data-theme=light] ul{color:#475569}
-html[data-theme=light] a{color:#994000}
-html[data-theme=light] button{background:#ff8a24;color:#111}
-html[dir=rtl] body{font-family:Tahoma,Arial,sans-serif}
-html[dir=rtl] ul{padding-right:19px;padding-left:0}
-html[dir=rtl] .notice{border-left:0;border-right:3px solid var(--orange)}
-html[dir=rtl] input[type=email]{direction:ltr;text-align:left}
-`;document.head.append(style);
-const bar=document.createElement('nav');bar.className='atlas-preferences';
-bar.innerHTML='<label><span id="atlas-lang-label"></span><select id="atlas-lang"><option value="en">English</option><option value="ar">العربية</option></select></label><label><span id="atlas-theme-label"></span><select id="atlas-theme"><option value="dark"></option><option value="light"></option></select></label>';
-document.body.prepend(bar);
+const style=document.createElement('style');style.textContent=`.atlas-preferences{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid #526078;position:relative;z-index:10}.atlas-preferences label{display:flex;align-items:center;gap:6px;font:14px system-ui}.atlas-preferences select{padding:8px;border:1px solid #718096;border-radius:8px;background:#101620;color:#f3f5f7;font:inherit}html{color-scheme:dark}html[data-theme=light]{color-scheme:light}html[data-theme=light] body{--bg:#f7f5ef;--card:#fff;--line:#ccd2dc;--text:#152033;--muted:#475569;--orange:#b54800;--green:#087a43;--red:#b32338;--yellow:#805e00;background:#f7f5ef;color:#152033}html[data-theme=light] .card{background:#fff;color:#152033;border-color:#ccd2dc;box-shadow:0 8px 24px #17233612}html[data-theme=light] .notice{background:#fff2e5;color:#374151}html[data-theme=light] .atlas-preferences select,html[data-theme=light] input{background:#fff;color:#152033}html[dir=rtl] body{font-family:"Noto Sans Arabic",Tahoma,Arial,sans-serif;line-height:1.75;text-align:right}html[dir=rtl] .top,html[dir=rtl] .section-title,html[dir=rtl] .board-head{direction:rtl}html[dir=rtl] .actions,html[dir=rtl] .atlas-preferences{direction:rtl}html[dir=rtl] .atlas-preferences{justify-content:flex-start}html[dir=rtl] ul{padding-right:19px;padding-left:0}html[dir=rtl] .notice{border-left:0;border-right:3px solid var(--orange)}html[dir=rtl] input[type=email]{direction:ltr;text-align:left}html[dir=rtl] .big,html[dir=rtl] .tag,html[dir=rtl] .freshness{unicode-bidi:plaintext}.atlas-symbol{direction:ltr;unicode-bidi:isolate;display:inline-block}`;document.head.append(style);
+const bar=document.createElement('nav');bar.className='atlas-preferences';bar.innerHTML='<label><span id="atlas-lang-label"></span><select id="atlas-lang"><option value="en">English</option><option value="ar">العربية</option></select></label><label><span id="atlas-theme-label"></span><select id="atlas-theme"><option value="dark"></option><option value="light"></option></select></label>';document.body.prepend(bar);
 const observer=new MutationObserver(()=>translate());
-function translate(){
- observer.disconnect();
- document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.documentElement.dataset.theme=theme;
- bar.querySelector('#atlas-lang-label').textContent=lang==='ar'?'اللغة':'Language';
- bar.querySelector('#atlas-theme-label').textContent=lang==='ar'?'المظهر':'Appearance';
- const mode=bar.querySelector('#atlas-theme');mode.options[0].textContent=lang==='ar'?'داكن':'Dark';mode.options[1].textContent=lang==='ar'?'فاتح':'Light';
- bar.querySelector('#atlas-lang').value=lang;mode.value=theme;
- const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
- while(walker.nextNode()){
-  const node=walker.currentNode,parent=node.parentElement;
-  if(!parent||parent.closest('script,style,.atlas-preferences,code,pre'))continue;
-  const text=node.nodeValue.trim();if(!text)continue;
-  const source=reverse.get(text)||text;
-  if(translations[source]){const value=lang==='ar'?translations[source]:source;
-   if(text!==value)node.nodeValue=node.nodeValue.replace(text,value)}
- }
- observer.observe(document.body,{subtree:true,childList:true,characterData:true});
-}
-bar.querySelector('#atlas-lang').onchange=e=>{lang=e.target.value;save('atlas-language',lang);translate()};
-bar.querySelector('#atlas-theme').onchange=e=>{theme=e.target.value;save('atlas-theme',theme);translate()};
-translate();
+function translate(){observer.disconnect();document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.documentElement.dataset.theme=theme;bar.querySelector('#atlas-lang-label').textContent=lang==='ar'?'اللغة':'Language';bar.querySelector('#atlas-theme-label').textContent=lang==='ar'?'المظهر':'Appearance';const mode=bar.querySelector('#atlas-theme');mode.options[0].textContent=lang==='ar'?'داكن':'Dark';mode.options[1].textContent=lang==='ar'?'فاتح':'Light';bar.querySelector('#atlas-lang').value=lang;mode.value=theme;const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);while(walker.nextNode()){const node=walker.currentNode,parent=node.parentElement;if(!parent||parent.closest('script,style,.atlas-preferences,code,pre'))continue;const text=node.nodeValue.trim();if(!text)continue;const source=reverse.get(text)||text;if(translations[source]){const value=lang==='ar'?translations[source]:source;if(text!==value)node.nodeValue=node.nodeValue.replace(text,value)}}observer.observe(document.body,{subtree:true,childList:true,characterData:true});}
+bar.querySelector('#atlas-lang').onchange=e=>{lang=e.target.value;save('atlas-language',lang);translate();window.dispatchEvent(new CustomEvent('atlas-language-change',{detail:{language:lang}}))};bar.querySelector('#atlas-theme').onchange=e=>{theme=e.target.value;save('atlas-theme',theme);translate()};translate();
 })();
 """
+
