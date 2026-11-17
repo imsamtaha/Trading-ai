@@ -240,8 +240,11 @@ class AtlasMT5Monitor:
 
     def _validate_quote_freshness(self, quote: dict[str, Any]) -> tuple[bool, str]:
         """Fail closed when an MT5 quote has no trustworthy current timestamp."""
-        time_msc = int(quote.get("time_msc", 0) or 0)
-        time_sec = int(quote.get("time", 0) or 0)
+        try:
+            time_msc = int(quote.get("time_msc", 0) or 0)
+            time_sec = int(quote.get("time", 0) or 0)
+        except (TypeError, ValueError, OverflowError):
+            return False, "MT5 quote timestamp is malformed."
 
         if time_msc > 0:
             quote_timestamp = time_msc / 1000.0
@@ -263,6 +266,20 @@ class AtlasMT5Monitor:
                 f"maximum {self.max_quote_age_seconds}s).",
             )
 
+        return True, ""
+
+    def _validate_paper_quote(self, quote: dict[str, Any]) -> tuple[bool, str]:
+        valid, reason = self._validate_quote_freshness(quote)
+        if not valid:
+            return valid, reason
+        try:
+            bid, ask = float(quote["bid"]), float(quote["ask"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            return False, "MT5 quote prices are missing or malformed."
+        if not all(math.isfinite(price) and price > 0 for price in (bid, ask)):
+            return False, "MT5 quote prices must be finite and positive."
+        if bid > ask:
+            return False, "MT5 quote bid exceeds ask."
         return True, ""
 
     def _record_event(self, event: dict[str, Any]) -> dict[str, Any]:
@@ -375,6 +392,19 @@ class AtlasMT5Monitor:
         for symbol in symbols:
             try:
                 quote = self.broker.quote(symbol)
+                quote_valid, quote_reason = self._validate_paper_quote(quote)
+                if not quote_valid:
+                    event = {
+                        "timestamp": timestamp,
+                        "symbol": symbol,
+                        "timeframe": self.interval,
+                        "status": "PAPER_QUOTE_REJECTED",
+                        "reason": quote_reason,
+                        "decision": {"decision": "WAIT"},
+                    }
+                    self._record_event(event)
+                    events.append(event)
+                    continue
                 for trade in self.ledger.close_due_positions(
                     symbol,
                     bid=float(quote["bid"]),
@@ -466,7 +496,7 @@ class AtlasMT5Monitor:
             }
 
         quote = self.broker.quote(symbol)
-        quote_fresh, quote_reason = self._validate_quote_freshness(quote)
+        quote_fresh, quote_reason = self._validate_paper_quote(quote)
         if not quote_fresh:
             return {
                 "timestamp": timestamp,

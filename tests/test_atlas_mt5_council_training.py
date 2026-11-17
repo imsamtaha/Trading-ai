@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
 
 
@@ -51,6 +53,46 @@ def _fresh_quote(*, bid=1.1000, ask=1.1001):
         "time": now_msc // 1000,
         "time_msc": now_msc,
     }
+
+
+@pytest.mark.parametrize("invalid", [
+    {"time": 0, "time_msc": 0},
+    {"time_msc": "invalid"},
+    {"time_msc": float("inf")},
+    {"time_msc": 1},
+    {"bid": float("nan")},
+    {"ask": float("inf")},
+    {"bid": -1},
+    {"ask": 0},
+    {"bid": "invalid"},
+    {"bid": 2, "ask": 1},
+])
+def test_invalid_quote_cannot_open_close_or_train(tmp_path, monkeypatch, invalid):
+    monitor = _monitor(tmp_path, monkeypatch)
+    timestamp = datetime.now(timezone.utc).isoformat()
+    bad_quote = {**_fresh_quote(bid=2, ask=2.01), **invalid}
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: bad_quote)
+
+    rejected = monitor._open_paper_trade(
+        timestamp=timestamp, symbol="EURUSD",
+        candidate=_candidate(), decision=_decision(),
+    )
+    assert rejected["status"] == "NO_TRADE"
+    assert monitor.ledger.open_positions() == []
+
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: _fresh_quote())
+    opened = monitor._open_paper_trade(
+        timestamp=timestamp, symbol="EURUSD",
+        candidate=_candidate(), decision=_decision(),
+    )
+    assert opened["status"] == "PAPER_TRADE_OPENED"
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: bad_quote)
+
+    events = monitor._close_due_positions(timestamp)
+    assert events[0]["status"] == "PAPER_QUOTE_REJECTED"
+    assert len(monitor.ledger.open_positions()) == 1
+    assert monitor.ledger.closed_trades() == []
+    assert monitor.council_training_journal.load() == []
 
 
 def test_council_context_is_persisted_with_open_paper_trade(tmp_path, monkeypatch):
