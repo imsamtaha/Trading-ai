@@ -122,6 +122,9 @@ def evaluate_paper_agents(journal: str | Path, *, min_samples: int = MIN_AGENT_S
     if not source.is_file():
         raise FileNotFoundError(f"settled PAPER journal not found: {source}")
     source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+    source_timestamp = datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)
+    source_age_hours = (datetime.now(timezone.utc) - source_timestamp).total_seconds() / 3600
+    freshness_passed = 0 <= source_age_hours <= 48
     entries = CouncilTrainingJournal(str(source)).load()
     seen = set()
     per_agent: dict[str, list[tuple[float, str, int]]] = {}
@@ -143,6 +146,11 @@ def evaluate_paper_agents(journal: str | Path, *, min_samples: int = MIN_AGENT_S
         agent: _agent_score(rows, min_samples=min_samples)
         for agent, rows in sorted(per_agent.items())
     }
+    if not freshness_passed:
+        for evaluation in agents.values():
+            evaluation["status"] = "HOLD_BASELINE"
+            evaluation["candidate_weight"] = None
+            evaluation["reasons"].append("stale_or_future_source_timestamp")
     return {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -150,6 +158,9 @@ def evaluate_paper_agents(journal: str | Path, *, min_samples: int = MIN_AGENT_S
         "training_environment": "PAPER_RESEARCH_ONLY",
         "source_kind": "SETTLED_PAPER_COUNCIL_JOURNAL",
         "source_sha256": source_sha256,
+        "source_last_modified_at": source_timestamp.isoformat(),
+        "source_age_hours": round(source_age_hours, 2),
+        "freshness_gate_passed": freshness_passed,
         "unique_snapshots": len(seen),
         "min_samples_per_agent": min_samples,
         "reviewers": ["STC-04", "STC-09", "Senior Risk"],
