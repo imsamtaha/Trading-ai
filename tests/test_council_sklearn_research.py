@@ -69,7 +69,7 @@ def test_duplicate_snapshot_fails_closed(tmp_path):
 
 
 def test_live_training_record_fails_closed(tmp_path):
-    with pytest.raises(ValueError, match="PAPER"):
+    with pytest.raises(ValueError, match="Invalid council training record"):
         evaluate_paper_agents(_journal(tmp_path / "training.jsonl", rows=2, invalid=True))
 
 
