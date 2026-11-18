@@ -108,3 +108,17 @@ def test_mlflow_logging_is_exclusively_evidence(monkeypatch, tmp_path):
     assert ("artifact", "evidence/council-agent-scores.json") in calls
     assert not hasattr(dummy, "register_model")
     assert payload["automatic_promotion"] is False
+
+
+def test_old_paper_journal_cannot_promote_any_candidate(tmp_path):
+    import os
+    import time
+    source = _journal(tmp_path / "training.jsonl", rows=110)
+    stale = time.time() - 72 * 3600
+    os.utime(source, (stale, stale))
+    report = evaluate_paper_agents(source)
+    assert report["freshness_gate_passed"] is False
+    assert report["status"] == "HOLD_BASELINE"
+    assert all(row["candidate_weight"] is None for row in report["agents"].values())
+    assert all("stale_or_future_source_timestamp" in row["reasons"] for row in report["agents"].values())
+    assert report["active_council_weights_changed"] is False
