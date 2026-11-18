@@ -221,6 +221,8 @@ class NineSeatPaperCouncil:
             raise ValueError("Chair cannot overrule Risk")
         if self._risk["status"] == "VETO" and verdict != "VETOED":
             raise ValueError("Risk veto must be reported as VETOED")
+        if self._risk["status"] != "VETO" and verdict == "VETOED":
+            raise ValueError("Chair cannot invent a Risk veto")
         if self._risk["status"] == "CONDITIONAL" and verdict != "NO TRADE":
             raise ValueError("Conditions not satisfied: final verdict must be NO TRADE")
         if self.asset_class == "crypto" and conviction < 5 and verdict in {"LONG", "SHORT"}:
@@ -231,6 +233,13 @@ class NineSeatPaperCouncil:
             )
             if data["position_size_pct"] > self._risk["approved_position_size_pct"]:
                 raise ValueError("Chair proposed size exceeds approved Risk limit")
+            entry = self._execution["entry"]
+            stop = self._execution["stop"]
+            targets = self._execution["take_profit"]
+            if verdict == "LONG" and not (stop < entry and all(target > entry for target in targets)):
+                raise ValueError("PAPER LONG price-level geometry invalid")
+            if verdict == "SHORT" and not (stop > entry and all(target < entry for target in targets)):
+                raise ValueError("PAPER SHORT price-level geometry invalid")
             if not self.verified_market_snapshot:
                 raise ValueError("No directional paper proposal without verified snapshot")
         else:
@@ -287,13 +296,25 @@ class NineSeatPaperCouncil:
                     "confidence": self._initial["quant"]["confidence"],
                     "sample_size": self._initial["quant"]["sample_size"],
                 },
-                "risk": {"status": risk["status"], "reason": risk["reason"]},
+                "risk": {
+                    "status": risk["status"],
+                    "reason": (
+                        risk["reason"] + " | Minimum change: " + risk["minimum_change"]
+                        if risk["status"] == "VETO" else risk["reason"]
+                    ),
+                },
                 "execution": {"plan": exec_data.get("plan", "") if active else ""},
                 "news_sentiment": {
                     "event_risk": self._initial["news_sentiment"]["event_risk"],
                     "sentiment_skew": self._initial["news_sentiment"]["sentiment_skew"],
                 },
-                "red_team": {"objection": (self._red_team or {}).get("objection", "")},
+                "red_team": {
+                    "objection": (
+                        self._red_team["objection"] + " | Failure condition: " +
+                        self._red_team["failure_condition"]
+                        if self._red_team else ""
+                    ),
+                },
             },
             "chair_rationale": "SIMULATED/PAPER RECOMMENDATION — " + note,
         }
@@ -312,13 +333,13 @@ def evaluator_scorecard(outcomes: list[Mapping[str, Any]]) -> dict[str, Any]:
                 row.get("settled") is not True or
                 not isinstance(row.get("correct"), bool)):
             continue
-        samples.append(row)
+        score = row.get("conviction")
+        if isinstance(score, int) and not isinstance(score, bool) and 1 <= score <= 5:
+            samples.append(row)
     bins: dict[str, dict[str, int]] = {}
     by_asset: dict[str, dict[str, int]] = {}
     for row in samples:
-        score = row.get("conviction")
-        if not isinstance(score, int) or isinstance(score, bool) or not 1 <= score <= 5:
-            continue
+        score = row["conviction"]
         k = str(score)
         category = str(row.get("asset_class", "unknown"))
         for dest, label in ((bins, k), (by_asset, category)):
