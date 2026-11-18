@@ -96,3 +96,21 @@ def test_unavailable_memory_fails_closed(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "available_memory_mb", fail)
     assert runner.run_research(root=root, journal=journal) == 2
     assert json.loads((root / "evidence" / "scheduler-status.json").read_text())["status"] == "FAILED_MEMORY_CHECK"
+
+
+def test_same_day_verified_source_skips_duplicate_mlflow_run(tmp_path, monkeypatch):
+    root, journal = fixture_paths(tmp_path)
+    monkeypatch.setattr(runner, "available_memory_mb", lambda: 2200)
+    digest = hashlib.sha256(journal.read_bytes()).hexdigest()
+    previous = root / "evidence" / "scheduler-status.json"
+    runner.publish_status(previous, "SUCCESS", source_sha256=digest, mlflow_run_id="prior-run")
+    def never_run(*args, **kwargs):
+        raise AssertionError("should not duplicate an unchanged, already-scored journal")
+    monkeypatch.setattr(runner.subprocess, "run", never_run)
+    assert runner.run_research(root=root, journal=journal) == 0
+    current = json.loads(previous.read_text())
+    assert current["status"] == "SKIPPED_ALREADY_EVALUATED"
+    assert current["mlflow_run_id"] == "prior-run"
+    assert runner.run_research(root=root, journal=journal) == 0
+    current = json.loads(previous.read_text())
+    assert current["status"] == "SKIPPED_ALREADY_EVALUATED"
