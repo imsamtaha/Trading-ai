@@ -121,11 +121,15 @@ def evaluate_paper_agents(journal: str | Path, *, min_samples: int = MIN_AGENT_S
     source = Path(journal)
     if not source.is_file():
         raise FileNotFoundError(f"settled PAPER journal not found: {source}")
+    initial_stat = source.stat()
     source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
-    source_timestamp = datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)
+    source_timestamp = datetime.fromtimestamp(initial_stat.st_mtime, timezone.utc)
     source_age_hours = (datetime.now(timezone.utc) - source_timestamp).total_seconds() / 3600
     freshness_passed = 0 <= source_age_hours <= 48
     entries = CouncilTrainingJournal(str(source)).load()
+    final_stat = source.stat()
+    if (initial_stat.st_size, initial_stat.st_mtime_ns) != (final_stat.st_size, final_stat.st_mtime_ns):
+        raise ValueError("PAPER journal changed during evaluation; retry on stable evidence")
     seen = set()
     per_agent: dict[str, list[tuple[float, str, int]]] = {}
     for example in entries:
