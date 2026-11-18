@@ -122,3 +122,22 @@ def test_old_paper_journal_cannot_promote_any_candidate(tmp_path):
     assert all(row["candidate_weight"] is None for row in report["agents"].values())
     assert all("stale_or_future_source_timestamp" in row["reasons"] for row in report["agents"].values())
     assert report["active_council_weights_changed"] is False
+
+
+def test_journal_mutation_during_read_is_rejected(tmp_path, monkeypatch):
+    import os
+    import time
+    import atlas_training.council_sklearn_research as module
+
+    source = _journal(tmp_path / "training.jsonl", rows=90)
+    original_load = module.CouncilTrainingJournal.load
+
+    def load_then_mutate(self):
+        records = original_load(self)
+        future = time.time() + 5
+        os.utime(source, (future, future))
+        return records
+
+    monkeypatch.setattr(module.CouncilTrainingJournal, "load", load_then_mutate)
+    with pytest.raises(ValueError, match="changed during evaluation"):
+        module.evaluate_paper_agents(source)
