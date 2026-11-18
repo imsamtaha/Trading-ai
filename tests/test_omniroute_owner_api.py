@@ -69,3 +69,17 @@ def test_private_research_works_when_public_analysis_off(monkeypatch):
         )
         assert response.status_code == 200
         assert response.json()["status"] == "OMNIROUTE_DISABLED"
+
+
+def test_malformed_private_research_symbol_gets_400_not_500(monkeypatch):
+    _paper_owner(monkeypatch)
+    monkeypatch.setenv("ATLAS_OMNIROUTE_ENABLED", "true")
+    monkeypatch.setenv("ATLAS_OMNIROUTE_API_KEY", "synthetic-test-only")
+    with TestClient(app) as client:
+        resp = client.post(
+            "/sam/api/omniroute/research",
+            json={"symbol": "XAUUSD?unsafe", "timeframe": "1h", "observations": ["Synthetic only"]},
+            auth=("test-owner", "test-only-strong-owner-password-123"),
+        )
+        assert resp.status_code == 400
+        assert "symbol" in resp.json()["detail"]
