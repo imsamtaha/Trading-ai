@@ -47,7 +47,7 @@ h1{font-size:clamp(24px,3vw,39px);margin:7px 0 8px;letter-spacing:-.04em}h2{font
    <div class="actions"><button class="btn" id="lang" type="button">English</button><button class="btn" id="history" type="button">History</button><button class="btn primary" id="refresh" type="button">↻ Refresh</button></div>
  </div>
  <div class="safety" role="status"><div><strong id="safe-title"></strong><p id="safe-text"></p></div><span>LIVE TRADING DISABLED · NO REAL-MONEY ORDERS</span></div>
- <div class="meta" aria-live="polite"><span class="pill UNAVAILABLE" id="state">UNAVAILABLE</span><span id="stamp"></span><span id="source"></span><span id="message" class="error"></span></div>
+ <div class="meta" aria-live="polite"><span class="pill UNAVAILABLE" id="state">UNAVAILABLE</span><span class="pill UNAVAILABLE" id="omni-status">OmniRoute: OFF</span><span id="stamp"></span><span id="source"></span><span id="message" class="error"></span></div>
  <section class="content" id="content" aria-live="polite"></section>
 </main></div>
 <script>
@@ -113,7 +113,8 @@ function render(){const index=KEYS.indexOf(active),d=current(),out=$("content");
  out.append(panel)
 }
 function nav(){const n=$("nav");n.replaceChildren();KEYS.forEach((key,i)=>{const b=elem("button","navbtn"+(active===key?" active":""),t().nav[i]);b.type="button";b.addEventListener("click",()=>{active=key;nav();render()});n.append(b)})}
-async function refresh(){busy=true;render();try{const resp=await fetch("/sam/api/snapshot",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});if(!resp.ok)throw new Error("HTTP "+resp.status);payload=await resp.json()}catch(e){payload={status:"UNAVAILABLE",reason:"SNAPSHOT_FETCH_FAILED",verified:false,as_of:null,data:{}}}finally{busy=false;render()}}
+async function refreshOmniRouteStatus(){const indicator=$("omni-status");try{const response=await fetch("/sam/api/omniroute/status",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});if(!response.ok)throw Error("gateway status unavailable");const state=await response.json();const status=String(state.status||"UNAVAILABLE").slice(0,64);indicator.textContent="OmniRoute · "+status;indicator.className="pill "+(status==="READY"?"VERIFIED":"UNAVAILABLE")}catch(_){indicator.textContent="OmniRoute · UNAVAILABLE";indicator.className="pill UNAVAILABLE"}}
+async function refresh(){busy=true;render();try{const resp=await fetch("/sam/api/snapshot",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});if(!resp.ok)throw new Error("HTTP "+resp.status);payload=await resp.json()}catch(e){payload={status:"UNAVAILABLE",reason:"SNAPSHOT_FETCH_FAILED",verified:false,as_of:null,data:{}}}finally{busy=false;render();refreshOmniRouteStatus()}}
 $("lang").addEventListener("click",()=>{language=language==="ar"?"en":"ar";document.documentElement.lang=language;document.documentElement.dir=language==="ar"?"rtl":"ltr";nav();render()});
 $("history").addEventListener("click",()=>{active="paper_trade_history";nav();render()});
 $("refresh").addEventListener("click",refresh);
