@@ -47,3 +47,47 @@ python -m pytest -q tests/test_council_sklearn_research.py tests/test_sklearn_sh
 ```
 
 **Release gate:** passing tests + current genuine settled PAPER ledger + calibrated out-of-sample metrics + separate Senior Risk and Governance review. Until that evidence exists, active Council weights and broker execution remain unchanged.
+
+
+## Low-RAM Windows scheduled research (18 November 2026)
+
+On the Windows host with ~8 GB RAM, Task Scheduler sometimes leaves a research
+worker waiting on paging for minutes. A measured instance had under 150 MB
+available RAM, high paging activity, and a large disk queue. These conditions
+do not support safe unattended full MLflow server + scikit-learn evaluation.
+
+To avoid keeping multiple MLflow web-server processes resident, the scheduler
+can log directly to the **existing local MLflow SQLite database** through one
+isolated Python process. This still uses the real MLflow tracking API and
+persists runs/artifacts, but the web dashboard is started **only when needed**.
+
+Run the resource-gated wrapper from the isolated checkout:
+
+\`\`\`powershell
+$root = Join-Path $env:LOCALAPPDATA 'ATLAS\research-mlflow'
+$python = Join-Path $root 'venv\Scripts\python.exe'
+$src = Join-Path $root 'training-src'
+$journal = Join-Path $HOME 'ATLAS\.runtime\paper\atlas_council_training.jsonl'
+& $python (Join-Path $src 'scripts\atlas_research_runner.py') --root $root --journal $journal
+\`\`\`
+
+The wrapper requires **at least 1200 MB available RAM** before importing
+scikit-learn/MLflow; otherwise it records \`DEFERRED_LOW_MEMORY\` in
+\`evidence/scheduler-status.json\`, exits with code 3, and preserves all
+existing MLflow evidence. It also records explicit failure statuses,
+checks source hash and MLflow run ID after evaluation, prevents redundant
+same-day scoring on unchanged data, and never adjusts active Council
+weights. The raw PAPER ledger stays on the Windows host.
+
+The scheduled task's last exit status alone must **not** be interpreted as a
+successful training run. Require \`scheduler-status.json.status=SUCCESS\`
+or a verified \`SKIPPED_ALREADY_EVALUATED\` with prior MLflow run ID.
+\`DEFERRED_LOW_MEMORY\` is a resource guard, **not** successful training.
+
+When the host has sufficient resources, the existing MLflow dashboard may
+be launched manually bound only to localhost. Do not expose the local
+SQLite database or MLflow HTTP endpoint to the Internet.
+
+**Important:** The local SQLite client path and any additional scheduled
+triggers need host-side validation before automation is declared complete.
+No unattended Council weighting, broker execution, or real-money trading.
