@@ -10,6 +10,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.website import router as website_router
 from app.owner_dashboard import router as owner_dashboard_router
+from app.intelligence.omniroute_api import router as omniroute_research_router
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -46,6 +47,7 @@ app.include_router(agent_router)
 app.include_router(evolution_router)
 app.include_router(website_router)
 app.include_router(owner_dashboard_router)
+app.include_router(omniroute_research_router)
 
 
 @app.middleware("http")
@@ -60,7 +62,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view",
-            "/sam", "/sam/", "/sam/api/snapshot", "/dashboard/mt5-state", "/dashboard/active-setups",
+            "/sam", "/sam/", "/sam/api/snapshot", "/sam/api/omniroute/status", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
@@ -68,6 +70,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/docs", "/openapi.json",
         }
         analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        owner_research_request = request.method == "POST" and path == "/sam/api/omniroute/research"
         fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
         paper_demo_execute = (
             request.method == "POST"
@@ -87,7 +90,7 @@ async def dashboard_only_guard(request: Request, call_next):
         allowed = (
             request.method in {"GET", "HEAD"}
             and (path in read_paths or path.startswith("/assets/"))
-        ) or whish_request or fxpro_demo_verify or paper_demo_execute or (
+        ) or whish_request or fxpro_demo_verify or paper_demo_execute or owner_research_request or (
             public_analysis_enabled
             and request.method == "POST"
             and path in analysis_paths
