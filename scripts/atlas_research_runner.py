@@ -81,10 +81,12 @@ def run_research(*, root: Path, journal: Path, min_available_mb: int = 1200) -> 
     if status.is_file():
         try:
             previous = json.loads(status.read_text(encoding="utf-8"))
-            if (previous.get("status") == "SUCCESS"
+            if (previous.get("status") in ("SUCCESS", "SKIPPED_ALREADY_EVALUATED")
+                    and previous.get("mlflow_run_id")
                     and previous.get("source_sha256") == file_hash
                     and previous.get("generated_at", "")[:10] == datetime.now(timezone.utc).date().isoformat()):
-                publish_status(status, "SKIPPED_ALREADY_EVALUATED", source_sha256=file_hash)
+                publish_status(status, "SKIPPED_ALREADY_EVALUATED", source_sha256=file_hash,
+                               mlflow_run_id=previous["mlflow_run_id"])
                 return 0
         except (OSError, ValueError):
             pass
