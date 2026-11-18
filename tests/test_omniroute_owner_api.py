@@ -83,3 +83,16 @@ def test_malformed_private_research_symbol_gets_400_not_500(monkeypatch):
         )
         assert resp.status_code == 400
         assert "symbol" in resp.json()["detail"]
+
+
+def test_owner_dashboard_displays_private_omniroute_status(monkeypatch):
+    _paper_owner(monkeypatch)
+    with TestClient(app) as client:
+        assert client.get("/sam").status_code == 401
+        response = client.get(
+            "/sam",
+            auth=("test-owner", "test-only-strong-owner-password-123"),
+        )
+        assert response.status_code == 200
+        assert 'id="omni-status"' in response.text
+        assert "/sam/api/omniroute/status" in response.text
