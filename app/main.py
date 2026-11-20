@@ -9,6 +9,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.website import router as website_router
+from app.owner_dashboard import router as owner_dashboard_router
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -44,6 +45,7 @@ app.include_router(preferences_router)
 app.include_router(agent_router)
 app.include_router(evolution_router)
 app.include_router(website_router)
+app.include_router(owner_dashboard_router)
 
 
 @app.middleware("http")
@@ -57,7 +59,8 @@ async def dashboard_only_guard(request: Request, call_next):
             "/", "/centers", "/centers/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5", "/connect/fxpro-mt5/status",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
-            "/dashboard/demo-status", "/dashboard/trader-view", "/dashboard/mt5-state", "/dashboard/active-setups",
+            "/dashboard/demo-status", "/dashboard/trader-view",
+            "/sam", "/sam/", "/sam/api/snapshot", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
