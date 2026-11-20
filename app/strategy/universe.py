@@ -86,6 +86,14 @@ ASSET_CATEGORIES = {
         "LTCUSD": 3,
         "AVAXUSD": 3,
         "LINKUSD": 3,
+        "BCHUSD": 3, "DOTUSD": 3, "XLMUSD": 3, "TRXUSD": 3,
+        "UNIUSD": 3, "FILUSD": 3, "APTUSD": 3, "ATOMUSD": 3, "NEARUSD": 3,
+    },
+    "STOCKS": {
+        "AAPL": 1, "MSFT": 1, "NVDA": 1, "TSLA": 1, "AMZN": 1,
+        "GOOGL": 2, "META": 2, "AMD": 2, "NFLX": 2, "JPM": 2,
+        "V": 3, "MA": 3, "DIS": 3, "KO": 3, "XOM": 3,
+        "INTC": 3, "PYPL": 3, "BABA": 3, "UBER": 3,
     },
     "COMMODITIES": {
         "WHEAT": 3,
@@ -102,6 +110,13 @@ CATEGORY_SYMBOLS = {
 }
 
 ALIASES = {
+    "BITCOIN": "BTCUSD", "ETHEREUM": "ETHUSD", "SOLANA": "SOLUSD",
+    "XRP": "XRPUSD", "CARDANO": "ADAUSD", "DOGECOIN": "DOGEUSD",
+    "LITECOIN": "LTCUSD", "AVALANCHE": "AVAXUSD", "CHAINLINK": "LINKUSD",
+    "BINANCECOIN": "BNBUSD", "BITCOINCASH": "BCHUSD",
+    "POLKADOT": "DOTUSD", "STELLAR": "XLMUSD", "TRON": "TRXUSD",
+    "UNISWAP": "UNIUSD", "FILECOIN": "FILUSD", "APTOS": "APTUSD",
+    "COSMOS": "ATOMUSD", "NEAR": "NEARUSD",
     "GOLD": "XAUUSD",
     "SILVER": "XAGUSD",
     "NATURALGAS": "NGAS",
@@ -129,6 +144,9 @@ ALIASES = {
 
 
 def normalize_symbol(symbol: str) -> str:
+    stock_token = symbol.upper().split(".")[0]
+    if stock_token in ASSET_CATEGORIES["STOCKS"]:
+        return stock_token
     token = re.sub(r"[^A-Z0-9]", "", symbol.upper())
 
     # Exact matches first.
@@ -145,7 +163,7 @@ def normalize_symbol(symbol: str) -> str:
         reverse=True,
     )
     for candidate in candidates:
-        if token.startswith(candidate) or token.endswith(candidate):
+        if len(candidate) >= 3 and (token.startswith(candidate) or token.endswith(candidate)):
             return ALIASES.get(candidate, candidate)
 
     return token
@@ -221,25 +239,14 @@ def diversify_universe(
     limit = max(1, int(top_n))
     candidates = [item for item in ranked if item.tradeable]
 
+    groups: dict[str, list[UniverseSymbol]] = {}
+    for item in candidates:
+        groups.setdefault(item.asset_class, []).append(item)
     selected: list[UniverseSymbol] = []
-    selected_symbols: set[str] = set()
-    covered_classes: set[str] = set()
-
-    for item in candidates:
-        if item.asset_class in covered_classes:
-            continue
-        selected.append(item)
-        selected_symbols.add(item.canonical_symbol)
-        covered_classes.add(item.asset_class)
-        if len(selected) >= limit:
-            return selected
-
-    for item in candidates:
-        if item.canonical_symbol in selected_symbols:
-            continue
-        selected.append(item)
-        selected_symbols.add(item.canonical_symbol)
-        if len(selected) >= limit:
-            break
-
+    while len(selected) < limit and any(groups.values()):
+        for group in groups.values():
+            if group:
+                selected.append(group.pop(0))
+                if len(selected) >= limit:
+                    break
     return selected
