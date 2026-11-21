@@ -240,14 +240,18 @@ class AtlasMT5Monitor:
 
     def _validate_quote_freshness(self, quote: dict[str, Any]) -> tuple[bool, str]:
         """Fail closed when an MT5 quote has no trustworthy current timestamp."""
-        time_msc = int(quote.get("time_msc", 0) or 0)
-        time_sec = int(quote.get("time", 0) or 0)
+        try:
+            time_msc = int(quote.get("time_msc", 0) or 0)
+            if time_msc:
+                quote_timestamp = time_msc / 1000.0
+            else:
+                quote_timestamp = float(int(quote.get("time", 0) or 0))
+        except (TypeError, ValueError, OverflowError):
+            return False, "MT5 quote timestamp is invalid."
 
-        if time_msc > 0:
-            quote_timestamp = time_msc / 1000.0
-        elif time_sec > 0:
-            quote_timestamp = float(time_sec)
-        else:
+        if quote_timestamp < 0:
+            return False, "MT5 quote timestamp is invalid."
+        if quote_timestamp == 0:
             return False, "MT5 quote timestamp is missing."
 
         quote_timestamp -= self.quote_time_offset_seconds
@@ -375,6 +379,9 @@ class AtlasMT5Monitor:
         for symbol in symbols:
             try:
                 quote = self.broker.quote(symbol)
+                quote_fresh, quote_reason = self._validate_quote_freshness(quote)
+                if not quote_fresh:
+                    raise MT5ExecutionError(quote_reason)
                 for trade in self.ledger.close_due_positions(
                     symbol,
                     bid=float(quote["bid"]),
@@ -492,7 +499,7 @@ class AtlasMT5Monitor:
             daily_realized_pnl=ledger_risk["daily_realized_pnl"],
             open_risk_percent=ledger_risk["open_risk_percent"],
         )
-        if not risk.get("approved", False):
+        if risk.get("approved") is not True:
             return {
                 "timestamp": timestamp,
                 "symbol": symbol,
