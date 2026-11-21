@@ -6,9 +6,9 @@ Status: **DRAFT / NOT DEPLOYED**. Source: owner's proposed 9-seat System Prompt,
 
 ATLAS produces **simulated/paper decision-support recommendations only**. The live safety flags stay `ATLAS_LIVE_TRADING=false` and `ATLAS_DASHBOARD_ONLY=true`. This module neither places live nor demo broker orders and never claims an order was filled. Every output is explicitly labelled `SIMULATED/PAPER RECOMMENDATION`, with `mode=paper`.
 
-Core coverage: gold (XAUUSD), major equity indices (US500, US30, NAS100), select large-cap equities (explicit allowlist), and related markets. Silver (XAGUSD) and natural gas (NGAS) remain covered, plus EURUSD. XRP and SOL (including their USD/USDT symbols) are **satellite crypto** with a 5/5 conviction gate. For dashboard ranking: gold and equities first; commodities/FX next; crypto only after the highest conviction test. No 1m standalone directional bias, only 5m/15m/30m/1h.
+Core coverage includes gold (XAUUSD), silver (XAGUSD), major equity indices (US500, US30, NAS100), select large-cap equities, WTI crude (USOIL/WTI), Brent crude (UKOIL/BRENT), natural gas (NGAS), and EUR/USD (EURUSD). XRP and SOL (including their USD/USDT symbols) are **satellite crypto** with a 5/5 conviction gate for directional previews. The PAPER shortlist ranks gold and equities first, commodities and FX next, and limits crypto to one directional preview per four eligible non-crypto directional previews in the batch. WAIT and veto records consume no slots and remain visible. Supported standalone bias timeframes are 5m, 15m, 30m, and 1h.
 
-**Schema clarification:** The owner's initial `asset_class` enum omits silver and gas. The contract adds **`commodity`** for silver and gas. It does not misclassify them as `gold` or `fx`. Confirm downstream dashboard clients accept this one additional enum before merging.
+**Schema clarification:** The contract uses **`commodity`** for silver, crude oil, and natural gas. Confirm downstream dashboard clients accept this enum before merging.
 
 ## Nine seats
 

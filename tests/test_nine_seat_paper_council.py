@@ -375,6 +375,8 @@ def test_synthetic_directional_paper_preview_is_never_broker_execution():
 
 @pytest.mark.parametrize("symbol,asset_class", [
     ("XAUUSD", "gold"), ("XAGUSD", "commodity"), ("NGAS", "commodity"),
+    ("USOIL", "commodity"), ("WTI", "commodity"),
+    ("UKOIL", "commodity"), ("BRENT", "commodity"), ("EUR/USD", "fx"),
     ("EURUSD", "fx"), ("US500", "equity_index"), ("US30", "equity_index"),
     ("NAS100", "equity_index"), ("AAPL", "equity"),
     ("XRP", "crypto"), ("SOL", "crypto"),
@@ -401,14 +403,33 @@ def test_crypto_requires_higher_conviction_and_stays_satellite():
     result = council.finalize(as_of=AS_OF)
     assert result["asset_class"] == "crypto"
     assert result["conviction"] == 5
-    items = [
-        result,
-        {"mode": "paper", "asset_class": "gold", "conviction": 3},
-        {"mode": "paper", "asset_class": "equity_index", "conviction": 4},
-        {"mode": "paper", "asset_class": "crypto", "conviction": 4},
+    assert core_first([result]) == []
+
+
+@pytest.mark.parametrize("core_count,crypto_count", [(0, 0), (3, 0), (4, 1), (5, 1), (8, 2)])
+def test_shortlist_caps_crypto_and_keeps_waits_visible(core_count, crypto_count):
+    core = [
+        {"mode": "paper", "instrument": symbol, "asset_class": classify_instrument(symbol),
+         "verdict": "LONG"}
+        for symbol in ("EURUSD", "USOIL", "XAGUSD", "AAPL", "XAUUSD", "MSFT", "UKOIL", "NAS100")
+    ][:core_count]
+    eligible_crypto = [
+        {"mode": "paper", "instrument": symbol, "asset_class": "crypto",
+         "verdict": "SHORT", "conviction": 5}
+        for symbol in ("XRP", "SOL", "SOLUSD")
     ]
-    ranked = core_first(items)
-    assert [item["asset_class"] for item in ranked] == ["gold", "equity_index", "crypto"]
+    crypto_wait = make_council("XRP").finalize(as_of=AS_OF)
+    crypto_veto = {**crypto_wait, "verdict": "VETOED"}
+    core_wait = make_council("XAUUSD").finalize(as_of=AS_OF)
+    ranked = core_first([
+        {**eligible_crypto[0], "conviction": 4},
+        *eligible_crypto, crypto_wait, crypto_veto, core_wait, *core,
+        {**core_wait, "mode": "live", "verdict": "LONG"},
+    ])
+    assert ranked[-2:] == [crypto_wait, crypto_veto]
+    assert ranked[core_count + 1:-2] == eligible_crypto[:crypto_count]
+    assert ranked[0]["asset_class"] == "gold"
+    assert len(ranked) == core_count + crypto_count + 3
 
 
 def test_quant_low_sample_is_explicitly_annotated():

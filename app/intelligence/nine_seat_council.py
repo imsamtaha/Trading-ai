@@ -18,6 +18,7 @@ INITIAL_SEATS = ("macro", "market_structure", "quant", "news_sentiment")
 RISK_CHECKS = ("daily_loss", "total_open_risk", "correlation", "position_size", "event_exposure")
 TIMEFRAME_MINUTES = {"5m": 5, "15m": 15, "30m": 30, "1h": 60}
 VALID_TIMEFRAMES = TIMEFRAME_MINUTES.keys()
+NON_CRYPTO_PREVIEWS_PER_CRYPTO = 4
 SUPPORTED_ASSETS = {
     "XAUUSD": "gold",
     "GOLD": "gold",
@@ -27,7 +28,12 @@ SUPPORTED_ASSETS = {
     "XNGUSD": "commodity",
     "NATGAS": "commodity",
     "GAS": "commodity",
+    "USOIL": "commodity",
+    "WTI": "commodity",
+    "UKOIL": "commodity",
+    "BRENT": "commodity",
     "EURUSD": "fx",
+    "EUR/USD": "fx",
     "US500": "equity_index",
     "US30": "equity_index",
     "NAS100": "equity_index",
@@ -78,17 +84,29 @@ def classify_instrument(symbol: str) -> str:
 
 
 def core_first(recommendations: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
-    """Gold/equity precedes satellite crypto; never show low-conviction crypto."""
-    visible = [
-        item for item in recommendations
-        if item.get("mode") == "paper"
-        and (
-            item.get("asset_class") != "crypto"
-            or item.get("conviction") == 5
-        )
-    ]
-    order = {"gold": 0, "equity_index": 1, "equity": 1, "commodity": 2, "fx": 3, "crypto": 4}
-    return sorted(visible, key=lambda item: order.get(str(item.get("asset_class")), 99))
+    """Prioritize non-crypto PAPER previews and keep crypto WAIT status visible."""
+    priority = {"gold": 0, "equity_index": 1, "equity": 1, "commodity": 2, "fx": 3}
+    core = []
+    crypto_previews = []
+    crypto_waits = []
+    core_previews = 0
+    for item in recommendations:
+        if item.get("mode") != "paper":
+            continue
+        asset_class = str(item.get("asset_class"))
+        verdict = item.get("verdict")
+        if asset_class != "crypto":
+            core.append(item)
+            if asset_class in priority and verdict in ("LONG", "SHORT"):
+                core_previews += 1
+        elif verdict in ("NO TRADE", "VETOED"):
+            crypto_waits.append(item)
+        elif verdict in ("LONG", "SHORT") and item.get("conviction") == 5:
+            crypto_previews.append(item)
+
+    crypto_limit = core_previews // NON_CRYPTO_PREVIEWS_PER_CRYPTO
+    core.sort(key=lambda item: priority.get(str(item.get("asset_class")), 99))
+    return core + crypto_previews[:crypto_limit] + crypto_waits
 
 
 @dataclass
