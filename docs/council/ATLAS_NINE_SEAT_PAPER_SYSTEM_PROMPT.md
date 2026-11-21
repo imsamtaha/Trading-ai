@@ -32,14 +32,20 @@ Core coverage: gold (XAUUSD), major equity indices (US500, US30, NAS100), select
 
 ## Output contract
 
-The `finalize()` result preserves the owner's top-level keys:
+The `finalize()` result includes these top-level keys:
 
 ```
 instrument, asset_class, timeframe, timestamp, mode, verdict, conviction,
-position_size_pct, entry, stop, take_profit, seats, chair_rationale
+position_size_pct, entry, stop, take_profit, seats, chair_rationale,
+decision, confidence, risk_pct, evidence_issues
 ```
 
 `seats` contains `macro`, `market_structure`, `quant`, `risk`, `execution`, `news_sentiment`, and `red_team`. The Chair is represented by `verdict` and `chair_rationale`; the Evaluator is a **separate weekly output**. Risk veto and conditional decisions result in null entry and stop, empty take-profit and size 0. No orders or funding actions are possible.
+
+- `decision` is `BUY`, `SELL`, or `WAIT`. Missing, unverified, stale, or conflicting required evidence yields `WAIT` with the affected inputs identified in `evidence_issues`. A Risk veto also yields `WAIT`, preserves the `VETOED` verdict, and can be finalized without waiting for Chair.
+- Every required report carries a timezone-aware ISO-8601 `timestamp` between the verified snapshot time and the evaluation time. The snapshot and reports may be at most one configured chart interval old. `finalize(as_of=...)` supports replay with an explicit timezone-aware evaluation time and defaults to current UTC.
+- A directional decision requires the Market Structure seat's matching `setup_direction` (`LONG` or `SHORT`), written `liquidity_evidence` and `smc_confirmation`, News/Sentiment's explicit `event_risk_acceptable: true`, and the Red Team's `material_conflict: false`. The nearest execution target must offer at least 3:1 reward to risk using the submitted entry and stop.
+- `confidence` is `UNSCORED` because the Chair's 1–5 conviction is an ordinal assessment. `risk_pct` is 0 for `WAIT` and null for a directional preview pending an account-risk percentage from an authoritative source.
 
 ## Acceptance gates before any integration
 
