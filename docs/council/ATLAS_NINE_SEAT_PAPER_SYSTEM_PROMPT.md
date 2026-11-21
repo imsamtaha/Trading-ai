@@ -41,6 +41,12 @@ position_size_pct, entry, stop, take_profit, seats, chair_rationale
 
 `seats` contains `macro`, `market_structure`, `quant`, `risk`, `execution`, `news_sentiment`, and `red_team`. The Chair is represented by `verdict` and `chair_rationale`; the Evaluator is a **separate weekly output**. Risk veto and conditional decisions result in null entry and stop, empty take-profit and size 0. No orders or funding actions are possible.
 
+### Supervisor review
+
+Call `supervisor_decision()` to review the current snapshot at any stage. It returns `WAIT` with a reason for missing reports, a Risk veto, conditional approval, or any failed approval gate. The review carries the snapshot ID, instrument, timeframe, timestamp, paper mode, and `broker_execution_allowed=False`.
+
+A directional paper decision requires a verified snapshot and explicit `True` values for `structure_clear`, `liquidity_identified`, and `smc_confirmed` in the Market Structure report and `event_risk_acceptable` in the News / Sentiment report. The reviewer uses the nearest target and the stop distance to enforce at least 3:1 reward to risk before mapping the Chair's direction to `BUY` or `SELL`.
+
 ## Acceptance gates before any integration
 
 - Run `python -m pytest -q tests/test_nine_seat_paper_council.py` on a clean checkout.
