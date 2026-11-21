@@ -58,6 +58,34 @@ From the original project directory with the existing venv, .env and open MT5 DE
 
 Inspect existing worker processes first and stop the old monitor before restarting; do not start a second copy against the same ledger. Keep risk and position limits unchanged. Confirm current heartbeat, unique newly settled examples in data/atlas_council_training.jsonl, and refreshed data/atlas_council_profile.json. No Windows process has been started by this repository change.
 
+## Android and Ubuntu PAPER Council
+
+Build an offline zipapp from a checked-out GitHub revision, using Python 3.10 or newer:
+
+```sh
+python scripts/build_atlas_mobile_council.py --output ATLAS_Paper_Council.pyz
+```
+
+Download the archive to Android and use Termux with Python installed. If necessary,
+run `termux-setup-storage` and grant access to Downloads.
+
+```sh
+python ~/storage/downloads/ATLAS_Paper_Council.pyz
+python ~/storage/downloads/ATLAS_Paper_Council.pyz --journal ~/storage/downloads/atlas_council_training.jsonl
+```
+
+On Ubuntu, run the same commands with your actual download path. The first
+command runs a synthetic self-test. The second reads a local copy of the settled
+PAPER journal and prints a calibration profile. Identical duplicate snapshots
+count once, and conflicting records or missing explicit PAPER markers stop
+the run. On Windows, the default journal path relative to the worker checkout
+is `data/atlas_council_training.jsonl`. Keep the copied journal private.
+
+The archive contains the Council, risk-to-Executive adapter, Executive and
+training modules and the nine-seat contract library. Its command-line interface
+runs offline calibration. It requires only Python and leaves the Windows MT5
+worker independent.
+
 ## Offline MLflow research
 
 ```powershell
