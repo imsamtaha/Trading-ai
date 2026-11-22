@@ -10,13 +10,15 @@ Council; adopting this contract never enables real/demo broker execution.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from math import isfinite
+from datetime import datetime, timedelta, timezone
+from math import isclose, isfinite
 from typing import Any, Mapping
 
 INITIAL_SEATS = ("macro", "market_structure", "quant", "news_sentiment")
 RISK_CHECKS = ("daily_loss", "total_open_risk", "correlation", "position_size", "event_exposure")
-VALID_TIMEFRAMES = {"5m", "15m", "30m", "1h"}
+TIMEFRAME_MINUTES = {"5m": 5, "15m": 15, "30m": 30, "1h": 60}
+VALID_TIMEFRAMES = TIMEFRAME_MINUTES.keys()
+NON_CRYPTO_PREVIEWS_PER_CRYPTO = 4
 SUPPORTED_ASSETS = {
     "XAUUSD": "gold",
     "GOLD": "gold",
@@ -26,7 +28,12 @@ SUPPORTED_ASSETS = {
     "XNGUSD": "commodity",
     "NATGAS": "commodity",
     "GAS": "commodity",
+    "USOIL": "commodity",
+    "WTI": "commodity",
+    "UKOIL": "commodity",
+    "BRENT": "commodity",
     "EURUSD": "fx",
+    "EUR/USD": "fx",
     "US500": "equity_index",
     "US30": "equity_index",
     "NAS100": "equity_index",
@@ -77,17 +84,29 @@ def classify_instrument(symbol: str) -> str:
 
 
 def core_first(recommendations: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
-    """Gold/equity precedes satellite crypto; never show low-conviction crypto."""
-    visible = [
-        item for item in recommendations
-        if item.get("mode") == "paper"
-        and (
-            item.get("asset_class") != "crypto"
-            or item.get("conviction") == 5
-        )
-    ]
-    order = {"gold": 0, "equity_index": 1, "equity": 1, "commodity": 2, "fx": 3, "crypto": 4}
-    return sorted(visible, key=lambda item: order.get(str(item.get("asset_class")), 99))
+    """Prioritize non-crypto PAPER previews and keep crypto WAIT status visible."""
+    priority = {"gold": 0, "equity_index": 1, "equity": 1, "commodity": 2, "fx": 3}
+    core = []
+    crypto_previews = []
+    crypto_waits = []
+    core_previews = 0
+    for item in recommendations:
+        if item.get("mode") != "paper":
+            continue
+        asset_class = str(item.get("asset_class"))
+        verdict = item.get("verdict")
+        if asset_class != "crypto":
+            core.append(item)
+            if asset_class in priority and verdict in ("LONG", "SHORT"):
+                core_previews += 1
+        elif verdict in ("NO TRADE", "VETOED"):
+            crypto_waits.append(item)
+        elif verdict in ("LONG", "SHORT") and item.get("conviction") == 5:
+            crypto_previews.append(item)
+
+    crypto_limit = core_previews // NON_CRYPTO_PREVIEWS_PER_CRYPTO
+    core.sort(key=lambda item: priority.get(str(item.get("asset_class")), 99))
+    return core + crypto_previews[:crypto_limit] + crypto_waits
 
 
 @dataclass
@@ -246,28 +265,86 @@ class NineSeatPaperCouncil:
             data["position_size_pct"] = 0.0
         self._chair = data
 
-    def finalize(self) -> dict[str, Any]:
-        if self._chair is None or self._risk is None:
-            raise ValueError("Chair verdict and Risk assessment are required")
-        risk = self._risk
-        chair = self._chair
-        verdict = chair["verdict"]
-        if not self.verified_market_snapshot and verdict in {"LONG", "SHORT"}:
-            raise ValueError("Unverified market context cannot produce directional proposal")
-        if risk["status"] == "VETO":
+    def _supervisor_issues(self, risk_status: str | None, as_of: datetime) -> dict[str, str]:
+        snapshot_time = datetime.fromisoformat(self.timestamp)
+        oldest = as_of - timedelta(minutes=TIMEFRAME_MINUTES[self.timeframe])
+        issues = {}
+        if not self.verified_market_snapshot:
+            issues["market_snapshot"] = "unverified"
+        elif not oldest <= snapshot_time <= as_of:
+            issues["market_snapshot"] = "stale or future timestamp"
+
+        required = {seat: self._initial.get(seat) for seat in INITIAL_SEATS}
+        required["risk"] = self._risk
+        if risk_status != "VETO":
+            required["chair"] = self._chair
+        if risk_status in (None, "APPROVE"):
+            required.update(execution=self._execution, red_team=self._red_team)
+        for seat, report in required.items():
+            if report is None:
+                issues[seat] = "missing report"
+                continue
+            try:
+                reported_at = datetime.fromisoformat(_stamp(report.get("timestamp")))
+            except ValueError:
+                issues[seat] = "missing or invalid timestamp"
+                continue
+            if reported_at < oldest:
+                issues[seat] = "stale report"
+            elif not snapshot_time <= reported_at <= as_of:
+                issues[seat] = "report timestamp outside snapshot and evaluation times"
+        return issues
+
+    def _check_directional_evidence(self, verdict: str, issues: dict[str, str]) -> None:
+        structure = self._initial["market_structure"]
+        direction = structure.get("setup_direction")
+        if direction not in ("LONG", "SHORT"):
+            issues["market_structure.setup_direction"] = "clear setup direction required"
+        elif direction != verdict:
+            issues["market_structure.setup_direction"] = "conflicts with Chair verdict"
+        for field in ("liquidity_evidence", "smc_confirmation"):
+            value = structure.get(field)
+            if not isinstance(value, str) or not value.strip():
+                issues[f"market_structure.{field}"] = "written evidence required"
+        if self._initial["news_sentiment"].get("event_risk_acceptable") is not True:
+            issues["news_sentiment.event_risk_acceptable"] = "explicit clearance required"
+        if self._red_team.get("material_conflict") is not False:
+            issues["red_team.material_conflict"] = (
+                "unresolved material conflict" if self._red_team.get("material_conflict") is True
+                else "explicit conflict assessment required"
+            )
+        entry = self._execution["entry"]
+        stop_distance = abs(entry - self._execution["stop"])
+        nearest_reward = min(abs(target - entry) for target in self._execution["take_profit"])
+        minimum_reward = 3 * stop_distance
+        if nearest_reward < minimum_reward and not isclose(nearest_reward, minimum_reward, rel_tol=1e-12):
+            issues["execution.reward_to_risk"] = "nearest target must offer at least 3:1"
+
+    def finalize(self, *, as_of: datetime | None = None) -> dict[str, Any]:
+        if as_of is None:
+            as_of = datetime.now(timezone.utc)
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("as_of must include a timezone")
+        risk = self._risk or {}
+        chair = self._chair or {}
+        risk_status = risk.get("status")
+        issues = self._supervisor_issues(risk_status, as_of)
+        verdict = chair.get("verdict", "NO TRADE")
+        if verdict in {"LONG", "SHORT"}:
+            self._check_directional_evidence(verdict, issues)
+        if risk_status == "VETO":
             verdict = "VETOED"
-        if risk["status"] == "CONDITIONAL":
+        elif issues or risk_status != "APPROVE":
             verdict = "NO TRADE"
         active = verdict in {"LONG", "SHORT"}
-        exec_data = self._execution or {}
-        if not active:
-            exec_data = {}
-        note = chair["rationale"]
-        if risk["status"] == "VETO":
+        exec_data = self._execution if active else {}
+        note = chair.get("rationale", "Waiting for the required Council evidence.")
+        if risk_status == "VETO":
             note += " | Risk veto: " + risk["reason"] + ". Minimum change: " + risk["minimum_change"]
-        elif risk["status"] == "CONDITIONAL":
+        elif risk_status == "CONDITIONAL":
             note += " | Not yet approved: " + risk["conditions"]
-        if self._initial["quant"]["sample_size"] < 30:
+        quant = self._initial.get("quant", {})
+        if quant.get("sample_size", 30) < 30:
             note += " | Quant n<30: anecdotal, not statistically reliable."
         if not self.verified_market_snapshot:
             note += " | MARKET DATA UNVERIFIED: no actionable proposal."
@@ -278,35 +355,39 @@ class NineSeatPaperCouncil:
             "timestamp": self.timestamp,
             "mode": "paper",
             "verdict": verdict,
-            "conviction": chair["conviction"],
+            "decision": {"LONG": "BUY", "SHORT": "SELL"}.get(verdict, "WAIT"),
+            "confidence": "UNSCORED",
+            "risk_pct": None if active else 0.0,
+            "evidence_issues": issues,
+            "conviction": chair.get("conviction") if not issues else None,
             "position_size_pct": chair["position_size_pct"] if active else 0.0,
             "entry": exec_data.get("entry") if active else None,
             "stop": exec_data.get("stop") if active else None,
             "take_profit": list(exec_data.get("take_profit", [])) if active else [],
             "seats": {
                 "macro": {
-                    "bias": self._initial["macro"]["bias"],
-                    "driver": self._initial["macro"]["driver"],
+                    "bias": self._initial.get("macro", {}).get("bias"),
+                    "driver": self._initial.get("macro", {}).get("driver"),
                 },
                 "market_structure": {
-                    "read": self._initial["market_structure"]["read"],
-                    "invalidation": self._initial["market_structure"]["invalidation"],
+                    "read": self._initial.get("market_structure", {}).get("read"),
+                    "invalidation": self._initial.get("market_structure", {}).get("invalidation"),
                 },
                 "quant": {
-                    "confidence": self._initial["quant"]["confidence"],
-                    "sample_size": self._initial["quant"]["sample_size"],
+                    "confidence": quant.get("confidence"),
+                    "sample_size": quant.get("sample_size"),
                 },
                 "risk": {
-                    "status": risk["status"],
+                    "status": risk_status,
                     "reason": (
                         risk["reason"] + " | Minimum change: " + risk["minimum_change"]
-                        if risk["status"] == "VETO" else risk["reason"]
+                        if risk_status == "VETO" else risk.get("reason")
                     ),
                 },
                 "execution": {"plan": exec_data.get("plan", "") if active else ""},
                 "news_sentiment": {
-                    "event_risk": self._initial["news_sentiment"]["event_risk"],
-                    "sentiment_skew": self._initial["news_sentiment"]["sentiment_skew"],
+                    "event_risk": self._initial.get("news_sentiment", {}).get("event_risk"),
+                    "sentiment_skew": self._initial.get("news_sentiment", {}).get("sentiment_skew"),
                 },
                 "red_team": {
                     "objection": (

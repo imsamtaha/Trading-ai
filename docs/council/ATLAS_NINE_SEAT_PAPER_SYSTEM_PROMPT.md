@@ -6,9 +6,9 @@ Status: **DRAFT / NOT DEPLOYED**. Source: owner's proposed 9-seat System Prompt,
 
 ATLAS produces **simulated/paper decision-support recommendations only**. The live safety flags stay `ATLAS_LIVE_TRADING=false` and `ATLAS_DASHBOARD_ONLY=true`. This module neither places live nor demo broker orders and never claims an order was filled. Every output is explicitly labelled `SIMULATED/PAPER RECOMMENDATION`, with `mode=paper`.
 
-Core coverage: gold (XAUUSD), major equity indices (US500, US30, NAS100), select large-cap equities (explicit allowlist), and related markets. Silver (XAGUSD) and natural gas (NGAS) remain covered, plus EURUSD. XRP and SOL (including their USD/USDT symbols) are **satellite crypto** with a 5/5 conviction gate. For dashboard ranking: gold and equities first; commodities/FX next; crypto only after the highest conviction test. No 1m standalone directional bias, only 5m/15m/30m/1h.
+Core coverage includes gold (XAUUSD), silver (XAGUSD), major equity indices (US500, US30, NAS100), select large-cap equities, WTI crude (USOIL/WTI), Brent crude (UKOIL/BRENT), natural gas (NGAS), and EUR/USD (EURUSD). XRP and SOL (including their USD/USDT symbols) are **satellite crypto** with a 5/5 conviction gate for directional previews. The PAPER shortlist ranks gold and equities first, commodities and FX next, and limits crypto to one directional preview per four eligible non-crypto directional previews in the batch. WAIT and veto records consume no slots and remain visible. Supported standalone bias timeframes are 5m, 15m, 30m, and 1h.
 
-**Schema clarification:** The owner's initial `asset_class` enum omits silver and gas. The contract adds **`commodity`** for silver and gas. It does not misclassify them as `gold` or `fx`. Confirm downstream dashboard clients accept this one additional enum before merging.
+**Schema clarification:** The contract uses **`commodity`** for silver, crude oil, and natural gas. Confirm downstream dashboard clients accept this enum before merging.
 
 ## Nine seats
 
@@ -32,14 +32,20 @@ Core coverage: gold (XAUUSD), major equity indices (US500, US30, NAS100), select
 
 ## Output contract
 
-The `finalize()` result preserves the owner's top-level keys:
+The `finalize()` result includes these top-level keys:
 
 ```
 instrument, asset_class, timeframe, timestamp, mode, verdict, conviction,
-position_size_pct, entry, stop, take_profit, seats, chair_rationale
+position_size_pct, entry, stop, take_profit, seats, chair_rationale,
+decision, confidence, risk_pct, evidence_issues
 ```
 
 `seats` contains `macro`, `market_structure`, `quant`, `risk`, `execution`, `news_sentiment`, and `red_team`. The Chair is represented by `verdict` and `chair_rationale`; the Evaluator is a **separate weekly output**. Risk veto and conditional decisions result in null entry and stop, empty take-profit and size 0. No orders or funding actions are possible.
+
+- `decision` is `BUY`, `SELL`, or `WAIT`. Missing, unverified, stale, or conflicting required evidence yields `WAIT` with the affected inputs identified in `evidence_issues`. A Risk veto also yields `WAIT`, preserves the `VETOED` verdict, and can be finalized without waiting for Chair.
+- Every required report carries a timezone-aware ISO-8601 `timestamp` between the verified snapshot time and the evaluation time. The snapshot and reports may be at most one configured chart interval old. `finalize(as_of=...)` supports replay with an explicit timezone-aware evaluation time and defaults to current UTC.
+- A directional decision requires the Market Structure seat's matching `setup_direction` (`LONG` or `SHORT`), written `liquidity_evidence` and `smc_confirmation`, News/Sentiment's explicit `event_risk_acceptable: true`, and the Red Team's `material_conflict: false`. The nearest execution target must offer at least 3:1 reward to risk using the submitted entry and stop.
+- `confidence` is `UNSCORED` because the Chair's 1–5 conviction is an ordinal assessment. `risk_pct` is 0 for `WAIT` and null for a directional preview pending an account-risk percentage from an authoritative source.
 
 ## Acceptance gates before any integration
 
