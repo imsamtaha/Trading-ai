@@ -1,0 +1,32 @@
+name: Offline XGBoost evaluation
+
+on:
+  pull_request:
+    paths:
+      - "app/intelligence/xgboost_experiment.py"
+      - "app/intelligence/council_training.py"
+      - "scripts/evaluate_atlas_xgboost.py"
+      - "tests/test_atlas_xgboost_experiment.py"
+      - "requirements-ml.txt"
+      - ".github/workflows/xgboost-evaluation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ATLAS_LIVE_TRADING: "false"
+      ATLAS_DASHBOARD_ONLY: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install optional evaluation dependencies
+        run: python -m pip install "pytest>=8,<10" "numpy>=2,<3" "scikit-learn>=1.6,<2" "xgboost>=3,<4"
+      - name: Run isolated offline evaluation tests
+        run: python -m pytest -q tests/test_atlas_xgboost_experiment.py

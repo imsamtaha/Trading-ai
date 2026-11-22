@@ -188,3 +188,17 @@ ATLAS is market intelligence, risk control, Paper simulation, monitoring, and de
 The current Council architecture is Paper-first.
 
 Any future demo-broker or live-broker execution must remain a separately authorized execution layer and must never be enabled implicitly by Council training, UI state, or learned confidence.
+
+
+## 11. Optional XGBoost research (offline only)
+
+- app/intelligence/xgboost_experiment.py
+- scripts/evaluate_atlas_xgboost.py
+- requirements-ml.txt
+- docs/XGBOOST_EXPERIMENT.md
+
+This experiment reads settled Paper Council examples, checks snapshot separation,
+and reports held-out agent-opinion correctness metrics. It cannot update Council
+weights, send broker orders, produce TradeIntents, or change the production
+decision path. It is not enabled by default and must not be described as
+verified real-trading performance.
