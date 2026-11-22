@@ -35,6 +35,7 @@ OBJECT_KEYS = {
     "training_progress": ("before", "after", "sample_count", "training_profile_version", "candidate_status", "as_of"),
     "windows_runtime": ("status", "heartbeat", "cycle_seconds", "last_error", "service", "process_count"),
     "shadow_learning": ("status", "samples", "latest_outcome", "updated_at", "training_examples", "drift", "before", "after", "agent_weights"),
+    "release_validation": ("pr_103_status", "pr_103_test_status", "issue_82_status", "ledger_readback", "windows_verified", "ci_status", "source", "as_of"),
 }
 METRIC_KEYS = {"oos_accuracy", "ece", "samples", "win_rate", "profit_factor",
                "expectancy_r", "max_drawdown_pct", "agent_agreement", "agent_conflict"}
@@ -146,8 +147,57 @@ def read_evidence() -> dict[str, Any]:
         "source_environment": "PAPER",
         "safeguards": {"live_trading_enabled": False, "real_money_orders_allowed": False,
                        "broker_execution": "READ_ONLY"},
-        "data": projected,
+        "data": {**projected, "audit_flags": audit_paper_rows(projected),
+                 "release_readiness": release_readiness(projected, status, audit_paper_rows(projected))},
     }
+
+
+def audit_paper_rows(data: dict[str, Any]) -> list[dict[str, str]]:
+    """Conservative read-only evidence checks. Never interpret absence as a successful audit."""
+    flags: list[dict[str, str]] = []
+    seen: set[str] = set()
+    decisions = data.get("decision_evidence", [])
+    for index, row in enumerate(decisions):
+        ident = row.get("decision_id")
+        ref = str(ident or f"row-{index + 1}")
+        def flag(code: str, detail: str) -> None:
+            flags.append({"code": code, "reference": ref, "detail": detail,
+                          "source": "signed_paper_decision_evidence"})
+        if not ident:
+            flag("MISSING_DECISION_ID", "decision_id absent")
+        elif ident in seen:
+            flag("DUPLICATE_DECISION_ID", "decision_id occurs more than once")
+        else:
+            seen.add(ident)
+        if not row.get("snapshot_id"):
+            flag("MISSING_PROVENANCE", "snapshot_id absent")
+        if not row.get("outcome"):
+            flag("MISSING_OUTCOME", "settled outcome absent")
+        if not row.get("council_votes"):
+            flag("MISSING_VOTES", "Council votes unavailable")
+        veto = row.get("risk_veto")
+        action = str(row.get("decision") or "").upper()
+        if veto is True and action in {"BUY", "SELL", "OPEN"}:
+            flag("RISK_VETO_ACTION_CONFLICT", "action conflicts with risk veto")
+    return flags[:500]
+
+
+def release_readiness(data: dict[str, Any], evidence_status: str,
+                      flags: list[dict[str, str]]) -> dict[str, Any]:
+    """Fail closed: source authentication is not operational sign-off."""
+    validation = data.get("release_validation", {})
+    checks = {
+        "signed_snapshot_fresh": evidence_status == "VERIFIED",
+        "decision_audit_clean": bool(data.get("decision_evidence")) and not flags,
+        "windows_verified": validation.get("windows_verified") is True,
+        "ledger_readback": validation.get("ledger_readback") == "PASS",
+        "pr_103_tests": validation.get("pr_103_test_status") == "PASS",
+        "ci": validation.get("ci_status") == "PASS",
+        "issue_82_closed": validation.get("issue_82_status") == "CLOSED",
+    }
+    return {"status": "REVIEW_REQUIRED" if all(checks.values()) else "BLOCKED",
+            "checks": checks, "source": "derived_from_signed_snapshot",
+            "note": "REVIEW_REQUIRED is not authorization to deploy or place orders"}
 
 
 @router.get("", include_in_schema=False)
