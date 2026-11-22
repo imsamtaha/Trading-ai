@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import time
@@ -23,6 +24,7 @@ from app.risk.ledger_metrics import calculate_ledger_risk_state
 from app.risk.manager import calculate_risk
 from app.strategies.router import generate_strategy_candidate
 from app.strategy.universe import build_universe, diversify_universe
+from app.monitor.runtime import write_health
 
 
 TIMEFRAME_MAP = {
@@ -639,11 +641,17 @@ class AtlasMT5Monitor:
     def run_once(self) -> list[dict[str, Any]]:
         """Run one connected demo cycle and return its audit events."""
         try:
+            write_health("CYCLE_STARTED")
             account = self.broker.connect()
             self.account_equity = float(account["equity"])
             self.heartbeat.publish_connection(account, "connected")
             self.discover_symbols()
-            return self.cycle()
+            events = self.cycle()
+            write_health("CYCLE_COMPLETED", events=len(events))
+            return events
+        except Exception:
+            write_health("CYCLE_FAILED")
+            raise
         finally:
             self.broker.disconnect()
 
@@ -655,7 +663,12 @@ class AtlasMT5Monitor:
             while self.running:
                 try:
                     for event in self.run_once():
-                        print(event, flush=True)
+                        # Full evidence stays in the signal journal; do not dump
+                        # candle arrays into redirected Task Scheduler stdout.
+                        summary = {key: event.get(key) for key in
+                                   ("timestamp", "symbol", "status", "reason")}
+                        logging.getLogger("atlas.paper.monitor").info(
+                            "%s", json.dumps(summary, default=str))
                 except MT5ExecutionError as exc:
                     self.heartbeat.publish_connection({}, "error")
                     event = self._record_event({
@@ -664,11 +677,12 @@ class AtlasMT5Monitor:
                         "status": "MT5_ERROR", "reason": str(exc),
                         "decision": {"decision": "WAIT"},
                     })
-                    print(event, flush=True)
+                    logging.getLogger("atlas.paper.monitor").warning(
+                        "MT5 connection failed: %s", exc)
                 if self.running:
                     time.sleep(self.cycle_seconds)
         except KeyboardInterrupt:
-            pass
+            write_health("STOPPED")
         finally:
             self.running = False
             self.broker.disconnect()
