@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
 
 
@@ -110,6 +112,35 @@ def test_winning_paper_close_records_training_and_refreshes_profile(tmp_path, mo
     assert profile["total_examples"] == 1
     assert profile["agents"]["technical"]["weight"] == 1.0
     assert profile["agents"]["technical"]["locked_baseline"] is True
+
+
+@pytest.mark.parametrize("quote_age", [120, None, -120])
+def test_untrusted_exit_quote_preserves_position_and_training(tmp_path, monkeypatch, quote_age):
+    monitor = _monitor(tmp_path, monkeypatch)
+    monkeypatch.setenv("ATLAS_PERSIST_ALL_SIGNALS", "false")
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: _fresh_quote())
+    recorded = []
+    monkeypatch.setattr(monitor, "_record_event", recorded.append)
+    opened = monitor._open_paper_trade(
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        symbol="EURUSD", candidate=_candidate(), decision=_decision(),
+    )
+    assert opened["status"] == "PAPER_TRADE_OPENED"
+    target = float(opened["trade"]["take_profit"])
+    quote = _fresh_quote(bid=target + 0.0001, ask=target + 0.0002)
+    timestamp = (int(datetime.now(timezone.utc).timestamp() * 1000)
+                 - quote_age * 1000) if quote_age is not None else 0
+    quote.update(time=timestamp // 1000, time_msc=timestamp)
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: quote)
+
+    events = monitor._close_due_positions(datetime.now(timezone.utc).isoformat())
+
+    assert len(events) == 1
+    assert events[0]["status"] == "PAPER_QUOTE_REJECTED"
+    assert events[0]["decision"]["decision"] == "WAIT"
+    assert recorded[-1] == events[0]
+    assert len(monitor.ledger.open_positions()) == 1
+    assert monitor.council_training_journal.load() == []
 
 
 def test_losing_long_paper_close_trains_opposite_realized_direction(tmp_path, monkeypatch):
