@@ -67,3 +67,105 @@ def test_request_records_http_error_instead_of_silently_discarding(monkeypatch, 
     assert heartbeat.last_error is not None
     assert "401" in heartbeat.last_error
     assert "Supabase audit request failed" in caplog.text
+
+def test_supabase_timeout_has_no_automatic_post_retry(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_test")
+    attempts = []
+
+    def fail_request(request, timeout):
+        attempts.append(request.get_method())
+        raise TimeoutError("Simulated timeout")
+
+    monkeypatch.setattr("urllib.request.urlopen", fail_request)
+    heartbeat = AtlasHeartbeat(broker=object())
+    result = heartbeat._request("atlas_execution_events", "POST", {"status": "PAPER"})
+
+    assert result is None
+    assert attempts == ["POST"]
+    assert "Simulated timeout" in heartbeat.last_error
+
+
+def test_configurable_supabase_timeout(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_test")
+    monkeypatch.setenv("ATLAS_SUPABASE_TIMEOUT", "15")
+    captured = []
+
+    def fake_urlopen(request, timeout):
+        captured.append(timeout)
+        raise TimeoutError("Simulated timeout")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    heartbeat = AtlasHeartbeat(broker=object())
+    heartbeat._request("atlas_execution_events", "POST", {"status": "PAPER"})
+    assert captured == [15.0]
+
+
+def test_heartbeat_separates_audit_error_from_mt5_connection(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_test")
+
+    class FakeBroker:
+        def connect(self):
+            return {"login": 12345, "server": "DEMO"}
+
+    heartbeat = AtlasHeartbeat(broker=FakeBroker())
+
+    def fail_audit(path, method, payload=None):
+        heartbeat.last_error = "Simulated audit failure"
+        return None
+
+    monkeypatch.setattr(heartbeat, "_request", fail_audit)
+    result = heartbeat.heartbeat()
+    assert result["mt5_status"] == "connected"
+    assert result["audit_status"] == "error"
+    assert result["audit_error"] == "Simulated audit failure"
+
+
+def test_heartbeat_reports_disabled_audit_when_credentials_missing(monkeypatch):
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SECRET_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+
+    class FakeBroker:
+        def connect(self):
+            return {"login": 12345, "server": "DEMO"}
+
+    heartbeat = AtlasHeartbeat(broker=FakeBroker())
+    result = heartbeat.heartbeat()
+    assert result["mt5_status"] == "connected"
+    assert result["audit_status"] == "disabled"
+
+
+def test_heartbeat_detects_empty_patch_result(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_test")
+
+    class FakeBroker:
+        def connect(self):
+            return {"login": 12345, "server": "DEMO"}
+
+    heartbeat = AtlasHeartbeat(broker=FakeBroker())
+    heartbeat.connection_id = "existing-test-id"
+    monkeypatch.setattr(heartbeat, "_request", lambda path, method, payload=None: [])
+    result = heartbeat.heartbeat()
+    assert result["mt5_status"] == "connected"
+    assert result["audit_status"] == "error"
+    assert "PATCH" in result["audit_error"]
+
+
+def test_heartbeat_detects_empty_post_result(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_test")
+
+    class FakeBroker:
+        def connect(self):
+            return {"login": 12345, "server": "DEMO"}
+
+    heartbeat = AtlasHeartbeat(broker=FakeBroker())
+    monkeypatch.setattr(heartbeat, "_request", lambda path, method, payload=None: [])
+    result = heartbeat.heartbeat()
+    assert result["mt5_status"] == "connected"
+    assert result["audit_status"] == "error"
+    assert result["audit_error"] is not None
