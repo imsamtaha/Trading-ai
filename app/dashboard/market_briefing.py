@@ -222,9 +222,13 @@ class MarketBriefingService:
             seen = {story["url"] for story in ready}
             native = [story for story in available if story["language"] == "ar" and story["url"] not in seen]
             needed = limit-len(ready)
-            if len(native) >= needed:
-                # Keep valid official translations, then fill gaps with publisher Arabic.
-                stories = ready+_arabic_headlines(native[:needed], language=language)
+            # Prefer verified Arabic-language publisher headlines for every missing
+            # translation. Never silently substitute an English headline while an
+            # Arabic original is available.
+            native = _arabic_headlines(native[:needed], language=language)
+            used = seen | {story["url"] for story in native}
+            fallback = [story for story in stories if story["url"] not in used]
+            stories = (ready + native + fallback)[:limit]
         return route_headlines(stories)
 
     def briefing(self, language="ar"):

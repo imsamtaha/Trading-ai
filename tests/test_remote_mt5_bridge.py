@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -26,6 +27,7 @@ def test_remote_bridge_client_fetches_read_only_demo_telemetry(monkeypatch):
         def json(self):
             return {
                 "status": "ONLINE",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "mode": "READ_ONLY",
                 "account": {"account_type": "DEMO", "login": "***1234"},
                 "positions": [],
@@ -132,3 +134,27 @@ def test_windows_bridge_module_exposes_get_only_routes():
     assert any(path == "/health" and "GET" in methods for path, methods in routes)
     assert any(path == "/telemetry" and "GET" in methods for path, methods in routes)
     assert not any("POST" in methods or "PUT" in methods or "DELETE" in methods for path, methods in routes if path in {"/health", "/telemetry"})
+
+
+
+def test_remote_bridge_rejects_stale_snapshot(monkeypatch):
+    monkeypatch.setenv("ATLAS_MT5_BRIDGE_URL", "http://127.0.0.1:8765")
+    monkeypatch.setenv("ATLAS_MT5_BRIDGE_MAX_AGE_SECONDS", "30")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "status": "ONLINE",
+                "timestamp": "2020-01-01T00:00:00+00:00",
+                "mode": "READ_ONLY",
+                "account": {"account_type": "DEMO"},
+                "broker_orders": False,
+            }
+
+    monkeypatch.setattr("app.integrations.mt5_bridge.requests.get", lambda *a, **k: FakeResponse())
+    from app.integrations.mt5_bridge import RemoteMT5BridgeError, fetch_remote_mt5_telemetry
+    with pytest.raises(RemoteMT5BridgeError, match="stale"):
+        fetch_remote_mt5_telemetry()
