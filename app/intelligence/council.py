@@ -5,6 +5,7 @@ from math import isfinite
 from typing import Any, Iterable, Mapping
 
 from app.intelligence.council_training import agent_weight
+from app.intelligence.council_calibration import calibrated_confidence
 
 
 VALID_DECISIONS = {"BUY", "SELL", "HOLD", "EXIT"}
@@ -61,6 +62,8 @@ class AtlasCouncilCoordinator:
         items = list(opinions)
         if not items:
             raise ValueError("ATLAS Council requires at least one specialist opinion.")
+        if len({item.agent for item in items}) != len(items):
+            raise ValueError("Duplicate agent identity in council opinions.")
         data_quality = _bounded_score(data_quality, field="data_quality")
         if any(item.snapshot_id and item.snapshot_id != snapshot_id for item in items):
             raise ValueError("All agent opinions must use the current snapshot_id.")
@@ -72,6 +75,8 @@ class AtlasCouncilCoordinator:
         for item in items:
             weight = agent_weight(agent_profile, item.agent)
             calibrated = max(0.0, min(1.0, item.confidence * weight))
+            if isinstance(agent_profile, Mapping) and agent_profile.get("version") == 2:
+                calibrated = calibrated_confidence(agent_profile, item.agent, item.confidence)
             normalized.append(
                 {
                     "agent": item.agent,
