@@ -62,12 +62,12 @@ async def dashboard_only_guard(request: Request, call_next):
             "/dashboard/demo-status", "/dashboard/trader-view",
             "/sam", "/sam/", "/sam/api/snapshot", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
-            "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
+            "/agent/capabilities", "/agent/titan/policy", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
             "/evolution/status", "/runtime/status",
             "/docs", "/openapi.json",
         }
-        analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        analysis_paths = {"/agent/decision", "/agent/titan/analyze", "/agent/titan/review", "/agent/right-hand/plan", "/agent/right-hand/chat"}
         fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
         paper_demo_execute = (
             request.method == "POST"
