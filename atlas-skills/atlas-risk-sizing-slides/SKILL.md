@@ -23,17 +23,17 @@ Turn a proposed ML-to-risk integration into an accurate, reviewable presentation
 5. **Explain the model output.** When relevant, show score, confidence, sample count, data window/freshness, source coverage/quality, and model version. Include symbol/market and generated timestamp in a proposed payload only if useful. Explain how missing, stale, low-confidence, or unapproved model output is handled by the stated policy; do not silently substitute stale values.
 6. **Explain sizing without surrendering risk authority.** Present baseline size as derived from an approved loss budget and loss to invalidation after fees/slippage. If model output modifies size, show the adjustment as bounded and subordinate to approved caps. Do not let sentiment alone create or reverse a trade, increase leverage, exceed risk budget, exposure, liquidity limits, or override the risk governor.
    - If the adjustment depends on trade direction, use a position-aligned score (e.g., sentiment score multiplied by the sign of the proposed position) or explicitly state that the formula is a non-directional illustration. Avoid presenting a formula that implicitly treats a negative sentiment as risk-reducing for both long and short positions.
-   - Distinguish an optional adjustment from a required decision input. Apply ATLAS's documented HOLD gate when required decision input is missing, invalid, or stale.
+   - Distinguish an optional adjustment from a required decision input. If an optional signal is unusable, retain baseline sizing and apply all normal risk gates. Apply ATLAS's documented HOLD gate when required decision input is missing, invalid, or stale.
 7. **Show paper evaluation.** Describe offline, time-ordered evaluation, out-of-sample and paper testing, comparison with a baseline without sentiment, drift and source-manipulation monitoring, model versioning, audit logs, and human review. Describe an evaluation as complete only when verified.
-8. **Create the deck.** Plan the outline before authoring. Use a legible visual style and native slide elements for calculations and diagrams where suitable. Show the direction of information flow and Senior Risk's veto authority.
-9. **Verify and deliver.** Preview every slide, correct layout and validation issues, and share the deck through the presentation workflow. Summarize the deck and any assumptions in the user's language.
+8. **Create the deck.** Plan the outline before authoring. Keep slides concise and use a legible visual style. Build calculations and diagrams as native slide elements where suitable. Show the direction of information flow and Senior Risk's veto authority.
+9. **Verify and deliver.** Preview every slide, correct layout and validation issues, and share the deck through the presentation workflow. Summarize the deck and any assumptions in the user's language. Present the deck as documentation of the proposed integration.
 
 ## Default governance framing
 
 - Model output is advisory context or a bounded adjustment input, never an autonomous order.
 - The approved risk budget and risk governor remain authoritative; veto results in no approval until resolved.
 - Use defined states such as `valid`, `stale`, `low_confidence`, `insufficient_coverage`, and `unapproved_model` only as an illustrative schema unless Atlas confirms them.
-- Label training, evaluation, and paper-simulation results with their data source and status.
+- Keep training, evaluation, paper simulation, and any separately supplied live performance evidence distinct. Label each result with its data source and status.
 - Avoid exposing API keys, credentials, or private account data in slides.
 
 ## Formula communication pattern
