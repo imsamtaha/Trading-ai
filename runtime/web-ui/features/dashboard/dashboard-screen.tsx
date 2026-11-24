@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import type { Candle, DashboardViewModel } from "@/lib/api/types";
 import { MarketTile } from "@/features/markets/market-tile";
@@ -10,7 +10,8 @@ import { PositionsPanel } from "@/features/trades/positions-panel";
 import { SignalsPanel, type SignalView } from "@/features/signals/signals-panel";
 import { AtlasAssistant } from "@/features/ai/atlas-assistant";
 import { sendAgentMessage } from "@/lib/api/agent";
-import type { Headline } from "@/lib/api/briefing";
+import type { Headline, MarketBriefing } from "@/lib/api/briefing";
+import { MarketDataBoard } from "@/features/markets/market-data-board";
 import { AgentBadge } from "@/components/system/agent-badge";
 import { TrainingPanel } from "@/features/training/training-panel";
 import { ExecutionAgentPanel } from "@/features/execution/execution-agent-panel";
@@ -21,9 +22,9 @@ const MiniCard = ({ label, value, tone = "gold" }: { label: string; value: strin
   <article className={`atlas-mini-card atlas-mini-card--${tone}`}><span>{label}</span><strong>{value}</strong></article>
 );
 
-export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timeframe = "1h", signals = [], activity = [], headlines = [], briefingAvailable = false, positionsAvailable, signalsAvailable, activityAvailable, assistantAvailable = true, assistantLockedHref = "/login?returnTo=%2Fdashboard", intelligenceAvailable = true, language = "ar", onMarketChange }: {
+export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timeframe = "1h", signals = [], activity = [], headlines = [], briefingAvailable = false, positionsAvailable, signalsAvailable, activityAvailable, assistantAvailable = true, assistantLockedHref = "/login?returnTo=%2Fdashboard", intelligenceAvailable = true, language = "ar", onMarketChange, operations, marketBriefing, accessNotice, chartStatus }: {
   state: DashboardViewModel; candles?: Candle[]; symbol?: string; timeframe?: string; signals?: SignalView[]; activity?: ActivityEvent[]; headlines?: Headline[]; briefingAvailable?: boolean;
-  positionsAvailable?: boolean; signalsAvailable?: boolean; activityAvailable?: boolean; assistantAvailable?: boolean; assistantLockedHref?: string; intelligenceAvailable?: boolean; language?: Language; onMarketChange?: (symbol: string, timeframe: string) => void;
+  positionsAvailable?: boolean; signalsAvailable?: boolean; activityAvailable?: boolean; assistantAvailable?: boolean; assistantLockedHref?: string; intelligenceAvailable?: boolean; language?: Language; operations?: ReactNode; marketBriefing?: MarketBriefing | null; accessNotice?: ReactNode; chartStatus?: string; onMarketChange?: (symbol: string, timeframe: string) => void;
 }) {
   const ar = language === "ar";
   const [activeNav, setActiveNav] = useState("markets");
@@ -35,10 +36,11 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
 
   return <div className="atlas-dashboard atlas-dashboard--mockup" id="dashboard" dir={ar ? "rtl" : "ltr"}>
     <header className="atlas-mock-topbar" data-testid="atlas-dashboard-topbar">
+      <Image className="atlas-tiger-hero" src="/atlas-tiger-shield.webp" alt="ATLAS Intelligence by JUST AI" width={1080} height={810} unoptimized priority />
       <div className="atlas-mock-brand">
-        <Image src="/atlas-logo.webp" alt="ATLAS" width={84} height={84} unoptimized />
         <div>
-          <h1>ATLAS</h1>
+          <h1 dir="ltr">ATLAS <em>THE ULTIMATE</em></h1>
+          <p>{ar ? "ذكاء التداول والعمليات" : "AI Trading Intelligence & Operations"}</p>
         </div>
       </div>
       <div className="atlas-mock-status">
@@ -55,14 +57,20 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
       <span><strong>{ar ? "المجلس" : "Council"}</strong>{ar ? " تحليل متعدد الوكلاء" : " multi-agent analysis"}</span>
     </section>
 
-    {intelligenceAvailable && <section className="atlas-insight-grid" data-testid="atlas-insight-grid">
-      <MiniCard label={ar ? "الاتجاه" : "Trend"} value={signal === "BUY" ? (ar ? "صاعد" : "BULLISH") : signal === "SELL" ? (ar ? "هابط" : "BEARISH") : (ar ? "محايد" : "NEUTRAL")} />
-      <MiniCard label={ar ? "الإشارة" : "Signal"} value={signal} />
-      <MiniCard label={ar ? "التحيز" : "Bias"} value={signal === "OBSERVE" ? "?" : signal} />
-      <MiniCard label={ar ? "الثقة" : "Confidence"} value={confidence} />
-    </section>}
+    <nav className="atlas-bottom-actions atlas-bottom-actions--five" aria-label={ar ? "التنقل الرئيسي" : "Dashboard actions"}>
+      <a href="#markets" aria-label={ar ? "الأسواق" : "Markets"} aria-current={activeNav === "markets" ? "page" : undefined} onClick={() => setActiveNav("markets")}>{ar ? "الأسواق" : "Markets"}</a>
+      <a href="#signals" aria-label={ar ? "الإشارات" : "Signals"} aria-current={activeNav === "signals" ? "page" : undefined} onClick={() => setActiveNav("signals")}>{ar ? "الإشارات" : "Signals"}</a>
+      <a href="#risk" aria-label={ar ? "المخاطر" : "Risk"} aria-current={activeNav === "risk" ? "page" : undefined} onClick={() => setActiveNav("risk")}>{ar ? "المخاطر" : "Risk"}</a>
+      <a href="#news" aria-label={ar ? "الأخبار" : "News"} aria-current={activeNav === "news" ? "page" : undefined} onClick={() => setActiveNav("news")}>{ar ? "الأخبار" : "News"}</a>
+      <a href="#ai" aria-label="ATLAS AI" aria-current={activeNav === "ai" ? "page" : undefined} onClick={() => setActiveNav("ai")}>ATLAS AI</a>
+    </nav>
 
-    <div className="atlas-chart-stage">
+    {accessNotice}
+    <MarketDataBoard briefing={marketBriefing ?? null} language={language} />
+
+    <section className="atlas-market-desk" aria-label={ar ? "نظرة عامة على السوق" : "Market overview"}>
+      <div className="atlas-chart-stage">
+        {chartStatus && <span role="status" className="atlas-chart-status">{chartStatus}</span>}
       <MarketWorkspace
         candles={candles}
         symbol={symbol}
@@ -72,7 +80,17 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
         levels={{ entry: chartPosition?.entry, stopLoss: chartPosition?.stopLoss, takeProfit: chartPosition?.takeProfit }}
         language={language}
       />
-    </div>
+      </div>
+      <SignalsPanel signals={signals} available={signalsAvailable ?? connected} language={language} />
+      <RiskPanel risk={state.risk} language={language} />
+    </section>
+
+    {intelligenceAvailable && <section className="atlas-insight-grid" data-testid="atlas-insight-grid">
+      <MiniCard label={ar ? "الاتجاه" : "Trend"} value={signal === "BUY" ? (ar ? "صاعد" : "BULLISH") : signal === "SELL" ? (ar ? "هابط" : "BEARISH") : (ar ? "محايد" : "NEUTRAL")} />
+      <MiniCard label={ar ? "الإشارة" : "Signal"} value={signal} />
+      <MiniCard label={ar ? "التحيز" : "Bias"} value={signal === "OBSERVE" ? "?" : signal} />
+      <MiniCard label={ar ? "الثقة" : "Confidence"} value={confidence} />
+    </section>}
 
     <section className="atlas-stat-strip" data-testid="atlas-stat-strip">
       <MiniCard label={ar ? "الرصيد" : "Balance"} value={money(state.account.balance)} />
@@ -84,24 +102,13 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
 
     <div className="atlas-ai-featured" id="ai"><AtlasAssistant sendMessage={sendAgentMessage} language={language} enabled={assistantAvailable} lockedHref={assistantLockedHref} /></div>
 
-    <nav className="atlas-bottom-actions atlas-bottom-actions--five" aria-label={ar ? "التنقل الرئيسي" : "Dashboard actions"}>
-      <a href="#markets" aria-label={ar ? "الأسواق" : "Markets"} aria-current={activeNav === "markets" ? "page" : undefined} onClick={() => setActiveNav("markets")}>{ar ? "الأسواق" : "Markets"}</a>
-      <a href="#signals" aria-label={ar ? "الإشارات" : "Signals"} aria-current={activeNav === "signals" ? "page" : undefined} onClick={() => setActiveNav("signals")}>{ar ? "الإشارات" : "Signals"}</a>
-      <a href="#risk" aria-label={ar ? "المخاطر" : "Risk"} aria-current={activeNav === "risk" ? "page" : undefined} onClick={() => setActiveNav("risk")}>{ar ? "المخاطر" : "Risk"}</a>
-      <a href="#news" aria-label={ar ? "الأخبار" : "News"} aria-current={activeNav === "news" ? "page" : undefined} onClick={() => setActiveNav("news")}>{ar ? "الأخبار" : "News"}</a>
-      <a href="#ai" aria-label="ATLAS AI" aria-current={activeNav === "ai" ? "page" : undefined} onClick={() => setActiveNav("ai")}>ATLAS AI</a>
-    </nav>
-
-    <section className="atlas-market-strip atlas-secondary-zone" id="markets">{state.markets.map((market) => <MarketTile key={market.symbol} {...market} />)}</section>
+    <section className="atlas-market-strip atlas-secondary-zone" id="account-market-watchlist">{state.markets.map((market) => <MarketTile key={market.symbol} {...market} />)}</section>
     <section className="atlas-workspace-grid atlas-workspace-grid--two atlas-secondary-zone">
       <PositionsPanel positions={state.positions} available={positionsAvailable ?? connected} language={language} />
-      <SignalsPanel signals={signals} available={signalsAvailable ?? connected} language={language} />
-    </section>
-    <section className="atlas-lower-grid atlas-secondary-zone">
-      <div><RiskPanel risk={state.risk} language={language} /></div>
       <ActivityPanel events={activity} available={activityAvailable ?? connected} language={language} />
     </section>
 
+    {operations}
     <ExecutionAgentPanel language={language} />
     {state.userRole === "OWNER" && <TrainingPanel language={language} />}
 

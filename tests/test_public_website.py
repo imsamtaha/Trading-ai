@@ -42,9 +42,9 @@ def test_market_link_and_historical_exercise_resolve_in_dashboard_only_mode(monk
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     with TestClient(app) as client:
         page = client.get("/").text
-        assert page.index('id="market-analysis"') < page.index('id="marketBoard"')
+        assert page.index('id="marketBoard"') < page.index('id="market-analysis"')
         assert 'src="/assets/atlas-tiger-shield.webp"' in page
-        assert 'srcset="/assets/atlas-tiger-shield-small.webp"' in page
+        assert 'href="/assets/atlas-ultimate-workspace.css"' in page
         assert "/assets/atlas-market.js" in page
         legacy = client.get("/traders", follow_redirects=False)
         assert legacy.status_code == 308

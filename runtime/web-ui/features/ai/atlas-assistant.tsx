@@ -38,7 +38,7 @@ export function AtlasAssistant({
   return (
     <section className={"atlas-card atlas-assistant atlas-feature-3d" + (enabled ? "" : " atlas-assistant--locked")} id="ai">
       <div className="atlas-assistant-head">
-        <Image className="atlas-assistant-logo" src="/atlas-logo.webp" alt="ATLAS AI" width={72} height={72} unoptimized />
+        <Image className="atlas-assistant-logo" src="/just-ai-intelligence-mark.webp" alt="ATLAS AI" width={72} height={72} unoptimized />
         <div>
           <h2 className="atlas-agent-title atlas-assistant-title" dir={ar ? "rtl" : "ltr"}>
             {ar

@@ -10,7 +10,8 @@ PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.c
                 "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp",
                 "assets/atlas-market.css", "assets/atlas-market.js", "assets/atlas-tiger-shield.webp",
                 "assets/atlas-tiger-shield-small.webp", "assets/just-ai-intelligence.webp",
-                "assets/just-ai-intelligence-mark.webp", "council/btc-2026-08-31.html"}
+                "assets/just-ai-intelligence-mark.webp", "assets/atlas-ultimate-workspace.css",
+                "assets/atlas-ultimate-terrain.webp", "council/btc-2026-08-31.html", "council/curriculum.html"}
 EXTERNAL_LINKS = {
     "https://justai-atlas.online/sam",
     "https://t.me/JustAI_chatbot?start=atlas",

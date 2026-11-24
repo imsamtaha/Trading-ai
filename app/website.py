@@ -34,6 +34,11 @@ def historical_council_exercise():
     return FileResponse(WEB_ROOT / "council" / "btc-2026-08-31.html")
 
 
+@router.get("/council/curriculum.html", include_in_schema=False)
+def council_curriculum():
+    return FileResponse(WEB_ROOT / "council" / "curriculum.html")
+
+
 @router.get("/assets/{name}", include_in_schema=False)
 def website_asset(name: str):
     # Explicit public allowlist; never expose a source directory or .env.
@@ -43,6 +48,7 @@ def website_asset(name: str):
         "atlas-market.css", "atlas-market.js", "atlas-tiger-shield.webp", "atlas-tiger-shield-small.webp",
         "just-ai-brand.css", "just-ai-icon.webp", "just-ai-reference.webp",
         "just-ai-intelligence.webp", "just-ai-intelligence-mark.webp",
+        "atlas-ultimate-workspace.css", "atlas-ultimate-terrain.webp",
     }:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(WEB_ROOT / "assets" / name)

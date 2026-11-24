@@ -26,7 +26,7 @@ class FakeSession:
                             {
                                 "meta": {
                                     "regularMarketPrice": 5100.25,
-                                    "chartPreviousClose": 5074.75,
+                                    "chartPreviousClose": 4950.00,
                                     "regularMarketTime": datetime.now(timezone.utc).timestamp(),
                                 },
                                 "indicators": {"quote": [{"close": [5074.75, 5100.25]}]},
@@ -47,6 +47,7 @@ def test_briefing_keeps_market_context_separate_from_execution():
     assert data["status"] == "ONLINE"
     assert data["market_board"][1]["label"] == "S&P 500"
     assert data["market_board"][1]["price"] == 5100.25
+    assert data["market_board"][1]["change"] == 25.5
     assert data["market_board"][1]["freshness"] == "FRESH"
     assert data["headlines"][0]["title"] == "Market headline"
     assert data["market_analysis"]["execution"] == "DISABLED"

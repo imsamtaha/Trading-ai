@@ -7,7 +7,7 @@ function SectorIcon({ kind }: { kind: SectorKind }) {
   if (kind === "positions") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M10 20V4M15 20v-7M20 20V7" /></svg>;
   if (kind === "signals") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-6 4 4 7-9 2 2" /><circle cx="3" cy="17" r="1" /><circle cx="8" cy="11" r="1" /><circle cx="12" cy="15" r="1" /><circle cx="19" cy="6" r="1" /></svg>;
   if (kind === "risk") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.7-2.7 8-7 10-4.3-2-7-5.3-7-10V6l7-3z" /></svg>;
-  return <Image className="atlas-sector-logo" src="/atlas-logo.webp" alt="" width={40} height={40} unoptimized aria-hidden="true" />;
+  return <Image className="atlas-sector-logo" src="/just-ai-intelligence-mark.webp" alt="" width={40} height={40} unoptimized aria-hidden="true" />;
 }
 
 export function SectorHeader({ title, titleAr, kind, language = "en" }: { title: string; titleAr?: string; kind: SectorKind; language?: "ar" | "en" }) {

@@ -28,7 +28,7 @@ def test_market_board_cache_avoids_duplicate_provider_calls(monkeypatch):
     second = service.market_board()
 
     assert first == second
-    assert calls == 10
+    assert calls == len(first) == 14
 
 
 def test_stale_quotes_are_excluded_from_breadth(monkeypatch):

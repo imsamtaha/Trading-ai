@@ -1,0 +1,184 @@
+/* ATLAS Tiger Shield theme for the responsive ATLAS workspace. */
+.atlas-ultimate-workspace {
+  color-scheme: light;
+  --atlas-bg: #081426;
+  --atlas-surface: #102741;
+  --atlas-surface-2: #142f4e;
+  --atlas-text: #edf5ff;
+  --atlas-muted: #b9cce3;
+  --atlas-orange: #ff9f42;
+  --atlas-gold: #ffc27b;
+  --atlas-green: #58dfad;
+  --atlas-warning: #ffc27b;
+  --atlas-blue: #72c9ff;
+  --atlas-border: #365c86;
+  --ultimate-shadow: 0 2px 0 #215a8459, 0 10px 22px #02060c96;
+  color: var(--atlas-text);
+  background: #081426;
+}
+.atlas-ultimate-workspace .atlas-sidebar {
+  top: 14px;
+  align-self: start;
+  min-height: 0;
+  height: calc(100vh - 28px);
+  overflow: auto;
+  margin: 14px;
+  margin-inline-end: 0;
+  border: 1px solid #365c86;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #0d2440, #060e1d 74%, #173653);
+  box-shadow: inset 0 -3px #ff781d88, 0 11px 24px #613b2938;
+}
+.atlas-ultimate-workspace .atlas-wordmark img { border-radius: 14px; }
+.atlas-ultimate-workspace .atlas-sidebar__nav { margin-top: 18px; }
+.atlas-ultimate-workspace .atlas-nav-link { color: #e7f2ff; }
+.atlas-ultimate-workspace .atlas-nav-link:hover,
+.atlas-ultimate-workspace .atlas-nav-link[aria-current="page"],
+.atlas-ultimate-workspace .atlas-mobile-nav__link[aria-current="page"] {
+  color: #fffaf4;
+  background: linear-gradient(145deg, #c84b09, #9c3203);
+  box-shadow: inset 0 1px #ffb98285, 0 5px 15px #fa6b2638;
+}
+.atlas-ultimate-workspace .atlas-main { padding: clamp(12px, 2.1vw, 28px); }
+.atlas-ultimate-workspace .atlas-dashboard--mockup { background: transparent; }
+.atlas-ultimate-workspace .atlas-card,
+.atlas-ultimate-workspace .atlas-mini-card {
+  color: var(--atlas-text);
+  background: var(--atlas-surface) !important;
+  border-color: var(--atlas-border) !important;
+  box-shadow: var(--ultimate-shadow) !important;
+}
+.atlas-ultimate-workspace .atlas-mock-topbar {
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 1px solid var(--atlas-border);
+  border-radius: 21px;
+  padding: clamp(15px, 2.6vw, 32px);
+  background: radial-gradient(ellipse at center, #184f7a, #0b203b 72%, #08172b);
+  box-shadow: var(--ultimate-shadow);
+}
+.atlas-ultimate-workspace .atlas-mock-brand h1 {
+  color: var(--atlas-text);
+  font: italic 950 clamp(1.7rem, 4.1vw, 4.05rem)/1.05 Inter, "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -.058em;
+  text-shadow: 0 2px 1px #48271020;
+}
+.atlas-ultimate-workspace .atlas-mock-brand h1 em { color: #c64408; }
+.atlas-ultimate-workspace .atlas-mock-brand p { margin-top: 8px; color: #b7d0e8; letter-spacing: .055em; font-weight: 650; }
+.atlas-ultimate-workspace .atlas-mock-status span { background: #0d223b; color: #ffd39d; border-color: #a76635; }
+.atlas-ultimate-workspace .atlas-mock-status .is-connected { color: #82edbd; background: #103b45; border-color: #376c68; }
+.atlas-ultimate-workspace :is(.atlas-command-strip, .atlas-bottom-actions) { color: var(--atlas-text); border-color: var(--atlas-border); background: #10263d; }
+.atlas-ultimate-workspace .atlas-bottom-actions a { color: #badcff; border-color: #345b82; }
+.atlas-ultimate-workspace .atlas-bottom-actions a[aria-current="page"] { color: #fffaf5; background: #a93a04; border-color: #a93a04; }
+.atlas-ultimate-workspace :is(.atlas-reference-title, .atlas-card h2, .atlas-assistant h2) {
+  padding: 0; border: 0; background: none;
+  color: var(--atlas-text); box-shadow: none; text-shadow: none;
+}
+.atlas-ultimate-workspace :is(.atlas-card p, .atlas-empty-line, .atlas-assistant-copy, .atlas-mobile-reference-empty) { color: var(--atlas-muted) !important; }
+.atlas-ultimate-workspace .atlas-sector-chevron { color: #93bbdd; }
+.atlas-ultimate-workspace .atlas-sector-icon { color: #ffaa55; background: #eff5ff; box-shadow: none; border-color: #3a5b82; }
+.atlas-ultimate-workspace .atlas-risk-row > strong { color: var(--atlas-text); }
+.atlas-ultimate-workspace .atlas-risk-track { background: #25466a; }
+.atlas-ultimate-workspace .atlas-market-desk {
+  display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px; align-items: stretch; min-width: 0;
+}
+.atlas-ultimate-workspace .atlas-market-desk > * { min-width: 0; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-chart-stage .atlas-market-workspace {
+  --atlas-text: #fff3e7;
+  --atlas-muted: #e0c2ac;
+  --atlas-border: #3c6489;
+  --atlas-gold: #ffb178;
+  --atlas-surface: #091a30;
+  height: 100%; min-height: 315px; background: #091a30 !important; box-shadow: 0 6px 15px #7d422c42 !important;
+}
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-chart-canvas,
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-chart-empty { height: clamp(215px, 21vw, 330px); }
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-chart-empty { padding: 12px; }
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-chart-toolbar select { color: #eff5ff; }
+.atlas-ultimate-workspace .atlas-mini-card strong { color: var(--atlas-text); }
+.atlas-ultimate-workspace .atlas-mobile-nav { background: #07162a; border-color: #335c85; }
+.atlas-ultimate-workspace .atlas-mobile-nav__link { color: #edf5ff; }
+.atlas-ultimate-workspace .atlas-primary-button { color: #fffaf4; background: #a93a04; }
+.atlas-ultimate-workspace :is(.atlas-market-desk, .atlas-workspace-grid, .atlas-lower-grid) [id] { scroll-margin-top: 16px; }
+@media (max-width: 1220px) {
+  .atlas-ultimate-workspace .atlas-market-desk { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .atlas-ultimate-workspace .atlas-chart-stage { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .atlas-ultimate-workspace .atlas-market-desk { grid-template-columns: minmax(0, 1fr); }
+  .atlas-ultimate-workspace .atlas-mock-topbar { background-position: right bottom; background-size: auto 100%; }
+  .atlas-ultimate-workspace .atlas-mobile-brand { width: 70px; }
+  .atlas-ultimate-workspace .atlas-mobile-brand .atlas-wordmark img { width: 70px; }
+}
+.atlas-ultimate-workspace .atlas-mini-card > span { color: var(--atlas-muted); }
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-chart-toolbar select { background: #123253; border-color: #3d6b92; }
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-chart-context { color: #ffb481; overflow-wrap: anywhere; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-reference-header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-reference-title { gap: 5px; min-width: 0; flex-wrap: wrap; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-reference-title h2 { font-size: clamp(1rem, 1.5vw, 1.32rem); white-space: normal; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-sector-icon { width: 34px; height: 34px; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-sector-icon svg { width: 20px; height: 20px; }
+.atlas-ultimate-workspace :is(.atlas-manual-trading, .atlas-account-connection) :is(select, input) {
+  background: #0b1f36;
+  border-color: var(--atlas-border);
+}
+.atlas-ultimate-workspace .atlas-app-workspace > section.atlas-card { padding: 16px; }
+@media (max-width: 760px) {
+  .atlas-ultimate-workspace .atlas-mobile-brand { display: block; width: 64px; margin-bottom: 12px; }
+  .atlas-ultimate-workspace .atlas-utility-row { flex-direction: row; flex-wrap: wrap; }
+}
+.atlas-chart-modes { margin-block: 6px 10px; }
+
+.atlas-ultimate-workspace .atlas-mock-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, .85fr);
+  align-items: center;
+  text-align: start;
+  gap: clamp(12px, 2vw, 24px);
+}
+.atlas-ultimate-workspace .atlas-tiger-hero {
+  grid-column: 2; grid-row: 1;
+  display: block; width: 100%; height: auto; max-height: 350px;
+  object-fit: contain;
+  mask-image: radial-gradient(ellipse closest-side, black 87%, #0008 100%);
+}
+.atlas-ultimate-workspace .atlas-mock-brand { grid-column: 1; grid-row: 1; justify-content: flex-start; }
+.atlas-ultimate-workspace .atlas-mock-brand h1 { font-size: clamp(1.45rem, 3vw, 3.25rem); }
+.atlas-ultimate-workspace .atlas-mock-brand h1 em { color: #ffab54; }
+.atlas-ultimate-workspace .atlas-mock-status { grid-column: 3; grid-row: 1; justify-content: flex-end; }
+.atlas-ultimate-workspace .atlas-chart-stage .atlas-market-workspace { color: #e8f3ff; }
+.atlas-ultimate-workspace .atlas-data-board { padding: clamp(12px, 1.7vw, 23px); scroll-margin-top: 12px; }
+.atlas-data-board header { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:start; }
+.atlas-data-board header h2 { margin:0 0 5px; font-weight:800; }
+.atlas-data-board header p, .atlas-data-asof { margin: 5px 0 10px; }
+.atlas-data-board label { font-size:.83rem; color:var(--atlas-muted); }
+.atlas-data-board select { margin-inline-start:6px; border:1px solid var(--atlas-border); border-radius:8px; background:#0a1c33; color:var(--atlas-text); padding:8px; }
+.atlas-data-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:8px 0 12px; }
+.atlas-data-summary div { border:1px solid var(--atlas-border); border-radius:10px; padding:10px; background:#0a1c33; }
+.atlas-data-summary dt, .atlas-data-board small { color:var(--atlas-muted); font-size:.8rem; }
+.atlas-data-summary dd { margin:3px 0 0; color:#96dbff; font-weight:800; }
+.atlas-data-scroll { overflow:auto; max-height:420px; border:1px solid var(--atlas-border); border-radius:11px; }
+.atlas-data-board table { border-collapse:collapse; width:100%; min-width:490px; text-align:start; }
+.atlas-data-board :is(th,td) { text-align:start; padding:10px; border-bottom:1px solid #284665; }
+.atlas-data-board thead th { position:sticky; inset-block-start:0; background:#0d2440; color:#a6d8ff; }
+.atlas-data-board small { display:block; margin-top:4px; font-weight:500; }
+.atlas-data-board [data-tone="up"],.atlas-quote-state[data-state="FRESH"] { color:#78e4b3; }
+.atlas-data-board [data-tone="down"],.atlas-quote-state:is([data-state="STALE"],[data-state="UNAVAILABLE"]) { color:#ffaba3; }
+.atlas-quote-state:is([data-state="DELAYED"],[data-state="UNKNOWN"]) { color:#ffc98f; }
+@media(max-width:760px) {
+  .atlas-ultimate-workspace .atlas-mock-topbar { grid-template-columns: minmax(0,1fr); }
+  .atlas-ultimate-workspace :is(.atlas-tiger-hero,.atlas-mock-brand,.atlas-mock-status) { grid-column:1;grid-row:auto; }
+  .atlas-ultimate-workspace .atlas-tiger-hero { max-height:225px; }
+  .atlas-ultimate-workspace .atlas-mock-status { justify-content:flex-start; }
+}
+.atlas-ultimate-workspace .atlas-dashboard .atlas-auth-gate {
+  min-height: 0;
+  padding: 16px 20px;
+  gap: 6px;
+}
+.atlas-ultimate-workspace .atlas-dashboard .atlas-auth-gate-badge { display: none; }
+.atlas-ultimate-workspace .atlas-dashboard .atlas-auth-gate h2 { font-size: 1.15rem; }
+.atlas-ultimate-workspace .atlas-dashboard .atlas-auth-gate-actions { flex-direction: row; }
+.atlas-ultimate-workspace .atlas-chart-stage { display:flex; flex-direction:column; gap:6px; }
+.atlas-ultimate-workspace .atlas-market-desk .atlas-chart-stage .atlas-market-workspace { flex:1; height:auto; }

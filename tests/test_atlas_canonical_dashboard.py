@@ -8,7 +8,7 @@ def test_canonical_atlas_path_is_customer_entrypoint():
 
 def test_canonical_dashboard_contains_market_intelligence_and_freshness_ui():
     html = _atlas_ultimate_html()
-    assert "ATLAS Market Intelligence Boards" in html
+    assert "Market Data Board" in html
     assert 'id="marketBoard"' in html
     assert 'id="headlines"' in html
     assert 'id="usable"' in html
@@ -60,7 +60,7 @@ def test_language_change_triggers_only_one_briefing_refresh_path():
 
 def test_canonical_dashboard_is_trading_hub_with_section_navigation():
     html = _atlas_ultimate_html()
-    assert "TRADING INTELLIGENCE" in html
+    assert "AI Trading Intelligence &amp; Operations" in html
     assert 'class="atlas-hub-nav"' in html
     for target in ("#hub-overview", "#hub-account", "#hub-markets", "#demo-session", "#plans"):
         assert f'href="{target}"' in html

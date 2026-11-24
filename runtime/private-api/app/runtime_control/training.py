@@ -72,6 +72,7 @@ def training_overview(root=None, now=None):
     paper=root/".runtime/paper"
     result={"checked_at":now.isoformat(),"mode":"PAPER","portfolio":None,
             "selector":None,"agents":[],"asset_classes":[],
+            "paper_trades":[],"training_sessions":[],"sklearn_review":None,
             "rejections":None,"unavailable":[],"comparison":"START_OF_CURRENT_UTC_DAY",
             "costs":"SPREAD_INCLUDED_FEES_EXCLUDED"}
     universe, trainer=helpers()
@@ -91,6 +92,14 @@ def training_overview(root=None, now=None):
             "entries_today_utc":sum(stamp(x["opened_at"]).date()==now.date() for x in valid+opened),
             "daily_ceiling":100,"sum_r":round(sum(number(x["r_multiple"]) for x in valid),4),
             "excluded_records":excluded}
+        result["paper_trades"] = [
+            {"id": str(row["id"])[:100], "symbol": str(row.get("symbol", ""))[:40],
+             "status": "CLOSED" if closed else "OPEN",
+             "opened_at": row["opened_at"], "closed_at": row.get("closed_at") if closed else None,
+             "result_r": number(row.get("r_multiple")) if closed else None}
+            for rows, closed in ((list(reversed(opened)), False), (list(reversed(valid)), True))
+            for row in rows
+        ]
         groups={}
         for row in valid+opened:
             info=universe["classify_symbol"](universe["normalize_symbol"](str(row.get("symbol",""))))
@@ -108,6 +117,42 @@ def training_overview(root=None, now=None):
             "data_gates_met":shadow["samples"]>=shadow["minimum_samples"] and shadow["independent_days"]>=shadow["minimum_days"],
             "status":str(shadow.get("status","UNKNOWN"))[:64],"generated_at":shadow.get("generated_at")}
     else: result["unavailable"].append("selector")
+    journal_path = paper / "atlas_council_training.jsonl"
+    try:
+        if journal_path.stat().st_size > 8 * 1024 * 1024:
+            raise ValueError("oversize")
+        sessions = Counter()
+        evidence = {}
+        conflicts = set()
+        for line in journal_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if not isinstance(row, dict) or row.get("execution_environment") != "PAPER" or row.get("broker_execution_allowed") is not False:
+                continue
+            when = stamp(row.get("timestamp"))
+            snapshot = row.get("snapshot_id")
+            if not isinstance(snapshot, str) or not snapshot.strip() or not when or when > now or row.get("realized_direction") not in ("BUY", "SELL", "HOLD"):
+                continue
+            day = when.date().isoformat()
+            item = (day, row.get("realized_direction"))
+            if evidence.setdefault(snapshot.strip(), item) != item:
+                conflicts.add(snapshot.strip())
+        sessions.update(day for key, (day, _) in evidence.items() if key not in conflicts)
+        result["training_sessions"] = [{"date_utc": day, "settled_examples": count} for day, count in sorted(sessions.items(), reverse=True)]
+    except (OSError, ValueError):
+        result["unavailable"].append("training_sessions")
+
+    report = read_json(paper / "council-agent-scores.json")
+    if (report and report.get("training_environment") == "PAPER_RESEARCH_ONLY"
+            and report.get("source_kind") == "SETTLED_PAPER_COUNCIL_JOURNAL"
+            and all(report.get(key) is False for key in ("broker_execution_allowed", "active_council_weights_changed", "live_trading_enabled"))):
+        result["sklearn_review"] = {"status": str(report.get("status", "UNKNOWN"))[:40],
+                                    "generated_at": report.get("generated_at") if stamp(report.get("generated_at")) else None,
+                                    "samples": number(report.get("unique_snapshots"))}
+    else:
+        result["unavailable"].append("sklearn_review")
+
     profile=read_json(paper/"atlas_council_profile.json")
     if profile and profile.get("training_environment")=="PAPER" and not profile.get("broker_execution_allowed",False) and isinstance(profile.get("agents"),dict):
         baseline={}; journal_path=paper/"atlas_council_training.jsonl"

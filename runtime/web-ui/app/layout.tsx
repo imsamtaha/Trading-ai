@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./ultimate-workspace.css";
 import { OfflineReady } from "./offline-ready";
 import { VisitTracker } from "./visit-tracker";
 

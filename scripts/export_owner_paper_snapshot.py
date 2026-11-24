@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import os
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,6 +41,58 @@ def _journal(path: Path):
                     raise ValueError(f"Invalid journal row {path.name} line {line_no}")
                 rows.append(value)
     return rows
+
+
+def _training_sessions(rows: list[dict]) -> list[dict]:
+    evidence: dict[str, tuple[str, str]] = {}
+    now = datetime.now(timezone.utc)
+    conflicting = set()
+    for row in rows:
+        snapshot = row.get("snapshot_id")
+        outcome = row.get("realized_direction")
+        if not isinstance(snapshot, str) or not snapshot.strip() or outcome not in ("BUY", "SELL", "HOLD"):
+            continue
+        try:
+            time = datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
+            if time.tzinfo is None or time > now:
+                continue
+        except (KeyError, TypeError, ValueError, AttributeError):
+            continue
+        day = time.astimezone(timezone.utc).date().isoformat()
+        item = (day, outcome)
+        if evidence.setdefault(snapshot.strip(), item) != item:
+            conflicting.add(snapshot.strip())
+    counts = Counter(day for snapshot, (day, _) in evidence.items() if snapshot not in conflicting)
+    return [{"date_utc": day, "settled_examples": count, "source": "PAPER_COUNCIL_JOURNAL"}
+            for day, count in sorted(counts.items(), reverse=True)]
+
+
+def _shadow_review(root: Path) -> tuple[dict, list[dict]]:
+    path = root / os.getenv("ATLAS_SKLEARN_SHADOW_REPORT", "data/council-agent-scores.json")
+    try:
+        report = _optional(path) if path.stat().st_size <= 2 * 1024 * 1024 else None
+    except (OSError, ValueError):
+        report = None
+    if (not isinstance(report, dict) or report.get("training_environment") != "PAPER_RESEARCH_ONLY"
+            or report.get("source_kind") != "SETTLED_PAPER_COUNCIL_JOURNAL"
+            or any(report.get(key) is not False for key in (
+                "broker_execution_allowed", "active_council_weights_changed", "live_trading_enabled"))):
+        return {"status": "UNAVAILABLE"}, []
+    fields = ("status", "generated_at", "unique_snapshots", "min_samples_per_agent", "freshness_gate_passed", "mlflow_run_id")
+    summary = {key: report[key] for key in fields if key in report}
+    agents = report.get("agents")
+    if not isinstance(agents, dict):
+        return summary, []
+    rows = []
+    for agent, row in sorted(agents.items()):
+        if not isinstance(row, dict):
+            continue
+        metrics = row.get("metrics")
+        metrics = metrics if isinstance(metrics, dict) else {}
+        rows.append({"agent": agent, "status": row.get("status"), "samples": row.get("samples"),
+                     "candidate_weight": row.get("candidate_weight"), **{
+                         key: metrics.get(key) for key in ("holdout_examples", "oos_accuracy", "baseline_oos_accuracy", "oos_brier", "ece")}})
+    return summary, rows
 
 
 def collect(root: Path) -> dict:
@@ -85,6 +138,8 @@ def collect(root: Path) -> dict:
     for trade in [*trades, *opens]:
         if not isinstance(trade, dict) or not isinstance(trade.get("id"), str):
             raise ValueError("Invalid trade identity in ledger")
+        if trade.get("broker_execution_allowed", False) is not False:
+            continue
         history.append({"trade_id": trade["id"], "opened_at": trade.get("opened_at"),
                         "closed_at": trade.get("closed_at"), "symbol": trade.get("symbol"),
                         "direction": trade.get("direction"), "status": trade.get("status"),
@@ -110,6 +165,7 @@ def collect(root: Path) -> dict:
                         "symbol": item.get("symbol"), "decision": item.get("decision"),
                         "confidence": item.get("confidence"), "risk_gate": item.get("risk_gate"),
                         "evidence_id": item.get("snapshot_id"), "status": item.get("status")})
+    research, evaluations = _shadow_review(root)
     snapshot = {
         "data_origin": "WINDOWS_PAPER", "source_environment": "PAPER",
         "broker_execution_allowed": False, "as_of": stamped,
@@ -120,7 +176,9 @@ def collect(root: Path) -> dict:
             "signals": signals[-500:], "risk_controls": {},
             "training_progress": {"sample_count": len(training),
                                   "training_profile_version": (profile or {}).get("version")},
-            "decision_evidence": decisions[-500:], "paper_trade_history": history[-500:],
+            "decision_evidence": decisions[-500:], "paper_trade_history": list(reversed(history)),
+            "training_sessions": _training_sessions(training),
+            "sklearn_research": research, "sklearn_evaluations": evaluations,
             "windows_runtime": {"status": status.get("status"), "heartbeat": stamped,
                                 "cycle_seconds": status.get("cycle_seconds")},
             "shadow_learning": {"status": "PAPER_ONLY" if profile else "UNAVAILABLE",

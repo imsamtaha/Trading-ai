@@ -27,6 +27,8 @@ TABLE_KEYS = {
     "signals": ("id", "timestamp", "symbol", "decision", "confidence", "risk_gate", "evidence_id", "status"),
     "decision_evidence": ("decision_id", "timestamp", "symbol", "snapshot_id", "decision", "risk_veto", "outcome", "provenance", "conflict_score", "council_votes"),
     "paper_trade_history": ("trade_id", "opened_at", "closed_at", "symbol", "direction", "status", "result_r", "evidence_id", "source"),
+    "training_sessions": ("date_utc", "settled_examples", "source"),
+    "sklearn_evaluations": ("agent", "status", "samples", "holdout_examples", "oos_accuracy", "baseline_oos_accuracy", "oos_brier", "ece", "candidate_weight"),
 }
 OBJECT_KEYS = {
     "mt5_demo": ("status", "account_type", "broker", "server", "login_masked", "timestamp"),
@@ -34,6 +36,7 @@ OBJECT_KEYS = {
     "training_progress": ("before", "after", "sample_count", "training_profile_version", "candidate_status", "as_of"),
     "windows_runtime": ("status", "heartbeat", "cycle_seconds", "last_error", "service", "process_count"),
     "shadow_learning": ("status", "samples", "latest_outcome", "updated_at", "training_examples", "drift", "before", "after", "agent_weights"),
+    "sklearn_research": ("status", "generated_at", "unique_snapshots", "min_samples_per_agent", "freshness_gate_passed", "mlflow_run_id"),
 }
 METRIC_KEYS = {"oos_accuracy", "ece", "samples", "win_rate", "profit_factor",
                "expectancy_r", "max_drawdown_pct", "agent_agreement", "agent_conflict"}
@@ -132,7 +135,9 @@ def read_evidence() -> dict[str, Any]:
         values = source.get(section, [])
         if not isinstance(values, list):
             return _missing("INVALID_TABLE_" + section, "UNVERIFIED")
-        projected[section] = [_allowed(item, keys) for item in values[:500]]
+        if section not in {"paper_trade_history", "training_sessions"}:
+            values = values[:500]
+        projected[section] = [_allowed(item, keys) for item in values if isinstance(item, dict)]
     for section, keys in OBJECT_KEYS.items():
         value = source.get(section, {})
         if not isinstance(value, dict):

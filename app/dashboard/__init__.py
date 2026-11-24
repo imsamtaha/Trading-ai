@@ -61,7 +61,6 @@ def _atlas_ultimate_html() -> str:
 '''
     scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/demo-panel.js"></script><script src="/ui/setups-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
     html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
-    html = html.replace('<body>', '<body><div class="atlas-tech-bg" aria-hidden="true"></div>')
     insert = ACCOUNT_PANEL + broker_entry + plans
     html = html.replace('</main>', insert + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', insert + '<div class="notice" id="disclaimer">')
     html = html.replace('</body>', scripts + '</body>')

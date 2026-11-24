@@ -8,7 +8,7 @@ import { AccountConnection } from "@/features/trades/account-connection";
 import { ManualTrading } from "@/features/trades/manual-trading";
 import { getDashboardState } from "@/lib/api/dashboard";
 import { getCandles } from "@/lib/api/market";
-import { getMarketBriefing, type Headline } from "@/lib/api/briefing";
+import { getMarketDeskBriefing, type MarketBriefing } from "@/lib/api/briefing";
 import { atlasFetch, AtlasApiError } from "@/lib/api/client";
 import { apiPath } from "@/lib/api/config";
 import { mapDashboardState } from "@/lib/api/mappers";
@@ -26,8 +26,7 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
   const [symbol, setSymbol] = useState("XAUUSD");
   const [timeframe, setTimeframe] = useState("1h");
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [headlines, setHeadlines] = useState<Headline[]>([]);
-  const [briefingAvailable, setBriefingAvailable] = useState(false);
+  const [briefing, setBriefing] = useState<MarketBriefing | null>(null);
   const [chartStatus, setChartStatus] = useState("Loading market data…");
 
   useEffect(() => {
@@ -73,12 +72,18 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
 
   useEffect(() => {
     let active = true;
-    setHeadlines([]);
-    setBriefingAvailable(false);
-    getMarketBriefing(language)
-      .then((items) => { if (active) { setHeadlines(items); setBriefingAvailable(true); } })
-      .catch(() => { if (active) { setHeadlines([]); setBriefingAvailable(false); } });
-    return () => { active = false; };
+    setBriefing(null);
+    async function refresh() {
+      try {
+        const result = await getMarketDeskBriefing(language);
+        if (active) setBriefing(result);
+      } catch {
+        if (active) setBriefing(null);
+      }
+    }
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 60000);
+    return () => { active = false; clearInterval(timer); };
   }, [language]);
 
   useEffect(() => {
@@ -122,51 +127,15 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
         </div>
       </div>
 
-      {!sessionRequired && <ServerHealth language={language} />}
-
       <nav className="atlas-connection-link" aria-label={language === "ar" ? "روابط مساحة العمل" : "Workspace links"}>
         <a href="/connect">{language === "ar" ? "ربط MT5 للبيانات" : "Connect MT5 data"}</a>
         <span>·</span>
         <a href="/subscribe">{language === "ar" ? "الاشتراكات" : "Subscriptions"}</a>
         <span>·</span>
+        <a href="/council-curriculum.html">{language === "ar" ? "منهج المجلس" : "Council curriculum"}</a>
+        <span>·</span>
         <a href="/offline-contact.html">{language === "ar" ? "تواصل" : "Contact"}</a>
       </nav>
-
-      {sessionRequired && <main className="atlas-auth-required atlas-card atlas-auth-gate">
-        <span className="atlas-auth-gate-badge">{language === "ar" ? "مساحة خاصة" : "PRIVATE WORKSPACE"}</span>
-        <h2>{language === "ar" ? "استكشف أطلس" : "Explore ATLAS"}</h2>
-        <p>{language === "ar"
-          ? "سجّل الدخول للوصول إلى لوحة أطلس الخاصة، بيانات الجلسة، ومختبر التداول الورقي."
-          : "Sign in to access your private ATLAS dashboard, session data, and Paper workspace."}</p>
-        <div className="atlas-auth-gate-actions">
-          <a className="atlas-primary-button" href="/login?returnTo=%2Fdashboard">
-            {language === "ar" ? "تسجيل الدخول" : "Secure sign in"}
-          </a>
-          <span>{language === "ar" ? "المعاينة العامة تبقى للقراءة فقط." : "Public preview remains read-only."}</span>
-        </div>
-      </main>}
-
-      {!sessionRequired && state.connection !== "connected" && <AccountConnection language={language} onConnected={() => setRefreshKey((key) => key + 1)} />}
-
-      {!sessionRequired && state.connection === "connected" && state.account.mode === "DEMO" &&
-        <ManualTrading key={refreshKey} language={language} />}
-
-      {!sessionRequired && state.connection === "connected" && state.account.mode === "REAL" &&
-        <section className="atlas-card atlas-paper-safety-banner" role="status">
-          <strong>{language === "ar" ? "وضع الورق فقط" : "Paper-only workspace"}</strong>
-          <p>{language === "ar"
-            ? "بيانات السوق متاحة للتحليل، لكن أدوات إرسال أوامر الوسيط غير متاحة في هذه اللوحة."
-            : "Market data remains available for analysis, but broker-order controls are unavailable in this workspace."}</p>
-        </section>}
-
-      {!sessionRequired && !state.entitlements?.tradingIntelligence &&
-        <section className="atlas-card atlas-subscription-gate">
-          <h2>{language === "ar" ? "اشتراك أطلس" : "ATLAS subscription"}</h2>
-          <p>{language === "ar" ? "اختر الخطة المناسبة" : "Choose the plan that fits you"}</p>
-          <a className="atlas-primary-button" href="/subscribe">{language === "ar" ? "عرض الخطط" : "View plans"}</a>
-        </section>}
-
-      {chartStatus && <span role="status" className="atlas-chart-status">{chartStatus}</span>}
 
       <DashboardScreen
         state={state}
@@ -179,8 +148,45 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
         language={language}
         signals={state.signals ?? []}
         activity={state.activity ?? []}
-        headlines={headlines}
-        briefingAvailable={briefingAvailable}
+        headlines={briefing?.headlines}
+        briefingAvailable={briefing !== null}
+        marketBriefing={briefing}
+        chartStatus={chartStatus}
+        accessNotice={sessionRequired ? <section className="atlas-auth-required atlas-card atlas-auth-gate">
+            <span className="atlas-auth-gate-badge">{language === "ar" ? "مساحة خاصة" : "PRIVATE WORKSPACE"}</span>
+            <h2>{language === "ar" ? "استكشف أطلس" : "Explore ATLAS"}</h2>
+            <p>{language === "ar"
+              ? "سجّل الدخول للوصول إلى لوحة أطلس الخاصة، بيانات الجلسة، ومختبر التداول الورقي."
+              : "Sign in to access your private ATLAS dashboard, session data, and Paper workspace."}</p>
+            <div className="atlas-auth-gate-actions">
+              <a className="atlas-primary-button" href="/login?returnTo=%2Fdashboard">
+                {language === "ar" ? "تسجيل الدخول" : "Secure sign in"}
+              </a>
+              <span>{language === "ar" ? "المعاينة العامة تبقى للقراءة فقط." : "Public preview remains read-only."}</span>
+            </div>
+        </section> : null}
+        operations={<>
+          {!sessionRequired && state.connection !== "connected" && <AccountConnection language={language} onConnected={() => setRefreshKey((key) => key + 1)} />}
+
+          {!sessionRequired && state.connection === "connected" && state.account.mode === "DEMO" &&
+            <ManualTrading key={refreshKey} language={language} />}
+
+          {!sessionRequired && state.connection === "connected" && state.account.mode === "REAL" &&
+            <section className="atlas-card atlas-paper-safety-banner" role="status">
+              <strong>{language === "ar" ? "وضع الورق فقط" : "Paper-only workspace"}</strong>
+              <p>{language === "ar"
+                ? "بيانات السوق متاحة للتحليل، لكن أدوات إرسال أوامر الوسيط غير متاحة في هذه اللوحة."
+                : "Market data remains available for analysis, but broker-order controls are unavailable in this workspace."}</p>
+            </section>}
+
+          {!sessionRequired && !state.entitlements?.tradingIntelligence &&
+            <section className="atlas-card atlas-subscription-gate">
+              <h2>{language === "ar" ? "اشتراك أطلس" : "ATLAS subscription"}</h2>
+              <p>{language === "ar" ? "اختر الخطة المناسبة" : "Choose the plan that fits you"}</p>
+              <a className="atlas-primary-button" href="/subscribe">{language === "ar" ? "عرض الخطط" : "View plans"}</a>
+            </section>}
+          {!sessionRequired && <ServerHealth language={language} />}
+        </>}
         onMarketChange={(nextSymbol, nextTimeframe) => {
           setSymbol(nextSymbol);
           setTimeframe(nextTimeframe);

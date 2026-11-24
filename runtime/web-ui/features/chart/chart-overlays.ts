@@ -1,8 +1,9 @@
 import type { Candle } from "@/lib/api/types";
 
 export type TradeLevels = { entry?: number | null; stopLoss?: number | null; takeProfit?: number | null };
+const formatPrice = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 8 });
 export function formatOhlc(candle: Candle): string {
-  return `O ${candle.open} · H ${candle.high} · L ${candle.low} · C ${candle.close}`;
+  return `O ${formatPrice.format(candle.open)} · H ${formatPrice.format(candle.high)} · L ${formatPrice.format(candle.low)} · C ${formatPrice.format(candle.close)}`;
 }
 
 export type PriceLine = { title: "Entry" | "Stop" | "Target"; price: number };

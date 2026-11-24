@@ -35,18 +35,21 @@ h1{font-size:clamp(24px,3vw,39px);margin:7px 0 8px;letter-spacing:-.04em}h2{font
 </style>
 <link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">
 <link rel="stylesheet" href="/assets/atlas-market.css">
+<link rel="stylesheet" href="/assets/atlas-ultimate-workspace.css">
 </head>
-<body class="atlas-depth-page atlas-owner">
+<body class="atlas-owner">
 <div class="shell">
 <aside aria-label="ATLAS navigation">
- <div class="brand"><img class="atlas-intelligence-mark" src="/assets/just-ai-intelligence-mark.webp" alt="" width="46" height="46"><div><strong>ATLAS</strong><span class="sub">JUST AI / OWNER</span></div></div>
+ <div class="brand"><img class="atlas-workspace-logo" src="/assets/just-ai-intelligence.webp" alt="JUST AI Intelligence" width="135" height="135"></div>
  <nav id="nav" aria-label="Sections"></nav>
  <a class="atlas-owner-case" href="/council/btc-2026-08-31.html" target="_blank" rel="noopener">Council exercise · تمرين المجلس</a>
+ <a class="atlas-owner-case" href="/council/curriculum.html">Council curriculum · منهج المجلس</a>
  <div class="side-note" id="side-note"></div>
 </aside>
 <main>
  <div class="topbar">
-   <div><div class="eyebrow">ATLAS TRADING INTELLIGENCE / PRIVATE</div><h1 id="page-title"></h1><p id="page-subtitle"></p></div>
+   <img class="atlas-owner-tiger" src="/assets/atlas-tiger-shield-small.webp" alt="ATLAS Intelligence by JUST AI" width="240" height="180">
+   <div><div class="atlas-ultimate-title" dir="ltr">ATLAS <em>THE ULTIMATE</em></div><h1 id="page-title"></h1><p id="page-subtitle"></p></div>
    <div class="actions"><button class="btn" id="lang" type="button">English</button><button class="btn" id="history" type="button">History</button><button class="btn primary" id="refresh" type="button">↻ Refresh</button></div>
  </div>
  <div class="safety" role="status"><div><strong id="safe-title"></strong><p id="safe-text"></p></div><span>LIVE TRADING DISABLED · NO REAL-MONEY ORDERS</span></div>
@@ -56,19 +59,21 @@ h1{font-size:clamp(24px,3vw,39px);margin:7px 0 8px;letter-spacing:-.04em}h2{font
 <script>
 "use strict";
 const STRINGS={
- ar:{title:"مركز تحكّم المالك",subtitle:"قراءة فقط · مصادر PAPER موثّقة · لا يوجد تنفيذ عبر الوسيط",nav:["نظرة عامة","وكلاء المجلس","الحسابات","الإشارات","ضوابط المخاطر","تقدّم التدريب","أدلة القرارات","سجل صفقات PAPER","صحة تشغيل Windows","Shadow Learning"],
+ ar:{title:"مركز تحكّم المالك",subtitle:"قراءة فقط · مصادر PAPER موثّقة · لا يوجد تنفيذ عبر الوسيط",nav:["نظرة عامة","وكلاء المجلس","الحسابات","الإشارات","ضوابط المخاطر","تقدّم التدريب","أدلة القرارات","سجل صفقات PAPER","صحة تشغيل Windows","Shadow Learning","جلسات التدريب","مراجعة scikit-learn"],
  safe:"تنفيذ التداول الحقيقي معطّل",safeText:"تعرض هذه الواجهة حسابات تجريبية ونتائج PAPER موثّقة مع مصدرها وتاريخ تحديثها.",
  side:"يُمنع عرض أرقام غير موثّقة كأنها نتائج فعلية. لا تعرض هذه الواجهة بيانات حسابات حقيقية.",
  history:"السجل",refresh:"تحديث",unavailable:"لا توجد بيانات PAPER موثّقة لهذا القسم.",search:"ابحث ضمن الجدول",all:"الكل",rows:"سجل",source:"المصدر",updated:"آخر تحديث",reason:"السبب",notAvailable:"غير متاح",before:"قبل",after:"بعد",change:"التغيّر",metric:"المؤشر",count:"عدد السجلات",verified:"موثّق المصدر",label:"حالة المعلومة",
  summaryTitles:["وكلاء المجلس","الإشارات المسجّلة","صفقات PAPER","عينات Shadow Learning"],agreement:"متوسط ثقة المجلس",conflict:"متوسط تعارض الوكلاء",na:"غير متاح",safety:"سلامة التنفيذ",status:"الحالة", workspace:"مساحة العمل الرئيسية", ctrader:"حساب cTrader التجريبي", mt5:"خيار MT5", paper:"سجل ونتائج PAPER", loadingAccounts:"جارٍ تحميل الحسابات", accountUnavailable:"معلومات الحساب غير متاحة"},
- en:{title:"Owner Control Center",subtitle:"Read-only · attested PAPER sources · no broker execution",nav:["Overview","Council agents","Accounts","Signals","Risk controls","Training progress","Decision evidence","PAPER trade history","Windows runtime","Shadow Learning"],
+ en:{title:"Owner Control Center",subtitle:"Read-only · attested PAPER sources · no broker execution",nav:["Overview","Council agents","Accounts","Signals","Risk controls","Training progress","Decision evidence","PAPER trade history","Windows runtime","Shadow Learning","Training sessions","scikit-learn review"],
  safe:"Live trading is disabled",safeText:"This interface shows demo accounts and attested PAPER records with their source and update time.",
  side:"Unattested numbers are never presented as actual performance. No real account information is displayed.",
  history:"History",refresh:"Refresh",unavailable:"No attested PAPER records available in this section.",search:"Search table",all:"All",rows:"records",source:"Source",updated:"Updated",reason:"Reason",notAvailable:"Unavailable",before:"Before",after:"After",change:"Change",metric:"Metric",count:"Records",verified:"Source-attested",label:"Evidence status",
  summaryTitles:["Council agents","Recorded signals","PAPER trades","Shadow Learning samples"],agreement:"Average council confidence",conflict:"Average agent conflict",na:"Unavailable",safety:"Execution safety",status:"Status", workspace:"Primary workspace", ctrader:"cTrader Demo account", mt5:"MT5 option", paper:"PAPER records and results", loadingAccounts:"Loading accounts", accountUnavailable:"Account information is unavailable"}
 };
-const KEYS=["overview","council_agents","accounts","signals","risk_controls","training_progress","decision_evidence","paper_trade_history","windows_runtime","shadow_learning"];
+const KEYS=["overview","council_agents","accounts","signals","risk_controls","training_progress","decision_evidence","paper_trade_history","windows_runtime","shadow_learning","training_sessions","sklearn_evaluations"];
 const TABLES={
+ training_sessions:["date_utc","settled_examples","source"],
+ sklearn_evaluations:["agent","status","samples","holdout_examples","oos_accuracy","baseline_oos_accuracy","oos_brier","ece","candidate_weight"],
  council_agents:["agent","decision","confidence","calibrated_confidence","weight","conflict_score","updated_at","source"],
  signals:["id","timestamp","symbol","decision","confidence","risk_gate","evidence_id","status"],
  decision_evidence:["decision_id","timestamp","symbol","snapshot_id","decision","risk_veto","outcome","conflict_score","provenance","council_votes"],
@@ -93,18 +98,44 @@ function renderTable(parent,key){const d=current(),rows=d&&Array.isArray(d[key])
  const tools=elem("div","tablebar"),search=elem("input","filter");search.type="search";search.placeholder=t().search;search.value=filterBy[key]||"";search.setAttribute("aria-label",t().search);
  const select=elem("select","filter");const options=[...new Set(rows.map(r=>r.status||r.decision).filter(Boolean))];for(const opt of ["",...options]){const o=elem("option","",opt||t().all);o.value=opt;select.append(o)}select.value=statusBy[key]||"";select.setAttribute("aria-label",t().status);
  tools.append(search,select);parent.append(tools);
- const count=elem("p","muted"),holder=elem("div","scroller");parent.append(count,holder);
+ const count=elem("p","muted"),holder=elem("div","scroller"),pager=elem("div","actions");parent.append(count,holder,pager);
+ let page=0;
+ const pageSize=50;
+ function changePage(offset){page+=offset;draw()}
  function draw(){const q=search.value.trim().toLocaleLowerCase(),status=select.value;let list=rows.filter(r=>(!q||Object.values(r).some(v=>value(v).toLocaleLowerCase().includes(q)))&&(!status||(r.status||r.decision)===status));const sort=sortBy[key];if(sort){list=[...list].sort((a,b)=>{const av=a[sort.column],bv=b[sort.column];return sort.direction*(typeof av==="number"&&typeof bv==="number"?av-bv:String(av??"").localeCompare(String(bv??""),undefined,{numeric:true}))})}
- count.textContent=list.length+" "+t().rows;holder.replaceChildren();const table=elem("table"),thead=elem("thead"),tr=elem("tr");for(const column of TABLES[key]){const th=elem("th"),btn=elem("button","",column.replaceAll("_"," ")+(sort?.column===column?(sort.direction===1?" ↑":" ↓"):""));btn.type="button";btn.addEventListener("click",()=>{sortBy[key]={column,direction:sort?.column===column&&sort.direction===1?-1:1};draw()});th.append(btn);tr.append(th)}thead.append(tr);const tbody=elem("tbody");for(const row of list){const tr=elem("tr");for(const field of TABLES[key])tr.append(elem("td","",value(row[field])));tbody.append(tr)}table.append(thead,tbody);holder.append(table)}
- search.addEventListener("input",()=>{filterBy[key]=search.value;draw()});select.addEventListener("change",()=>{statusBy[key]=select.value;draw()});draw()
+ const pages=Math.max(1,Math.ceil(list.length/pageSize));page=Math.min(page,pages-1);
+ count.textContent=list.length+" "+t().rows+" · "+(page+1)+" / "+pages;
+ pager.replaceChildren();
+ if(pages>1){
+  const prev=elem("button","btn",language==="ar"?"السابق":"Previous"),next=elem("button","btn",language==="ar"?"التالي":"Next");
+  prev.type=next.type="button";prev.disabled=page===0;next.disabled=page===pages-1;
+  prev.onclick=()=>changePage(-1);next.onclick=()=>changePage(1);pager.append(prev,next);
+ }
+ holder.replaceChildren();const table=elem("table"),thead=elem("thead"),tr=elem("tr");for(const column of TABLES[key]){const th=elem("th"),btn=elem("button","",column.replaceAll("_"," ")+(sort?.column===column?(sort.direction===1?" ↑":" ↓"):""));btn.type="button";btn.addEventListener("click",()=>{sortBy[key]={column,direction:sort?.column===column&&sort.direction===1?-1:1};draw()});th.append(btn);tr.append(th)}thead.append(tr);const tbody=elem("tbody");for(const row of list.slice(page*pageSize,(page+1)*pageSize)){const tr=elem("tr");for(const field of TABLES[key])tr.append(elem("td","",value(row[field])));tbody.append(tr)}table.append(thead,tbody);holder.append(table)}
+ search.addEventListener("input",()=>{filterBy[key]=search.value;page=0;draw()});select.addEventListener("change",()=>{statusBy[key]=select.value;page=0;draw()});draw()
 }
 function renderSummary(parent){const d=current(),count=d?[
  d.council_agents?.length,d.signals?.length,d.paper_trade_history?.length,d.shadow_learning?.samples
  ]:[null,null,null,null];const grid=elem("div","grid");t().summaryTitles.forEach((label,i)=>grid.append(tile(label,count[i],t().verified)));parent.append(grid);
- const cards=elem("div","grid");cards.style.marginTop="15px";const agents=d?.council_agents||[];for(const [title,field] of [[t().agreement,"calibrated_confidence"],[t().conflict,"conflict_score"]]){const scores=agents.map(a=>a[field]).filter(v=>typeof v==="number"&&Number.isFinite(v));cards.append(tile(title,scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(3):null,"PAPER Council"))}parent.append(cards);
- parent.append(section(t().nav[5]));metricComparison(parent,d?.training_progress);
- parent.append(section(t().nav[4]));addFields(parent,d?.risk_controls||{},OBJ.risk_controls);
- parent.append(section(t().nav[8]));addFields(parent,d?.windows_runtime||{},OBJ.windows_runtime)
+ const details=elem("div","overview-details"),confidence=elem("article","card overview-confidence");
+ confidence.append(elem("h2","",t().agreement));
+ const agents=d?.council_agents||[];
+ const average=field=>{
+  const scores=agents.map(agent=>agent[field]).filter(value=>typeof value==="number"&&Number.isFinite(value));
+  return scores.length?(scores.reduce((sum,value)=>sum+value,0)/scores.length).toFixed(3):"—";
+ };
+ confidence.append(elem("div","value",average("calibrated_confidence")),elem("div","foot",t().conflict+" · "+average("conflict_score")));
+ const risk=elem("article","card");
+ risk.append(elem("h2","",t().nav[4]));
+ addFields(risk,d?.risk_controls||{},OBJ.risk_controls);
+ const training=elem("article","card");
+ training.append(elem("h2","",t().nav[5]));
+ metricComparison(training,d?.training_progress);
+ const runtime=elem("article","card");
+ runtime.append(elem("h2","",t().nav[8]));
+ addFields(runtime,d?.windows_runtime||{},OBJ.windows_runtime);
+ details.append(confidence,risk,training,runtime);
+ parent.append(details);
 }
 function renderAccounts(panel,evidence){
  if(!accounts){
@@ -139,10 +170,17 @@ function render(){const index=KEYS.indexOf(active),d=current(),out=$("content");
  $("stamp").textContent=payload?.as_of?(t().updated+": "+new Date(payload.as_of).toLocaleString(language==="ar"?"ar-LB":"en-GB")):"";$("source").textContent=payload?.source_id?(t().source+": "+payload.source_id):"";
  $("message").textContent=payload?.reason||"";out.replaceChildren();
  if(active==="overview"){renderSummary(out);return}
- const panel=elem("article","card");if(active==="accounts")renderAccounts(panel,d);else if(TABLES[active])renderTable(panel,active);else if(active==="training_progress"||active==="shadow_learning"){const object=d?.[active]||{};const details=Object.keys(object).filter(k=>!["before","after","agent_weights"].includes(k));addFields(panel,object,details);panel.append(section(t().nav[index]+" · "+t().before+" / "+t().after));metricComparison(panel,object);if(active==="shadow_learning"&&object.agent_weights){panel.append(section("Agent weights"));addFields(panel,object.agent_weights,Object.keys(object.agent_weights))}}else addFields(panel,d?.[active]||{},OBJ[active]||[]);
+ const panel=elem("article","card");if(active==="accounts")renderAccounts(panel,d);else if(TABLES[active]){
+  if(active==="training_sessions")panel.append(elem("p","muted",language==="ar"?"نتائج ورقية مسوّاة مجمّعة حسب تاريخ UTC.":"Settled PAPER journal records grouped by UTC date."));
+  if(active==="sklearn_evaluations"){
+   addFields(panel,d?.sklearn_research||{},["status","generated_at","unique_snapshots","min_samples_per_agent","freshness_gate_passed","mlflow_run_id"]);
+   panel.append(elem("p","muted",language==="ar"?"أوزان مقترحة للمراجعة فقط.":"Candidate weights are for review only."));
+  }
+  renderTable(panel,active);
+ }else if(active==="training_progress"||active==="shadow_learning"){const object=d?.[active]||{};const details=Object.keys(object).filter(k=>!["before","after","agent_weights"].includes(k));addFields(panel,object,details);panel.append(section(t().nav[index]+" · "+t().before+" / "+t().after));metricComparison(panel,object);if(active==="shadow_learning"&&object.agent_weights){panel.append(section("Agent weights"));addFields(panel,object.agent_weights,Object.keys(object.agent_weights))}}else addFields(panel,d?.[active]||{},OBJ[active]||[]);
  out.append(panel)
 }
-function nav(){const n=$("nav");n.replaceChildren();KEYS.forEach((key,i)=>{const b=elem("button","navbtn"+(active===key?" active":""),t().nav[i]);b.type="button";b.addEventListener("click",()=>{active=key;nav();render();if(key==="accounts"&&!accounts)refreshAccounts()});n.append(b)})}
+function nav(){const n=$("nav");n.replaceChildren();KEYS.forEach((key,i)=>{const b=elem("button","navbtn"+(active===key?" active":""),t().nav[i]);b.type="button";if(active===key)b.setAttribute("aria-current","page");b.addEventListener("click",()=>{active=key;nav();render();if(key==="accounts"&&!accounts)refreshAccounts()});n.append(b)})}
 async function refresh(){busy=true;render();try{const resp=await fetch("/sam/api/snapshot",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});if(!resp.ok)throw new Error("HTTP "+resp.status);payload=await resp.json()}catch(e){payload={status:"UNAVAILABLE",reason:"SNAPSHOT_FETCH_FAILED",verified:false,as_of:null,data:{}}}finally{busy=false;render()}}
 $("lang").addEventListener("click",()=>{language=language==="ar"?"en":"ar";document.documentElement.lang=language;document.documentElement.dir=language==="ar"?"rtl":"ltr";nav();render()});
 $("history").addEventListener("click",()=>{active="paper_trade_history";nav();render()});

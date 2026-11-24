@@ -145,6 +145,26 @@ def test_old_signed_snapshot_is_stale(monkeypatch, tmp_path):
     assert read_evidence()["status"] == "STALE"
 
 
+def test_owner_gets_all_signed_paper_rows_and_projected_training(monkeypatch, tmp_path):
+    _configured(monkeypatch)
+    path = tmp_path / "snapshot.json"
+    body = _signed_file(path)
+    del body["signature"]
+    body["data"]["paper_trade_history"] = [{"trade_id": str(i), "secret": "private"} for i in range(520)]
+    body["data"]["training_sessions"] = [{"date_utc": "2026-11-20", "settled_examples": 8, "journal_path": "private"}]
+    body["data"]["sklearn_evaluations"] = [{"agent": "quant", "oos_accuracy": .55, "unfiltered": "private"}]
+    canonical = json.dumps(body, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    body["signature"] = hmac.new(KEY.encode(), canonical.encode(), hashlib.sha256).hexdigest()
+    path.write_text(json.dumps(body), encoding="utf-8")
+    monkeypatch.setenv("ATLAS_OWNER_SNAPSHOT_PATH", str(path))
+    assert client.get("/sam/api/snapshot").status_code == 401
+    rows = client.get("/sam/api/snapshot", auth=AUTH).json()["data"]
+    assert len(rows["paper_trade_history"]) == 520
+    assert rows["training_sessions"] == [{"date_utc": "2026-11-20", "settled_examples": 8}]
+    assert rows["sklearn_evaluations"] == [{"agent": "quant", "oos_accuracy": .55}]
+    assert "private" not in json.dumps(rows)
+
+
 def test_export_reads_paper_sources_without_modifying_them(tmp_path, monkeypatch):
     monkeypatch.delenv("ATLAS_DEMO_STATUS", raising=False)
     monkeypatch.delenv("ATLAS_DEMO_LEDGER", raising=False)

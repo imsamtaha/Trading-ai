@@ -90,6 +90,22 @@ training modules and the nine-seat contract library. Its command-line interface
 runs offline calibration. It requires only Python and leaves the Windows MT5
 worker independent.
 
+To check a cTrader demo account from the repository root on Android or Ubuntu,
+install the two dependencies for the account check and run `cTrader.py`:
+
+```sh
+python3 -m pip install python-dotenv 'websockets>=12,<18'
+python3 cTrader.py
+```
+
+Configure `ATLAS_CTRADER_DEMO_LOGIN`, `ATLAS_CTRADER_CLIENT_ID`,
+`ATLAS_CTRADER_CLIENT_SECRET` and `ATLAS_CTRADER_ACCESS_TOKEN` in the project's
+local `.env` or shell environment. Use a demo account with view-only access.
+The check displays masked account details and balance. It does not place orders
+or produce a settled Council journal. For calibration, pass the actual path to
+an existing journal. The filename in the Downloads example is not created by
+the self-test.
+
 ## Offline MLflow research
 
 ```powershell
@@ -112,3 +128,23 @@ python -m pytest -q tests/test_training_harness.py tests/test_training_harness_s
 Bigdata.com can supply advisory research through the connected ChatGPT tools. No unattended provider credential or server adapter has been established by this change. Preserve source timestamps and UNAVAILABLE status when inputs are absent. Do not turn market research into broker orders.
 
 Sites lists an older private dashboard prototype with no custom domain attached. The original justai-atlas.online/sam deployment source remains unresolved. This change does not publish over that domain or replace it with the older prototype. Production worker heartbeat, Windows execution, live MLflow endpoint and original website deployment still require verification on the original host.
+
+## Training workspace and Claude skills
+
+The public curriculum documents the nine-seat Council, PAPER review, scikit-learn
+and Shadow Learning. Use the owner workspace for journal records and research
+reports. The owner sees PAPER history with search and pagination. Session dates
+group unique settled journal examples by UTC day. These date groups are separate
+from scikit-learn evaluation runs.
+
+The Windows snapshot exporter reads the optional `ATLAS_SKLEARN_SHADOW_REPORT`
+file and verifies its PAPER research markers before including the report summary
+and per-agent metrics. The authenticated private training API reads the
+allowlisted summary from `.runtime/paper/council-agent-scores.json`. Keep raw
+journals and MLflow artifacts on the research host. Follow the
+[scikit-learn and MLflow runbook](SKLEARN_MLFLOW_SHADOW.md) for offline evaluation.
+
+Claude Code discovers the project skills at
+`.claude/skills/atlas-paper-review/SKILL.md` and
+`.claude/skills/atlas-shadow-training/SKILL.md`. They guide source review and
+evaluation. Dashboard requests do not launch Claude or run training.

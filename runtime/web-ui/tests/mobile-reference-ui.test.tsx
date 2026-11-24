@@ -20,7 +20,7 @@ describe("approved mobile reference UI", () => {
     expect(screen.queryByText(/System feed/i)).not.toBeInTheDocument();
     expect(document.querySelectorAll(".atlas-reference-header")).toHaveLength(4);
     expect(document.querySelectorAll(".atlas-sector-icon")).toHaveLength(4);
-    expect(document.querySelector(".atlas-sector-icon--activity .atlas-sector-logo")).toHaveAttribute("src", "/atlas-logo.webp");
+    expect(document.querySelector(".atlas-sector-icon--activity .atlas-sector-logo")).toHaveAttribute("src", "/just-ai-intelligence-mark.webp");
   });
 
   it("keeps five mobile navigation actions with Markets selected by default", () => {

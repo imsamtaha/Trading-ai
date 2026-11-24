@@ -34,11 +34,6 @@ html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b54800
 """
 
 MARKET_BOARD = """<section class="atlas-market-board" id="market-analysis" aria-label="TradingView markets" data-atlas-market>
-    <picture class="atlas-market-art">
-      <source media="(max-width: 650px)" srcset="/assets/atlas-tiger-shield-small.webp">
-      <img src="/assets/atlas-tiger-shield.webp" width="600" height="450"
-        alt="ATLAS Intelligence by JUST AI" decoding="async" fetchpriority="high">
-    </picture>
     <div data-atlas-market-content>
       <p class="atlas-market-fallback"><a href="https://www.tradingview.com/symbols/COINBASE-BTCUSD/">Open BTC/USD in TradingView</a></p>
     </div>
@@ -47,11 +42,13 @@ MARKET_BOARD = """<section class="atlas-market-board" id="market-analysis" aria-
 HUB_HEADER = r"""
 <div class="atlas-hub-shell" id="hub-overview">
   <header class="atlas-hub-brand">
-    <div>
-      <div class="atlas-hub-kicker"><span class="atlas-tech-token">CUSTOMER TRADING INTERFACE</span></div>
-      <div class="atlas-hub-title"><span class="atlas-tech-token">ATLAS</span></div>
-      <div class="atlas-hub-descriptor"><span class="atlas-tech-token">TRADING INTELLIGENCE</span></div>
-      <div class="atlas-hub-parent"><img class="atlas-intelligence-logo" src="/assets/just-ai-intelligence-mark.webp" alt="JUST AI Intelligence" width="68" height="68"></div>
+    <picture class="atlas-tiger-art">
+      <source media="(max-width: 650px)" srcset="/assets/atlas-tiger-shield-small.webp">
+      <img src="/assets/atlas-tiger-shield.webp" alt="ATLAS Intelligence by JUST AI" width="1080" height="810" fetchpriority="high">
+    </picture>
+    <div class="atlas-hub-heading">
+      <h1 class="atlas-hub-title" dir="ltr">ATLAS <em>THE ULTIMATE</em></h1>
+      <div class="atlas-hub-descriptor" dir="ltr">AI Trading Intelligence &amp; Operations</div>
       <div class="atlas-hub-sub" data-hub-en="Your unified FxPro MT5 demo cockpit for markets, account telemetry, analysis and risk context." data-hub-ar="واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.">Unified market intelligence, monitoring and risk context.</div>
     </div>
     <div class="atlas-hub-status"><span class="atlas-hub-status-dot"></span><span data-hub-en="FxPro MT5 workspace" data-hub-ar="مساحة عمل FxPro MT5">FxPro MT5 workspace</span></div>
@@ -62,6 +59,7 @@ HUB_HEADER = r"""
     <a class="atlas-3d" href="#hub-account" data-hub-en="Account" data-hub-ar="الحساب">Account</a>
     <a class="atlas-3d" href="#market-analysis" data-hub-en="TradingView" data-hub-ar="TradingView">TradingView</a>
     <a class="atlas-3d" href="/council/btc-2026-08-31.html" data-hub-en="Council exercise" data-hub-ar="تمرين المجلس">Council exercise</a>
+    <a class="atlas-3d" href="/council/curriculum.html" data-hub-en="Council training" data-hub-ar="تدريب المجلس">Council training</a>
     <a class="atlas-3d" href="#hub-markets" data-hub-en="Markets & News" data-hub-ar="الأسواق والأخبار">Markets & News</a>
     <a class="atlas-3d" href="#demo-session" data-hub-en="Live Demo" data-hub-ar="تجريبي مباشر">Live Demo</a>
     <a class="atlas-3d" href="#plans" data-hub-en="Plans" data-hub-ar="الاشتراكات">Plans</a>
@@ -78,7 +76,16 @@ const arMap={
 const reverse=new Map(Object.entries(arMap).map(([en,ar])=>[ar,en]));
 function lang(){return document.documentElement.lang==='ar'?'ar':'en'}
 function localizeNode(node){if(!node||node.nodeType!==3)return;const raw=node.nodeValue.trim();if(!raw)return;const en=reverse.get(raw)||raw;if(arMap[en]){const out=lang()==='ar'?arMap[en]:en;if(raw!==out)node.nodeValue=node.nodeValue.replace(raw,out)}else if(raw.startsWith('Last update:')){node.nodeValue=(lang()==='ar'?'آخر تحديث:':'Last update:')+raw.split(':').slice(1).join(':')}}
-function apply(){document.querySelectorAll('[data-hub-en]').forEach(el=>{el.textContent=lang()==='ar'?el.dataset.hubAr:el.dataset.hubEn});const root=document.getElementById('demo-session');if(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(w.nextNode())localizeNode(w.currentNode)}}
+function apply(){document.querySelectorAll('[data-hub-en]').forEach(el=>{const copy=lang()==='ar'?el.dataset.hubAr:el.dataset.hubEn;if(el.textContent!==copy)el.textContent=copy});const root=document.getElementById('demo-session');if(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(w.nextNode())localizeNode(w.currentNode)}}
+function markCurrent(){
+const destination=location.hash||'#hub-overview';
+document.querySelectorAll('.atlas-hub-nav a').forEach(link=>{
+const current=link.getAttribute('href')===destination;
+if(current&&link.getAttribute('aria-current')!=='location')link.setAttribute('aria-current','location');
+if(!current&&link.hasAttribute('aria-current'))link.removeAttribute('aria-current');
+});
+}
+window.addEventListener('hashchange',markCurrent);markCurrent();
 let queued=false;const observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;observer.disconnect();apply();observer.observe(document.body,{subtree:true,childList:true,characterData:true})})});observer.observe(document.body,{subtree:true,childList:true,characterData:true});window.addEventListener('atlas-language-change',apply);apply();
 })();
 </script>
@@ -95,7 +102,7 @@ def enhance_atlas_html(html: str) -> str:
         '<script src="/assets/atlas-market.js" defer></script>'
         '<link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">'
     )
-    html = html.replace("</head>", HUB_STYLE + assets + '<link rel="stylesheet" href="/assets/just-ai-brand.css">' + "</head>")
+    html = html.replace("</head>", HUB_STYLE + assets + '<link rel="stylesheet" href="/assets/just-ai-brand.css"><link rel="stylesheet" href="/assets/atlas-ultimate-workspace.css">' + "</head>")
     username = os.getenv("ATLAS_TELEGRAM_BOT_USERNAME", DEFAULT_TELEGRAM_BOT_USERNAME).strip().removeprefix("@")
     telegram_link = ""
     if re.fullmatch(r"[a-z0-9_]{2,29}bot", username, re.IGNORECASE | re.ASCII):
@@ -116,7 +123,7 @@ def enhance_atlas_html(html: str) -> str:
             "واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.",
             "تحليل الأسواق ومعلومات حساب cTrader التجريبي وأدلة التداول الورقي.",
         )
-    html = html.replace("<body>", '<body class="atlas-depth-page">' + header, 1)
-    html = html.replace('<div class="shell">', '<div class="shell">' + MARKET_BOARD, 1)
+    html = html.replace("<body>", '<body class="atlas-depth-page atlas-trader">' + header, 1)
+    html = html.replace('<section class="hero">', MARKET_BOARD + '<section class="hero">', 1)
     return html.replace("</body>", HUB_SCRIPT + "</body>")
 

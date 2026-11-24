@@ -104,21 +104,21 @@ const root=document.querySelector('.shell')||document.querySelector('main')||doc
 if(!root||document.getElementById('active-setups'))return;
 
 const style=document.createElement('style');
-style.textContent=\`
+style.textContent=`
 .active-setups{margin:0 0 18px;border-color:#ff7a1a55}
 .setup-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .setup-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
 .setup-card{border:1px solid var(--line);border-radius:14px;padding:13px;background:#080d14aa}
 .setup-card.active{border-color:#39d98a55}
 .setup-card.watch{border-color:#f6c45355}
-\`;
+`;
 
 document.head.append(style);
 
 const panel=document.createElement('section');
 panel.className='card active-setups';
 panel.id='active-setups';
-panel.innerHTML=\`
+panel.innerHTML=`
 <div class="setup-head">
   <div>
     <div class="label">ACTIVE SETUPS</div>
@@ -128,7 +128,7 @@ panel.innerHTML=\`
   <div class="demo-status stale" id="setupStatus"><span class="demo-dot"></span><span id="setupStatusText">SCANNING</span></div>
 </div>
 <div class="setup-grid" id="setupGrid"><div class="mini">Scanning current demo setups…</div></div>
-<div class="demo-foot" id="setupMeta">Mode: —</div>\`;
+<div class="demo-foot" id="setupMeta">Mode: —</div>`;
 
 const demo=document.getElementById('demo-session');
 if(demo)demo.insertAdjacentElement('afterend',panel);
@@ -152,14 +152,14 @@ function card(item,kind){
   const strategy=esc(item.strategy||'No qualified strategy');
   const rr=num(item.risk_reward);
   const levels=item.entry!=null
-    ? \`<div class="mini" style="margin-top:8px">Entry <b>\${num(item.entry)}</b> · SL <b>\${num(item.stop_loss)}</b> · TP <b>\${num(item.take_profit)}</b></div>\`
+    ? `<div class="mini" style="margin-top:8px">Entry <b>${num(item.entry)}</b> · SL <b>${num(item.stop_loss)}</b> · TP <b>${num(item.take_profit)}</b></div>`
     : '';
-  return \`<div class="setup-card \${kind}">
-    <div class="label">\${esc(item.symbol||'UNKNOWN')}</div>
-    <div style="font-size:20px;font-weight:950;margin-top:5px">\${direction} · \${klass}</div>
-    <div class="mini" style="margin-top:5px">\${strategy} · Confidence \${confidence}% · R:R \${rr}</div>
-    \${levels}
-  </div>\`;
+  return `<div class="setup-card ${kind}">
+    <div class="label">${esc(item.symbol||'UNKNOWN')}</div>
+    <div style="font-size:20px;font-weight:950;margin-top:5px">${direction} · ${klass}</div>
+    <div class="mini" style="margin-top:5px">${strategy} · Confidence ${confidence}% · R:R ${rr}</div>
+    ${levels}
+  </div>`;
 }
 
 async function refreshSetups(){
@@ -179,7 +179,7 @@ async function refreshSetups(){
     }
 
     document.getElementById('setupMeta').textContent=
-      \`Mode: \${data.mode||'LIVE_DEMO'} · Strategy: \${data.strategy_mode||'BALANCED'} · Interval: \${data.interval||'15m'} · Active: \${data.active_count||0} · Watch: \${data.watch_count||0} · Demo execution: ACTIVE · Real-money: OFF\`;
+      `Mode: ${data.mode||'LIVE_DEMO'} · Strategy: ${data.strategy_mode||'BALANCED'} · Interval: ${data.interval||'15m'} · Active: ${data.active_count||0} · Watch: ${data.watch_count||0} · PAPER · Real-money: OFF`;
     status(active.length?'ACTIVE':'MONITORING',active.length?'online':'stale');
   }catch(error){
     status('UNAVAILABLE','offline');

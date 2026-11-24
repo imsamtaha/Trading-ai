@@ -17,7 +17,7 @@ from app.dashboard.news_routing import route_headlines
 
 class MarketBriefingError(RuntimeError): pass
 
-WALL_STREET_WATCHLIST=(("^DJI","Dow Jones","US Equities"),("^GSPC","S&P 500","US Equities"),("^IXIC","Nasdaq Composite","US Equities"),("^VIX","CBOE VIX","Volatility"),("GC=F","Gold Futures","Commodities"),("SI=F","Silver Futures","Commodities"),("CL=F","WTI Crude","Commodities"),("NG=F","Natural Gas","Commodities"),("EURUSD=X","EUR/USD","FX"),("BTC-USD","Bitcoin","Digital Assets"))
+WALL_STREET_WATCHLIST=(("^DJI","Dow Jones","US Equities"),("^GSPC","S&P 500","US Equities"),("^IXIC","Nasdaq Composite","US Equities"),("^VIX","CBOE VIX","Volatility"),("GC=F","Gold Futures","Commodities"),("SI=F","Silver Futures","Commodities"),("CL=F","WTI Crude","Commodities"),("NG=F","Natural Gas","Commodities"),("EURUSD=X","EUR/USD","FX"),("BTC-USD","Bitcoin","Digital Assets"),("ETH-USD","Ethereum","Digital Assets"),("SOL-USD","Solana","Digital Assets"),("JPY=X","USD/JPY","FX"),("HG=F","Copper Futures","Commodities"))
 CHART_URL="https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 # Fixed publisher-owned feeds. Verification is of origin, not fact-checking.
 NEWS_SOURCES = (
@@ -139,28 +139,61 @@ def _publisher_link(url, source):
 
 class MarketBriefingService:
     def __init__(self,session=requests,timeout=None):
-        self.session=session;self.timeout=timeout or float(os.getenv("ATLAS_MARKET_DATA_TIMEOUT","8"));self._board_cache=None;self._board_cached_at=0.0;self._headlines_cache=None;self._headlines_cached_at=0.0;self._news_lock=RLock();self.news_sources=[]
+        self.session=session;self.timeout=timeout or float(os.getenv("ATLAS_MARKET_DATA_TIMEOUT","8"));self._board_cache=None;self._board_cached_at=0.0;self._market_lock=RLock();self._headlines_cache=None;self._headlines_cached_at=0.0;self._news_lock=RLock();self.news_sources=[]
     def _get(self,url,**kwargs):
         try:r=self.session.get(url,timeout=self.timeout,headers={"User-Agent":"Mozilla/5.0 ATLAS-MarketBoard/1.5","Accept":"application/json,text/xml,*/*"},**kwargs);r.raise_for_status();return r
         except requests.RequestException as exc:raise MarketBriefingError(str(exc)) from exc
-    def _chart_quote(self,symbol):
-        payload=self._get(CHART_URL.format(symbol=quote(symbol,safe="")),params={"range":"5d","interval":"1d","includePrePost":"false","events":"div,splits"}).json();result=(payload.get("chart",{}).get("result")or[])
-        if not result:raise MarketBriefingError(f"No chart data for {symbol}")
-        item=result[0];meta=item.get("meta",{});price=_number(meta.get("regularMarketPrice"));previous=_number(meta.get("chartPreviousClose")or meta.get("previousClose"))
-        if price is None:
-            closes=((item.get("indicators",{}).get("quote")or[{}])[0].get("close")or[]);valid=[_number(v)for v in closes if _number(v)is not None];price=valid[-1]if valid else None
-            if previous is None and len(valid)>1:previous=valid[-2]
-        change=(price-previous)if price is not None and previous not in(None,0)else None;pct=(change/previous*100)if change is not None and previous else None;quote_time,freshness,fresh=_freshness(meta.get("regularMarketTime"));return price,change,(round(pct,3)if pct is not None else None),quote_time,freshness,fresh
+    def _chart_quote(self, symbol):
+        try:
+            payload = self._get(CHART_URL.format(symbol=quote(symbol, safe="")),
+                                params={"range": "5d", "interval": "1d", "includePrePost": "false"}).json()
+            item = payload["chart"]["result"][0]
+            meta = item.get("meta", {})
+            quotes = item.get("indicators", {}).get("quote") or [{}]
+            closes = [value for entry in (quotes[0].get("close") or [])
+                      if (value := _number(entry)) is not None and math.isfinite(value) and value > 0]
+            price = _number(meta.get("regularMarketPrice"))
+            if price is None or not math.isfinite(price) or price <= 0:
+                price = closes[-1] if closes else None
+                quote_time, freshness, fresh = None, "UNKNOWN", False
+            else:
+                quote_time, freshness, fresh = _freshness(meta.get("regularMarketTime"))
+            # chartPreviousClose is the close before the full requested range.
+            previous = closes[-2] if len(closes) >= 2 else None
+            change = price - previous if price is not None and previous is not None else None
+            pct = round(change / previous * 100, 3) if change is not None else None
+            return price, change, pct, quote_time, freshness, fresh
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
+            raise MarketBriefingError("Invalid market chart response") from exc
+
+    def _market_row(self, instrument):
+        symbol, label, category = instrument
+        try:
+            price, change, pct, quote_time, freshness, fresh = self._chart_quote(symbol)
+        except MarketBriefingError:
+            price = change = pct = quote_time = None
+            freshness, fresh = "UNAVAILABLE", False
+        return {
+            "symbol": symbol, "label": label, "category": category, "provider": "Yahoo Finance",
+            "price": price, "change": change, "change_percent": pct, "quote_time": quote_time,
+            "freshness": freshness, "fresh": fresh, "market_state": freshness,
+            "direction": _direction(pct) if fresh and pct is not None else "UNAVAILABLE",
+            "analysis": ("UP" if pct > 0 else "DOWN" if pct < 0 else "FLAT") if fresh and pct is not None else "UNAVAILABLE",
+            "available": price is not None,
+        }
+
     def market_board(self):
-        now=time.monotonic();ttl=max(15,int(os.getenv("ATLAS_MARKET_CACHE_SECONDS","60")))
-        if self._board_cache is not None and now-self._board_cached_at<ttl:return self._board_cache
-        board=[];failures=[]
-        for symbol,label,category in WALL_STREET_WATCHLIST:
-            try:price,change,pct,quote_time,freshness,fresh=self._chart_quote(symbol)
-            except MarketBriefingError as exc:price=change=pct=quote_time=None;freshness="UNAVAILABLE";fresh=False;failures.append(str(exc))
-            available=price is not None;board.append({"symbol":symbol,"label":label,"category":category,"price":price,"change":change,"change_percent":pct,"direction":_direction(pct)if fresh else"UNAVAILABLE","analysis":("UP"if pct>0 else"DOWN"if pct<0 else"FLAT")if pct is not None and fresh else"UNAVAILABLE","quote_time":quote_time,"freshness":freshness,"fresh":fresh,"market_state":freshness,"available":available})
-        if not any(x["available"]for x in board):raise MarketBriefingError("; ".join(failures[:3])or"Market chart data unavailable")
-        self._board_cache=board;self._board_cached_at=now;return board
+        with self._market_lock:
+            now = time.monotonic()
+            ttl = max(15, int(os.getenv("ATLAS_MARKET_CACHE_SECONDS", "60")))
+            if self._board_cache is not None and now - self._board_cached_at < ttl:
+                return self._board_cache
+            with ThreadPoolExecutor(max_workers=7) as pool:
+                board = list(pool.map(self._market_row, WALL_STREET_WATCHLIST))
+            self._board_cache = board
+            self._board_cached_at = time.monotonic()
+            return board
+
     def _feed(self, source):
         try:
             response = self.session.get(source["url"], timeout=self.timeout,

@@ -1,0 +1,297 @@
+/* JUST AI Intelligence workspaces. The market canvas and navigation use charcoal. */
+body:is(.atlas-owner, .atlas-trader) {
+  --ultimate-ivory: #faeee2;
+  --ultimate-card: #fff7ed;
+  --ultimate-edge: #e5cbb8;
+  --ultimate-ink: #26201c;
+  --ultimate-muted: #6f5a4e;
+  --ultimate-accent: #b74006;
+  --ultimate-shadow: 0 2px 0 #9e552e19, 0 10px 22px #7640211c;
+  --ultimate-terrain: url("./atlas-ultimate-terrain.webp");
+  --atlas-navy: #281f19;
+  --atlas-midnight: #1f1814;
+  --atlas-surface: linear-gradient(150deg, #372820, #201915);
+  --atlas-edge: #6f4934;
+  --atlas-silver: #fff3e7;
+  --atlas-muted: #e0c2ac;
+  --atlas-amber: #ffa057;
+  --atlas-amber-deep: #d16d31;
+  --atlas-blue: #ffad70;
+}
+body.atlas-owner, html:not([data-theme="dark"]) body.atlas-trader {
+  --bg: var(--ultimate-ivory);
+  --text: var(--ultimate-ink);
+  --muted: var(--ultimate-muted);
+  --panel: var(--ultimate-card);
+  --line: var(--ultimate-edge);
+  --orange: var(--ultimate-accent);
+  --amber: var(--ultimate-accent);
+  --green: #156843;
+  --yellow: #8a5004;
+  --red: #a12637;
+  --ok: #156843;
+  --bad: #a12637;
+  color-scheme: light;
+  color: var(--text);
+  background: #faeee2;
+}
+.atlas-workspace-logo { display: block; object-fit: contain; border-radius: 16px; }
+.atlas-ultimate-title, .atlas-trader .atlas-hub-title {
+  color: var(--ultimate-ink);
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: clamp(1.8rem, 4.25vw, 4.2rem);
+  font-style: italic;
+  font-weight: 950;
+  letter-spacing: -.065em;
+  line-height: 1.05;
+  text-shadow: 0 2px 1px #48271022;
+  background: none;
+}
+.atlas-ultimate-title em, .atlas-trader .atlas-hub-title em { color: #c64408; font-style: inherit; }
+.atlas-owner .shell { grid-template-columns: 194px minmax(0, 1fr); }
+.atlas-owner aside {
+  height: calc(100vh - 28px);
+  top: 14px;
+  margin: 14px;
+  margin-inline-end: 0;
+  border: 1px solid #704428;
+  border-radius: 22px;
+  background: linear-gradient(165deg, #2d231c, #1a1512 76%, #472617);
+  box-shadow: inset 0 -3px #ff781d88, 0 12px 24px #613b2938;
+}
+.atlas-owner .brand { justify-content: center; margin: 0 0 18px; }
+.atlas-owner .brand img { width: min(100%, 112px); height: auto; }
+.atlas-owner .navbtn { color: #f5e9de; padding: 10px; border-radius: 10px; }
+.atlas-owner .navbtn.active, .atlas-owner .navbtn:hover,
+html:not([data-theme="dark"]) .atlas-trader .atlas-hub-nav a:hover {
+  color: #fff9f2;
+  background: linear-gradient(145deg, #bc4106, #993103);
+  border-color: #fc9b56;
+  box-shadow: inset 0 1px #ffaf7a90, 0 4px 13px #f6672240;
+}
+.atlas-owner .side-note { color: #ddcbbb; border-color: #654a39; }
+.atlas-owner .atlas-owner-case { display: block; padding: .75rem 0; color: #ffd5b6; }
+.atlas-owner main { padding: 20px clamp(14px, 2vw, 30px) 48px; }
+.atlas-owner .topbar, .atlas-trader .atlas-hub-brand {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--ultimate-edge);
+  border-radius: 20px;
+  padding: clamp(17px, 3vw, 32px);
+  background: linear-gradient(90deg, var(--ultimate-card) 62%, transparent 89%), var(--ultimate-terrain) right center / auto 135% no-repeat, var(--ultimate-card);
+  box-shadow: var(--ultimate-shadow);
+}
+.atlas-owner .topbar > *, .atlas-trader .atlas-hub-brand > * { position: relative; }
+.atlas-owner .topbar h1 { font-size: clamp(1.3rem, 2.2vw, 2rem); margin: 12px 0 4px; }
+.atlas-owner .safety, .atlas-owner .field, .atlas-owner .filter, .atlas-owner .btn,
+.atlas-owner .scroller, .atlas-owner .empty { border-color: var(--ultimate-edge); background: var(--ultimate-card); color: var(--ultimate-ink); }
+.atlas-owner .safety { box-shadow: var(--ultimate-shadow); }
+.atlas-owner .safety strong, .atlas-owner .safety span { color: var(--ultimate-accent); }
+.atlas-owner .safety span { background: #f9e0cd; border-color: #edbf9e; }
+.atlas-owner .pill { background: #fff7ed; color: var(--ultimate-muted); border-color: var(--ultimate-edge); }
+.atlas-owner .pill.VERIFIED { color: var(--ok); }
+.atlas-owner .pill.UNAVAILABLE, .atlas-owner .pill.ERROR { color: var(--bad); }
+.atlas-owner .pill.STALE { color: var(--amber); }
+.atlas-owner .card, html:not([data-theme="dark"]) body.atlas-trader :is(.card, .shell > .hero) {
+  background: var(--ultimate-card) !important;
+  border-color: var(--ultimate-edge) !important;
+  color: var(--ultimate-ink);
+  box-shadow: var(--ultimate-shadow) !important;
+}
+.atlas-owner .card :is(.label, .foot), .atlas-owner .field small { color: var(--ultimate-muted); }
+.atlas-owner th { background: #f2dfce; color: var(--ultimate-accent); }
+.atlas-owner :is(th, td) { border-color: var(--ultimate-edge); }
+.atlas-owner td { color: var(--ultimate-ink); }
+.atlas-owner tbody tr:nth-child(even) { background: #fff1e4; }
+.atlas-owner .overview-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.atlas-owner .overview-details > article > h2 { margin: 0 0 12px; }
+.atlas-owner .overview-details .fieldgrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr)); }
+.atlas-owner .overview-details .scroller table { min-width: 360px; }
+.atlas-owner .card.overview-confidence { background: linear-gradient(155deg, #3d2b21, #231a15) !important; color: #fff5e9; border-color: #754d37 !important; }
+.atlas-owner .overview-confidence :is(.label, .foot) { color: #ffd8ba; }
+html:not([data-theme="dark"]) body.atlas-trader .atlas-hub-brand {
+  color: var(--ultimate-ink);
+  background: var(--ultimate-terrain) right center / auto 135% no-repeat, var(--ultimate-card);
+}
+html[data-theme="dark"] .atlas-trader .atlas-hub-title { color: #fff4e9; }
+html[data-theme="dark"] .atlas-trader :is(.atlas-hub-descriptor, .atlas-hub-sub) { color: #e0c2ac; }
+.atlas-trader .atlas-hub-brand { justify-content: flex-start; flex-wrap: wrap; text-align: start; }
+.atlas-trader .atlas-hub-title { margin: 0; text-align: start; }
+.atlas-trader .atlas-hub-descriptor, .atlas-trader .atlas-hub-sub { color: var(--ultimate-muted); }
+.atlas-trader .atlas-hub-descriptor { letter-spacing: .13em; font-weight: 750; }
+.atlas-trader .atlas-hub-status { margin-inline-start: auto; background: #fff4e8; color: #72350f; }
+.atlas-trader .atlas-hub-nav a { color: #fff1e6; background: #30241e; border-color: #67442d; }
+.atlas-owner .btn.primary, html:not([data-theme="dark"]) .atlas-trader .btn.primary {
+  background: linear-gradient(135deg, #bf4608, #a13402);
+  color: #fffaf6;
+  border-color: #b53e07;
+  box-shadow: 0 4px 12px #bf4c2838;
+}
+.atlas-trader .atlas-market-board { margin: 0 0 16px; box-shadow: 0 8px 21px #542d234a; }
+.atlas-trader .atlas-market-chart [data-tv-host] { height: clamp(320px, 32vw, 480px); }
+.atlas-trader .atlas-market-banner { background: #33261e; }
+html[data-theme="light"] .atlas-trader .atlas-market-board {
+  --market-text: #fff3e7;
+  --market-muted: #e0c2ac;
+  --market-edge: #694733;
+  --market-surface: #281f19;
+  background: #241b16;
+}
+html[data-theme="light"] .atlas-trader .atlas-market-board :is(.atlas-market-feedback a, .atlas-market-fallback a) { color: #ffb988; }
+@media (min-width: 1080px) {
+  .atlas-trader { display: grid; grid-template-columns: 176px minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 12px 15px; padding: 0 16px 24px; }
+  .atlas-trader .atlas-preferences { grid-column: 1 / -1; grid-row: 1; }
+  .atlas-trader .atlas-hub-shell { display: contents; }
+  .atlas-trader .atlas-hub-brand { grid-column: 1 / -1; grid-row: 2; }
+  .atlas-trader .atlas-hub-nav {
+    grid-row: 3; grid-column: 1; position: sticky; top: 12px; align-self: start; display: grid;
+    max-height: calc(100vh - 24px); overflow: auto; padding: 10px; border-radius: 18px;
+    background: linear-gradient(160deg, #2c221c, #1a1512 72%, #4c2917); box-shadow: 0 9px 22px #82503140;
+  }
+  .atlas-trader .atlas-hub-nav a { justify-content: flex-start; box-shadow: none; }
+  .atlas-trader > .shell { min-width: 0; width: 100%; grid-column: 2; grid-row: 3; padding: 0; margin-top: 0; }
+}
+@media (max-width: 1050px) {
+  .atlas-owner .shell { grid-template-columns: minmax(0, 1fr); }
+  .atlas-owner aside { height: auto; margin: 10px; top: auto; }
+  .atlas-owner .brand { justify-content: flex-start; margin-bottom: 9px; }
+  .atlas-owner .brand img { width: 64px; }
+  .atlas-owner .navbtn { width: auto; }
+}
+@media (max-width: 700px) {
+  .atlas-owner .overview-details { grid-template-columns: minmax(0, 1fr); }
+  .atlas-owner .topbar, .atlas-trader .atlas-hub-brand { background-position: right bottom; background-size: auto 86%; }
+  .atlas-trader .atlas-hub-brand { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 12px; }
+  .atlas-trader .atlas-hub-brand .atlas-workspace-logo { width: 64px; height: 64px; }
+  .atlas-trader .atlas-hub-status { grid-column: 1 / -1; margin-inline-start: 0; width: fit-content; }
+  .atlas-trader .atlas-hub-title { font-size: clamp(1.3rem, 6vw, 2rem); }
+  .atlas-trader .atlas-hub-descriptor { font-size: .65rem; }
+}
+html[data-theme="light"] body.atlas-trader .atlas-hub-nav a {
+  background: #2e231c; color: #fff2e6; border-color: #6f4b35;
+}
+html[data-theme="light"] body.atlas-trader .atlas-hub-nav a:is(:hover, [aria-current]) {
+  background: linear-gradient(145deg, #c84908, #9b3304);
+  color: #fff9f2; border-color: #ff9b5d;
+}
+html:not([data-theme="dark"]) .atlas-trader :is(.demo-metric, .history-box, .equity-box, .summary-chip) {
+  background: #fff4e7; border-color: var(--ultimate-edge);
+}
+html:not([data-theme="dark"]) .atlas-trader .demo-state { color: #6e3a17; background: #f6dfcb; }
+.atlas-trader .atlas-market-grid { align-items: start; }
+.atlas-trader :is(.atlas-market-control select, .atlas-market-panel button) {
+  background: #38291e; color: #fff1e6; border-color: #b5754b;
+}
+html:not([data-theme="dark"]) .atlas-trader :is(.atlas-market-quote, .atlas-market-news) {
+  --market-text: #28201b;
+  --market-muted: #6e584b;
+  --market-surface: #fff6eb;
+  --market-edge: #e0c3ae;
+  box-shadow: none;
+}
+html[data-theme="light"] .atlas-trader :is(.atlas-market-quote, .atlas-market-news) .atlas-market-feedback a { color: #953508; }
+@media (max-width: 700px) {
+  .atlas-owner .topbar, html:not([data-theme="dark"]) body.atlas-trader .atlas-hub-brand {
+    background: linear-gradient(#fff3e5ed, #fff3e5a0), var(--ultimate-terrain) right bottom / auto 95% no-repeat, var(--ultimate-card);
+  }
+}
+html[data-theme="light"] body.atlas-trader .atlas-hub-brand {
+  background: linear-gradient(90deg, var(--ultimate-card) 63%, transparent 88%), var(--ultimate-terrain) right center / auto 138% no-repeat, var(--ultimate-card) !important;
+  color: var(--ultimate-ink);
+}
+html[data-theme="light"] body.atlas-trader .atlas-hub-title { color: var(--ultimate-ink); }
+html[data-theme="light"] body.atlas-trader :is(.atlas-hub-descriptor, .atlas-hub-sub) { color: var(--ultimate-muted); }
+html[data-theme="light"] body.atlas-trader .setup-card { background: #fff1e3; }
+@media (max-width: 700px) {
+  html[data-theme="light"] body.atlas-trader .atlas-hub-brand {
+    background: linear-gradient(#fff3e5e6, #fff3e58c), var(--ultimate-terrain) right bottom / auto 100% no-repeat, var(--ultimate-card) !important;
+  }
+}
+
+/* Tiger Shield workspaces use the original repository artwork and a navy palette. */
+body.atlas-owner, body.atlas-trader {
+  --tiger-deep:#081426;
+  --tiger-panel:#102741;
+  --tiger-edge:#365c86;
+  --tiger-ink:#edf5ff;
+  --tiger-muted:#b9cce3;
+  --tiger-amber:#ffad59;
+  --tiger-shadow:0 8px 22px #02060c85;
+}
+body.atlas-owner, html:not([data-theme="light"]) body.atlas-trader {
+  --bg:var(--tiger-deep); --text:var(--tiger-ink); --muted:var(--tiger-muted);
+  --panel:var(--tiger-panel); --line:var(--tiger-edge); --orange:var(--tiger-amber); --amber:var(--tiger-amber);
+  --atlas-navy:#0b1c34; --atlas-midnight:#081426; --atlas-surface:linear-gradient(150deg,#153252,#0a1930);
+  --atlas-edge:#365c86; --atlas-silver:#edf5ff; --atlas-muted:#b9cce3; --atlas-amber:#ffad59; --atlas-blue:#73ccff;
+  --green:#79e1b3; --red:#ffaba3; --ok:#79e1b3; --bad:#ffaba3; --yellow:#ffce95;
+  background:#081426; color:var(--tiger-ink); color-scheme:dark;
+}
+.atlas-trader .atlas-hub-shell .atlas-hub-brand, .atlas-owner .topbar {
+  background:radial-gradient(ellipse at center,#1b5481,#0d2848 65%,#08182d) !important;
+  border-color:var(--tiger-edge); box-shadow:var(--tiger-shadow); color:var(--tiger-ink);
+}
+.atlas-trader .atlas-hub-shell .atlas-hub-brand {
+  display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1.65fr) minmax(0,.85fr); text-align:start;
+}
+.atlas-tiger-art { display:block; grid-column:2; grid-row:1; min-width:0; }
+.atlas-tiger-art img { display:block; width:100%; max-height:360px; height:auto; object-fit:contain; mask-image:radial-gradient(ellipse closest-side,black 87%,#0009 100%); }
+.atlas-trader .atlas-hub-heading { grid-column:1; grid-row:1; min-width:0; }
+.atlas-trader .atlas-hub-shell .atlas-hub-brand .atlas-hub-title, .atlas-owner .atlas-ultimate-title {
+  color:var(--tiger-ink); font-size:clamp(1.9rem,3.65vw,3.9rem);
+}
+.atlas-trader .atlas-hub-title em, .atlas-owner .atlas-ultimate-title em { color:var(--tiger-amber); }
+.atlas-trader .atlas-hub-shell .atlas-hub-brand :is(.atlas-hub-descriptor,.atlas-hub-sub) { color:var(--tiger-muted); }
+.atlas-trader .atlas-hub-status {
+  grid-column:3;grid-row:1;color:#ffcf9c;background:#0a1f39;border-color:#a96937;text-align:start;
+}
+.atlas-trader .atlas-hub-nav a { background:#0b203a;color:#eef6ff;border-color:#345a84; }
+.atlas-trader .atlas-hub-nav a[aria-current], .atlas-trader .atlas-hub-nav a:hover,
+.atlas-owner .navbtn.active, .atlas-owner .navbtn:hover {
+  color:#fff8f0;background:linear-gradient(135deg,#ae470c,#7d310b);border-color:#fea150;
+}
+.atlas-trader .atlas-market-banner { background:#0d2948; }
+html:not([data-theme="light"]) body.atlas-trader :is(.card,.shell>.hero) {
+  background:linear-gradient(150deg,#133150,#0b1c34) !important;
+  border-color:var(--tiger-edge) !important;color:var(--tiger-ink);box-shadow:var(--tiger-shadow) !important;
+}
+.atlas-owner aside { background:linear-gradient(160deg,#102b4a,#091629);border-color:var(--tiger-edge); }
+.atlas-owner .side-note { color:var(--tiger-muted);border-color:var(--tiger-edge); }
+.atlas-owner .topbar { align-items:center;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.atlas-owner .atlas-owner-tiger { width:min(100%,320px);height:auto;grid-column:2;grid-row:1 / span 2;justify-self:center;object-fit:contain; }
+.atlas-owner .topbar > div:not(.actions) { grid-column:1;grid-row:1; }
+.atlas-owner .topbar .actions { grid-column:1;grid-row:2; }
+.atlas-owner .card, .atlas-owner .card.overview-confidence {
+  background:linear-gradient(150deg,#133150,#0b1c34) !important;
+  border-color:var(--tiger-edge) !important;color:var(--tiger-ink);box-shadow:var(--tiger-shadow) !important;
+}
+.atlas-owner :is(.safety,.field,.filter,.btn,.scroller,.empty,.pill) { background:#0c223d;color:var(--tiger-ink);border-color:var(--tiger-edge); }
+.atlas-owner :is(.card .label,.card .foot,.field small,p) { color:var(--tiger-muted); }
+.atlas-owner :is(.safety strong,.safety span,th) { color:#ffca92; }
+.atlas-owner :is(.safety span,th,tbody tr:nth-child(even)) { background:#153452;border-color:var(--tiger-edge); }
+.atlas-owner td { color:var(--tiger-ink); }
+.atlas-owner :is(th,td) { border-color:var(--tiger-edge); }
+.atlas-owner .pill.VERIFIED { color:var(--ok); }
+.atlas-owner .pill.UNAVAILABLE, .atlas-owner .pill.ERROR { color:var(--bad); }
+.atlas-owner .pill.STALE { color:var(--amber); }
+.atlas-owner .btn.primary { background:#aa460a;color:#fff8ed;border-color:#ff9f42; }
+@media(min-width:1080px) {
+  body.atlas-trader { display:block; padding:0 16px 24px; }
+  .atlas-trader .atlas-hub-shell { display:flex; flex-direction:column; }
+  .atlas-trader .atlas-hub-nav {
+    order:-1;position:static;display:flex;max-height:none;margin-bottom:12px;
+    background:#07162b;border:1px solid #294969;box-shadow:none;
+  }
+  .atlas-trader > .shell { padding:0 18px; }
+}
+@media(max-width:760px) {
+  .atlas-trader .atlas-hub-shell .atlas-hub-brand, .atlas-owner .topbar { grid-template-columns:minmax(0,1fr); }
+  .atlas-trader :is(.atlas-tiger-art,.atlas-hub-heading,.atlas-hub-status),
+  .atlas-owner :is(.atlas-owner-tiger,.topbar > div:not(.actions),.topbar .actions) { grid-column:1;grid-row:auto; }
+  .atlas-tiger-art img, .atlas-owner .atlas-owner-tiger { max-height:225px; }
+  .atlas-trader .atlas-hub-status { margin-inline-start:0; }
+}
+@media(max-width:760px) {
+  .atlas-trader :is(.atlas-hub-shell,.atlas-hub-nav,.shell) { min-width:0; max-width:100%; }
+  .atlas-trader :is(.card,.market,.row,.setup-card) { overflow-wrap:anywhere; }
+  .atlas-trader .setup-grid { grid-template-columns:minmax(0,1fr); }
+}
