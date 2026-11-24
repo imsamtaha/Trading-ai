@@ -9,6 +9,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
+from app.execution.provider_mode import mt5_connections_paused
+
 router = APIRouter(tags=["fxpro-onboarding"])
 
 FXPRO_CONNECT_PATH = "/connect/fxpro-mt5"
@@ -41,6 +43,8 @@ class FxProDemoVerifyPayload(BaseModel):
 
 def current_fxpro_demo_account() -> dict:
     """Read the FxPro MT5 demo session already authenticated on the Windows bridge."""
+    if mt5_connections_paused():
+        raise RuntimeError("MT5 connections are paused.")
     try:
         import MetaTrader5 as mt5
     except ImportError as exc:
