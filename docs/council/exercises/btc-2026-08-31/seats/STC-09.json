@@ -1,0 +1,34 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "STC-09",
+  "seat_title": "Evaluator",
+  "authority": "Governs",
+  "status": "PREPARED_NOT_RUN",
+  "instructions": "Use only source/btc-usd-original.md as supplied historical case material. Cutoff: 2026-08-31; later source review: 2026-10-16. External claims are supplied, not independently reverified here. Do not use later outcomes, invent candles, fills, probabilities, scores or market observations. Separate observation, inference, scenario and missing evidence. Return JSON matching response-template.json. This is PAPER_CASE_STUDY only. No broker action, runtime-weight change, model promotion or ledger insertion is permitted. Respect the Risk veto and Quant evidence block. Ask for missing evidence rather than loosening gates.",
+  "objective": "Assess reasoning quality without confusing exercise scores with model calibration or realized trading performance.",
+  "tasks": [
+    "Grade submitted answers using the supplied rubric and critical-failure rules.",
+    "Separate prepared material, submitted responses, assessment and actual model training.",
+    "Decide whether this case can alter the baseline score or trigger promotion."
+  ],
+  "response": null,
+  "assessment": null,
+  "rubric": [
+    {
+      "criterion": "Ungraded state respected",
+      "points": 2
+    },
+    {
+      "criterion": "Teaching versus model metrics separated",
+      "points": 2
+    },
+    {
+      "criterion": "Baseline and promotion rules preserved",
+      "points": 2
+    },
+    {
+      "criterion": "Critical failures detected",
+      "points": 2
+    }
+  ]
+}

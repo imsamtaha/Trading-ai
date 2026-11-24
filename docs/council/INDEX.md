@@ -42,6 +42,10 @@ Original Drive references:
 - Council overview PDF: https://drive.google.com/file/d/1WnLDXpIUbpoS6pkQAQYw1GU7Osmevj1u/view
 - Earlier design: https://drive.google.com/file/d/1MmXxR-3qkgaBwQQqhHW5-PwGSVFEBsqE/view
 
+## Historical Council exercise
+
+[BTC/USD, 31 August 2026](exercises/btc-2026-08-31/SESSION.md) contains the original case material, nine seat assignments, response template, facilitator key and arithmetic checks. The case was prepared on 25 October 2026 and is awaiting submissions. The supplied market claims have not been independently verified. The exercise has no settled trade outcome and is excluded from runtime calibration.
+
 ## Training gates
 
 Candidate OOS accuracy must exceed max(0.525, training-fold majority baseline OOS + 0.005), improve the existing champion by at least 0.005, have OOS/train stability >= 0.80, and confidence-bin ECE <= 0.10. Invalid or non-finite metrics reject promotion. The 0.525 floor is an illustrative classification gate; it is not a statistical significance or profitability test. Costs, spread, slippage, regimes and net expectancy require separate real strategy evaluation.

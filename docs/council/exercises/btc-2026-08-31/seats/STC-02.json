@@ -1,0 +1,34 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "STC-02",
+  "seat_title": "Macro Strategist",
+  "authority": "Advises",
+  "status": "PREPARED_NOT_RUN",
+  "instructions": "Use only source/btc-usd-original.md as supplied historical case material. Cutoff: 2026-08-31; later source review: 2026-10-16. External claims are supplied, not independently reverified here. Do not use later outcomes, invent candles, fills, probabilities, scores or market observations. Separate observation, inference, scenario and missing evidence. Return JSON matching response-template.json. This is PAPER_CASE_STUDY only. No broker action, runtime-weight change, model promotion or ledger insertion is permitted. Respect the Risk veto and Quant evidence block. Ask for missing evidence rather than loosening gates.",
+  "objective": "Evaluate dated rates, liquidity and institutional context without translating narratives into an unsupported structural-regime label.",
+  "tasks": [
+    "Classify ETF flows, Fed expectations and institutional announcements by evidence date.",
+    "Explain why monthly positive ETF flows can coexist with negative YTD flows.",
+    "List evidence needed for a defensible regime assessment."
+  ],
+  "response": null,
+  "assessment": null,
+  "rubric": [
+    {
+      "criterion": "Dates and vintages retained",
+      "points": 2
+    },
+    {
+      "criterion": "Flows versus AUM distinguished",
+      "points": 2
+    },
+    {
+      "criterion": "Forecast versus realized event distinguished",
+      "points": 2
+    },
+    {
+      "criterion": "No invented macro target",
+      "points": 2
+    }
+  ]
+}

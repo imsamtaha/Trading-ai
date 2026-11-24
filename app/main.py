@@ -57,6 +57,7 @@ async def dashboard_only_guard(request: Request, call_next):
         path = request.url.path
         read_paths = {
             "/", "/centers", "/centers/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5", "/connect/fxpro-mt5/status",
+            "/traders", "/traders/", "/council/btc-2026-08-31.html",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view",

@@ -1,0 +1,34 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "STC-04",
+  "seat_title": "Quant Validator",
+  "authority": "Can block",
+  "status": "PREPARED_NOT_RUN",
+  "instructions": "Use only source/btc-usd-original.md as supplied historical case material. Cutoff: 2026-08-31; later source review: 2026-10-16. External claims are supplied, not independently reverified here. Do not use later outcomes, invent candles, fills, probabilities, scores or market observations. Separate observation, inference, scenario and missing evidence. Return JSON matching response-template.json. This is PAPER_CASE_STUDY only. No broker action, runtime-weight change, model promotion or ledger insertion is permitted. Respect the Risk veto and Quant evidence block. Ask for missing evidence rather than loosening gates.",
+  "objective": "Define a reproducible hypothesis and reject unsupported edge, win-probability or calibration claims.",
+  "tasks": [
+    "Write the missing elements of a deterministic backtest specification.",
+    "Explain why 34 candles and one narrative are not an out-of-sample strategy evaluation.",
+    "Describe the point-in-time and leakage controls required."
+  ],
+  "response": null,
+  "assessment": null,
+  "rubric": [
+    {
+      "criterion": "Unsupported edge blocked",
+      "points": 2
+    },
+    {
+      "criterion": "No fabricated outcome or probability",
+      "points": 2
+    },
+    {
+      "criterion": "Leakage controls specified",
+      "points": 2
+    },
+    {
+      "criterion": "Reproducible hypothesis requirements stated",
+      "points": 2
+    }
+  ]
+}

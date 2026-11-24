@@ -1,0 +1,35 @@
+{
+  "source": "Recomputed only from numbers in the user attachment; not independent market verification",
+  "cost_bps_assumption": 0,
+  "rows": [
+    {
+      "entry": 76700.0,
+      "risk_per_btc": 2000.0,
+      "tp1_r": 2.3,
+      "tp2_r": 4.15,
+      "quantity_for_100_usd_budget": 0.05
+    },
+    {
+      "entry": 77250.0,
+      "risk_per_btc": 2550.0,
+      "tp1_r": 1.588235294117647,
+      "tp2_r": 3.0392156862745097,
+      "quantity_for_100_usd_budget": 0.0392156862745098
+    },
+    {
+      "entry": 77800.0,
+      "risk_per_btc": 3100.0,
+      "tp1_r": 1.1290322580645162,
+      "tp2_r": 2.3225806451612905,
+      "quantity_for_100_usd_budget": 0.03225806451612903
+    }
+  ],
+  "tp1_2r_max_entry": 76900.0,
+  "tp2_3r_max_entry": 77275.0,
+  "retracements": {
+    "0.382": 74762.84384,
+    "0.5": 72729.01,
+    "0.618": 70695.17616
+  },
+  "extension_1_618": 91998.72384
+}

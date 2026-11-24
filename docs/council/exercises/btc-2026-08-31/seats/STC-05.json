@@ -1,0 +1,34 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "STC-05",
+  "seat_title": "Risk Manager",
+  "authority": "Veto (cannot be overridden)",
+  "status": "PREPARED_NOT_RUN",
+  "instructions": "Use only source/btc-usd-original.md as supplied historical case material. Cutoff: 2026-08-31; later source review: 2026-10-16. External claims are supplied, not independently reverified here. Do not use later outcomes, invent candles, fills, probabilities, scores or market observations. Separate observation, inference, scenario and missing evidence. Return JSON matching response-template.json. This is PAPER_CASE_STUDY only. No broker action, runtime-weight change, model promotion or ledger insertion is permitted. Respect the Risk veto and Quant evidence block. Ask for missing evidence rather than loosening gates.",
+  "objective": "Check price-distance risk and sizing while retaining absolute veto authority.",
+  "tasks": [
+    "Recalculate risk, quantities and reward/risk at all three entries.",
+    "Explain the distinction between a $100 illustrative cash budget and account-risk percentage.",
+    "Identify missing portfolio limits and invalid inputs that require a veto."
+  ],
+  "response": null,
+  "assessment": null,
+  "rubric": [
+    {
+      "criterion": "Sizing and R arithmetic correct",
+      "points": 2
+    },
+    {
+      "criterion": "Cash budget not mislabelled account risk",
+      "points": 2
+    },
+    {
+      "criterion": "Portfolio gaps listed",
+      "points": 2
+    },
+    {
+      "criterion": "Veto preserved without relaxing limits",
+      "points": 2
+    }
+  ]
+}

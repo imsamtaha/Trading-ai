@@ -1,0 +1,163 @@
+/* Shared graphite and copper surfaces for ATLAS Intelligence. */
+.atlas-market-board {
+  --market-text: #f7f1eb;
+  --market-muted: #dbccc0;
+  --market-edge: #634333;
+  --market-surface: #141315;
+  max-width: 1880px;
+  margin: 1.5rem auto 2.5rem;
+  isolation: isolate;
+  border: 1px solid var(--market-edge);
+  border-radius: 1.5rem;
+  overflow: hidden;
+  color: var(--market-text);
+  background: linear-gradient(145deg, #262022, #141315 56%, #100e10);
+  box-shadow: 0 .25rem 0 #080809, 0 1.5rem 4rem #0008, inset 0 1px #fff3;
+  scroll-margin-top: 1rem;
+}
+.atlas-market-fallback { padding: 1.25rem; }
+.atlas-market-banner {
+  box-sizing: border-box;
+  position: relative;
+  min-height: 215px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: end;
+  align-items: end;
+  gap: 1.25rem;
+  padding: clamp(1.1rem, 3vw, 2.4rem);
+  border-bottom: 1px solid var(--market-edge);
+  background: #101013;
+}
+.atlas-market-art { position: absolute; inset: 0; overflow: hidden; }
+.atlas-market-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 48%; }
+[dir="rtl"] .atlas-market-art img { transform: scaleX(-1); }
+.atlas-market-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, #100e11ed 4%, #100e11ad 40%, #100e1120 78%), linear-gradient(0deg, #110f12b0, transparent 70%);
+  pointer-events: none;
+}
+[dir="rtl"] .atlas-market-banner::before {
+  background: linear-gradient(270deg, #100e11ed 4%, #100e11ad 40%, #100e1120 78%), linear-gradient(0deg, #110f12b0, transparent 70%);
+}
+.atlas-market-copy, .atlas-market-control { position: relative; z-index: 2; }
+.atlas-market-copy h2 { margin: 0; color: #fff6ee; font-size: clamp(1.9rem, 4vw, 3.2rem); line-height: 1.08; }
+.atlas-market-copy p { margin: .5rem 0 0; color: #ede1d7; font-size: .98rem; }
+.atlas-market-control { display: grid; gap: .35rem; }
+.atlas-market-control label { color: #fff0e3; font-size: .9rem; }
+.atlas-market-control select, .atlas-market-panel button {
+  min-height: 44px;
+  border: 1px solid #a96845;
+  border-radius: .55rem;
+  padding: .4rem .65rem;
+  background: #19161b;
+  color: #fff3e9;
+  font: inherit;
+}
+.atlas-market-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 25rem);
+  gap: .85rem;
+  padding: .85rem;
+}
+.atlas-market-sidebar { display: grid; gap: .85rem; grid-auto-rows: min-content; min-width: 0; }
+.atlas-market-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: .85rem;
+  border: 1px solid var(--market-edge);
+  border-radius: .95rem;
+  background: var(--market-surface);
+  box-shadow: inset 0 1px #fff2, 0 .35rem 1rem #0005;
+}
+.atlas-market-panel h3 { margin: 0 0 .75rem; color: var(--market-text); font-size: 1.05rem; }
+.atlas-market-panel [data-tv-host] { direction: ltr; }
+.atlas-market-chart [data-tv-host] { height: clamp(26rem, 45vw, 54rem); }
+.atlas-market-quote [data-tv-host] { min-height: 10rem; }
+.atlas-market-news [data-tv-host] { height: 25rem; }
+.atlas-market-panel .tradingview-widget-container,
+.atlas-market-panel .tradingview-widget-container__widget { width: 100%; height: 100%; }
+.atlas-market-panel [hidden] { display: none !important; }
+.atlas-market-feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .6rem 1rem;
+  margin-top: .65rem;
+  color: var(--market-muted);
+  font-size: .875rem;
+}
+.atlas-market-feedback span:empty { display: none; }
+.atlas-market-feedback a, .atlas-market-fallback a { color: #ffbd89; text-decoration: underline; }
+.atlas-market-board :focus-visible, .atlas-case :focus-visible { outline: 2px solid #ffad78; outline-offset: 3px; }
+html[data-theme="light"] .atlas-market-board {
+  --market-text: #211813;
+  --market-muted: #513c33;
+  --market-surface: #fffaf6;
+  --market-edge: #b18c78;
+  background: #f3e7dc;
+}
+html[data-theme="light"] .atlas-market-feedback a { color: #89380b; }
+
+.atlas-intelligence-mark { object-fit: contain; border-radius: .75rem; background: #eae3db; }
+.atlas-intelligence-logo { width: 4.25rem; height: 4.25rem; object-fit: contain; border-radius: .9rem; background: #eae3db; box-shadow: 0 .35rem 1rem #0007; }
+.atlas-hub-parent .atlas-intelligence-logo { display: block; }
+.atlas-depth-page .wrap,
+.atlas-depth-page .atlas-hub-shell,
+.atlas-depth-page:not(.atlas-owner) > .shell { max-width: 1880px; }
+.atlas-depth-page .terminal,
+.atlas-depth-page .account-card,
+.atlas-depth-page .hero-logo-card,
+.atlas-depth-page .center-card,
+.atlas-depth-page .atlas-hub-brand,
+.atlas-depth-page .atlas-case {
+  box-shadow: inset 0 1px #fff3, 0 .3rem 0 #09080a, 0 1.4rem 3.8rem #0006;
+}
+
+.atlas-case-page {
+  min-height: 100vh;
+  margin: 0;
+  padding: clamp(1rem, 5vw, 4rem);
+  background: radial-gradient(ellipse at 75% 0, #4d291c 0, transparent 60%), #111013;
+  color: #f8ede4;
+  font: 1rem/1.55 system-ui, sans-serif;
+}
+.atlas-case { max-width: 75rem; margin: 0 auto; padding: clamp(1rem, 4vw, 3rem); border: 1px solid #704734; border-radius: 1.25rem; background: #1a1719; }
+.atlas-case header { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.atlas-case a { color: #ffc794; }
+.atlas-case h1 { margin: 1.2rem 0 .4rem; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.16; }
+.atlas-case h2 { margin: 1.8rem 0 .65rem; font-size: 1.35rem; }
+.atlas-case .atlas-case-meta { color: #ecb98d; }
+.atlas-case details { margin-bottom: .6rem; padding: .7rem .9rem; border: 1px solid #624532; border-radius: .7rem; background: #201a1b; }
+.atlas-case summary { cursor: pointer; min-height: 2rem; }
+.atlas-case li + li { margin-top: .25rem; }
+.atlas-case .atlas-case-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
+@media (max-width: 1100px) {
+  .atlas-market-grid { grid-template-columns: minmax(0, 1fr); }
+  .atlas-market-sidebar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 650px) {
+  .atlas-market-banner { min-height: 180px; }
+  .atlas-market-grid { gap: .6rem; padding: .6rem; }
+  .atlas-market-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .atlas-market-chart [data-tv-host] { height: 28rem; }
+  .atlas-market-control { width: 100%; }
+  .atlas-market-control select { width: 100%; }
+  .atlas-intelligence-logo { width: 3rem; height: 3rem; }
+}
+.atlas-depth-page .brand-logo.atlas-intelligence-mark {
+  width: 3.3rem;
+  height: 3.3rem;
+  object-fit: contain;
+}
+.atlas-depth-page .footer-brand .brand-logo.atlas-intelligence-mark { width: 2.75rem; height: 2.75rem; }
+.atlas-owner .atlas-owner-case { display: block; padding: .75rem 0; color: #ffc08c; }
+.atlas-owner .card { box-shadow: inset 0 1px #fff2, 0 .5rem 1.5rem #0004; }
+@media (max-width: 700px) {
+  .atlas-depth-page .header { flex-wrap: wrap; height: auto; padding-block: .75rem; }
+  .atlas-depth-page .header nav { flex-wrap: wrap; }
+  .atlas-depth-page .brand-logo.atlas-intelligence-mark { width: 2.65rem; height: 2.65rem; }
+}

@@ -26,6 +26,10 @@ html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b54800
 </style>
 """
 
+MARKET_BOARD = """<section class="atlas-market-board" id="market-analysis" aria-label="TradingView markets" data-atlas-market>
+    <p class="atlas-market-fallback"><a href="https://www.tradingview.com/symbols/COINBASE-BTCUSD/">Open BTC/USD in TradingView</a></p>
+  </section>"""
+
 HUB_HEADER = r"""
 <div class="atlas-hub-shell" id="hub-overview">
   <header class="atlas-hub-brand">
@@ -33,7 +37,7 @@ HUB_HEADER = r"""
       <div class="atlas-hub-kicker"><span class="atlas-tech-token">CUSTOMER TRADING INTERFACE</span></div>
       <div class="atlas-hub-title"><span class="atlas-tech-token">ATLAS</span></div>
       <div class="atlas-hub-descriptor"><span class="atlas-tech-token">TRADING INTELLIGENCE</span></div>
-      <div class="atlas-hub-parent"><div class="justai-signature" aria-label="JUST AI Design Studio"><img src="/assets/just-ai-icon.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>DESIGN STUDIO</small></span></div></div>
+      <div class="atlas-hub-parent"><img class="atlas-intelligence-logo" src="/assets/just-ai-intelligence-mark.webp" alt="JUST AI Intelligence" width="68" height="68"></div>
       <div class="atlas-hub-sub" data-hub-en="Your unified FxPro MT5 demo cockpit for markets, account telemetry, analysis and risk context." data-hub-ar="واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.">Unified market intelligence, monitoring and risk context.</div>
     </div>
     <div class="atlas-hub-status"><span class="atlas-hub-status-dot"></span><span data-hub-en="FxPro MT5 workspace" data-hub-ar="مساحة عمل FxPro MT5">FxPro MT5 workspace</span></div>
@@ -42,6 +46,8 @@ HUB_HEADER = r"""
     <a class="atlas-3d" href="#account" data-hub-en="Sign in" data-hub-ar="تسجيل الدخول">Sign in</a>
     <a class="atlas-3d" href="#hub-overview" data-hub-en="Overview" data-hub-ar="الرئيسية">Overview</a>
     <a class="atlas-3d" href="#hub-account" data-hub-en="Account" data-hub-ar="الحساب">Account</a>
+    <a class="atlas-3d" href="#market-analysis" data-hub-en="TradingView" data-hub-ar="TradingView">TradingView</a>
+    <a class="atlas-3d" href="/council/btc-2026-08-31.html" data-hub-en="Council exercise" data-hub-ar="تمرين المجلس">Council exercise</a>
     <a class="atlas-3d" href="#hub-markets" data-hub-en="Markets & News" data-hub-ar="الأسواق والأخبار">Markets & News</a>
     <a class="atlas-3d" href="#demo-session" data-hub-en="Live Demo" data-hub-ar="تجريبي مباشر">Live Demo</a>
     <a class="atlas-3d" href="#plans" data-hub-en="Plans" data-hub-ar="الاشتراكات">Plans</a>
@@ -69,7 +75,13 @@ def enhance_atlas_html(html: str) -> str:
     if "atlas-hub-style" in html:
         return html
     html = html.replace('<link rel="stylesheet" href="/assets/just-ai-brand.css">', '')
-    html = html.replace("</head>", HUB_STYLE + '<link rel="stylesheet" href="/assets/just-ai-brand.css">' + "</head>")
-    html = html.replace("<body>", "<body>" + HUB_HEADER, 1)
+    assets = (
+        '<link rel="stylesheet" href="/assets/atlas-market.css">'
+        '<script src="/assets/atlas-market.js" defer></script>'
+        '<link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">'
+    )
+    html = html.replace("</head>", HUB_STYLE + assets + '<link rel="stylesheet" href="/assets/just-ai-brand.css">' + "</head>")
+    html = html.replace("<body>", '<body class="atlas-depth-page">' + HUB_HEADER, 1)
+    html = html.replace('<div class="shell">', '<div class="shell">' + MARKET_BOARD, 1)
     return html.replace("</body>", HUB_SCRIPT + "</body>")
 
