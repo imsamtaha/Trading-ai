@@ -66,6 +66,20 @@ def test_senior_risk_rejection_forces_hold_through_adapter():
     assert "SENIOR_RISK_REJECT" in result["trade_intent"]["reason_codes"]
 
 
+@pytest.mark.parametrize("approval", ["false", "true", 1])
+def test_non_boolean_risk_approval_forces_hold(approval):
+    result = build_paper_council(
+        symbol="EURUSD",
+        snapshot_id="snap-1",
+        signal=_signal(),
+        risk=_risk(approval),
+        data_quality=0.95,
+    )
+
+    assert result["trade_intent"]["decision"] == "HOLD"
+    assert "SENIOR_RISK_REJECT" in result["trade_intent"]["reason_codes"]
+
+
 def test_settled_paper_outcome_is_recorded_for_training(tmp_path):
     result = build_paper_council(
         symbol="EURUSD",

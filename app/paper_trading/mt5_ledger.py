@@ -12,6 +12,7 @@ import os
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from math import isfinite
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
@@ -304,7 +305,7 @@ class MT5PaperLedger:
         normalized = symbol.upper()
         bid = float(bid)
         ask = float(ask)
-        if bid <= 0 or ask <= 0 or ask < bid:
+        if not isfinite(bid) or not isfinite(ask) or bid <= 0 or ask <= 0 or ask < bid:
             raise PaperLedgerError(f"Invalid quote for {symbol}.")
 
         with self._locked_state():
