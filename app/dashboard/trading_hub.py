@@ -106,15 +106,15 @@ def enhance_atlas_html(html: str) -> str:
         )
     header = HUB_HEADER.replace("<!-- telegram-navigation -->", telegram_link)
     if ctrader_selected():
-        header = header.replace("FxPro MT5 workspace", "cTrader demo workspace")
-        header = header.replace("مساحة عمل FxPro MT5", "مساحة عمل cTrader التجريبية")
+        header = header.replace("FxPro MT5 workspace", "FxPro cTrader Demo · read-only")
+        header = header.replace("مساحة عمل FxPro MT5", "FxPro cTrader تجريبي · قراءة فقط")
         header = header.replace(
             "Your unified FxPro MT5 demo cockpit for markets, account telemetry, analysis and risk context.",
-            "Market analysis, cTrader demo account information and PAPER evidence.",
+            "Market analysis, FxPro cTrader demo account information and verified PAPER evidence. Broker orders disabled.",
         )
         header = header.replace(
             "واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.",
-            "تحليل الأسواق ومعلومات حساب cTrader التجريبي وأدلة التداول الورقي.",
+            "تحليل الأسواق ومعلومات حساب FxPro cTrader التجريبي وأدلة التداول الورقي الموثقة. تنفيذ الأوامر معطّل.",
         )
     html = html.replace("<body>", '<body class="atlas-depth-page">' + header, 1)
     html = html.replace('<div class="shell">', '<div class="shell">' + MARKET_BOARD, 1)
