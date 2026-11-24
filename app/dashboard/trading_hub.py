@@ -34,7 +34,7 @@ html[data-theme=light] .atlas-hub-status{background:#fff6e9;border-color:#b54800
 MARKET_BOARD = """<section class="atlas-market-board" id="market-analysis" aria-label="TradingView markets" data-atlas-market>
     <picture class="atlas-market-art">
       <source media="(max-width: 650px)" srcset="/assets/atlas-tiger-shield-small.webp">
-      <img src="/assets/atlas-tiger-shield.webp" width="2560" height="1920"
+      <img src="/assets/atlas-tiger-shield.webp" width="600" height="450"
         alt="ATLAS Intelligence by JUST AI" decoding="async" fetchpriority="high">
     </picture>
     <div data-atlas-market-content>
