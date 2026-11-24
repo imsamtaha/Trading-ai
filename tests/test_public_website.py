@@ -13,12 +13,14 @@ def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
         assert "text/html" in page.headers["content-type"]
         assert "ATLAS ULTIMATE" in page.text
         for asset in (
-            "site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
-            "atlas-brand.css", "atlas-main-logo.svg", "atlas-market.css", "atlas-market.js",
+            "site.css", "site.js", "demo-model.js", "google-auth.js",
+            "atlas-brand.css", "atlas-market.css", "atlas-market.js",
             "atlas-tiger-shield.webp", "atlas-tiger-shield-small.webp", "just-ai-intelligence.webp",
             "just-ai-intelligence-mark.webp",
         ):
             assert client.get(f"/assets/{asset}").status_code == 200
+        for retired_asset in ("atlas-main-logo.svg", "favicon.svg"):
+            assert client.get(f"/assets/{retired_asset}").status_code == 404
         assert client.get("/api").json()["system"] == "ATLAS ULTIMATE"
 
 

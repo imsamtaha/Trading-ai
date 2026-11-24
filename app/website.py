@@ -38,8 +38,8 @@ def historical_council_exercise():
 def website_asset(name: str):
     # Explicit public allowlist; never expose a source directory or .env.
     if name not in {
-        "site.css", "centers.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
-        "atlas-brand.css", "atlas-main-logo.svg", "atlas-news.js",
+        "site.css", "centers.css", "site.js", "demo-model.js", "google-auth.js",
+        "atlas-brand.css", "atlas-news.js",
         "atlas-market.css", "atlas-market.js", "atlas-tiger-shield.webp", "atlas-tiger-shield-small.webp",
         "just-ai-brand.css", "just-ai-icon.webp", "just-ai-reference.webp",
         "just-ai-intelligence.webp", "just-ai-intelligence-mark.webp",
