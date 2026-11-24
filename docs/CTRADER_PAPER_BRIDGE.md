@@ -7,7 +7,7 @@ The nine-seat Council library is available for separate PAPER review. Its indepe
 ## Connect the demo account
 
 1. Register an approved application in the [cTrader Open API portal](https://openapi.ctrader.com/). Authorize the intended demo account with the `accounts` permission. [cTrader authorization instructions](https://help.ctrader.com/open-api/account-authentication/)
-2. Use the Ubuntu host’s private environment configuration for `ATLAS_CTRADER_CLIENT_ID`, `ATLAS_CTRADER_CLIENT_SECRET`, `ATLAS_CTRADER_ACCESS_TOKEN`, and the platform login in `ATLAS_CTRADER_DEMO_LOGIN`.
+2. On the Ubuntu or Termux device hosting the bridge, run the authorization command below. Use the redirect URI registered for your approved app. Open the printed URL in your own browser, select the demo account, then paste the final redirected URL into the hidden terminal prompt. Setup verifies the demo account and the granted view-only scope before writing the private `.env`. If credentials are already provisioned in the host environment, skip the authorization command.
 3. Set `ATLAS_BROKER_PROVIDER=ctrader`, `ATLAS_LIVE_TRADING=false`, and `ATLAS_DASHBOARD_ONLY=true`. Keep the host’s `data/` directory on persistent storage. Configure outbound TLS to `demo.ctraderapi.com:5036`.
 
 Run these commands from the Trading-ai checkout.
@@ -16,6 +16,8 @@ Run these commands from the Trading-ai checkout.
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements.txt
+python -m scripts.authorize_ctrader_demo
+python cTrader.py
 python -m scripts.run_ctrader_paper --check --symbols XAUUSD
 python -m scripts.run_ctrader_paper --once --symbols XAUUSD
 python -m scripts.run_ctrader_paper --symbols XAUUSD
@@ -49,8 +51,7 @@ On the Windows MT5 host, use its existing private account configuration, set `AT
 
 ## Serve demo quotes to the dashboards
 
-With demo Open API access configured on Ubuntu, set a random `ATLAS_CTRADER_MARKET_TOKEN`
-in the host's secret store and start the read-only quote service.
+The authorization command creates a separate `ATLAS_CTRADER_MARKET_TOKEN` for the site-to-bridge connection. If provisioning manually, set a random value in the host's private environment. Start the read-only quote service on the same device. For an account and market bridge only, the smaller dependency install is `python -m pip install fastapi uvicorn requests python-dotenv 'websockets>=12,<18'`.
 
 ```sh
 python -m uvicorn scripts.serve_ctrader_market:app --host 127.0.0.1 --port 8765
@@ -63,4 +64,7 @@ endpoint and set `ATLAS_CTRADER_MARKET_TOKEN` to the matching secret. Keep
 the Open API app secret and cTrader access token on Ubuntu. The service
 returns quotes and available hourly, four-hour, or daily closed candles.
 The one-week view can show a current quote while weekly candle history is
-unavailable. Trading and account endpoints are outside this service.
+unavailable. Trading and account endpoints are outside this service. After
+updating Sites secrets and deploying the saved version, check
+`/api/market-data?asset=XAUUSD&interval=60` on the live dashboard. Re-run
+authorization and restart the service when the cTrader access token expires.
