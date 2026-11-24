@@ -95,6 +95,7 @@ const arabic={
   "Market desk data and news are provided by TradingView. The Council exercise and demo are educational. Trading involves risk, including loss of capital.": "توفّر TradingView بيانات الأسواق والأخبار. تمرين المجلس والعرض التفاعلي لأغراض تعليمية. ينطوي التداول على مخاطر، بما فيها خسارة رأس المال.",
   "Markets": "الأسواق",
   "Council exercise": "تمرين المجلس",
+  "Open in Telegram": "افتح في تيليغرام",
   "Trend example": "مثال على اتجاه",
   "Observe trend": "راقب الاتجاه",
   "Higher highs": "قمم أعلى",

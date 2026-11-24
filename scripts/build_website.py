@@ -13,6 +13,7 @@ PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.c
                 "assets/just-ai-intelligence-mark.webp", "council/btc-2026-08-31.html"}
 EXTERNAL_LINKS = {
     "https://justai-atlas.online/sam",
+    "https://t.me/JustAI_chatbot?start=atlas",
     "https://www.tradingview.com/symbols/COINBASE-BTCUSD/",
     "https://github.com/imsamtaha/Trading-ai/tree/main/docs/council/exercises/btc-2026-08-31",
 }

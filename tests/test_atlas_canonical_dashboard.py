@@ -68,6 +68,8 @@ def test_canonical_dashboard_is_trading_hub_with_section_navigation():
 
 def test_telegram_navigation_requires_a_valid_configured_bot_username(monkeypatch):
     monkeypatch.delenv("ATLAS_TELEGRAM_BOT_USERNAME", raising=False)
+    assert 'href="https://t.me/JustAI_chatbot?start=atlas"' in _atlas_ultimate_html()
+    monkeypatch.setenv("ATLAS_TELEGRAM_BOT_USERNAME", "")
     assert "https://t.me/" not in _atlas_ultimate_html()
     monkeypatch.setenv("ATLAS_TELEGRAM_BOT_USERNAME", "@ExampleAtlasBot")
     assert 'href="https://t.me/ExampleAtlasBot?start=atlas"' in _atlas_ultimate_html()

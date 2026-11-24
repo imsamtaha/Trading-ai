@@ -3,6 +3,8 @@
 import os
 import re
 
+DEFAULT_TELEGRAM_BOT_USERNAME = "JustAI_chatbot"
+
 HUB_STYLE = r"""
 <style id="atlas-hub-style">
 :root{--hub-orange:#ff7a1a;--hub-metal:#9aa8bb;--hub-deep:#05080d;--hub-panel:#0b121c}
@@ -85,7 +87,7 @@ def enhance_atlas_html(html: str) -> str:
         '<link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">'
     )
     html = html.replace("</head>", HUB_STYLE + assets + '<link rel="stylesheet" href="/assets/just-ai-brand.css">' + "</head>")
-    username = os.getenv("ATLAS_TELEGRAM_BOT_USERNAME", "").strip().removeprefix("@")
+    username = os.getenv("ATLAS_TELEGRAM_BOT_USERNAME", DEFAULT_TELEGRAM_BOT_USERNAME).strip().removeprefix("@")
     telegram_link = ""
     if re.fullmatch(r"[a-z0-9_]{2,29}bot", username, re.IGNORECASE | re.ASCII):
         telegram_link = (
