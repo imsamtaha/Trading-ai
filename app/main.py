@@ -57,17 +57,18 @@ async def dashboard_only_guard(request: Request, call_next):
         path = request.url.path
         read_paths = {
             "/", "/centers", "/centers/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5", "/connect/fxpro-mt5/status",
+            "/traders", "/traders/", "/council/btc-2026-08-31.html",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view",
-            "/sam", "/sam/", "/sam/api/snapshot", "/dashboard/mt5-state", "/dashboard/active-setups",
+            "/sam", "/sam/", "/sam/api/snapshot", "/sam/api/accounts", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
-            "/agent/capabilities", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
+            "/agent/capabilities", "/agent/titan/policy", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
             "/evolution/status", "/runtime/status",
             "/docs", "/openapi.json",
         }
-        analysis_paths = {"/agent/decision", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        analysis_paths = {"/agent/decision", "/agent/titan/analyze", "/agent/titan/review", "/agent/right-hand/plan", "/agent/right-hand/chat"}
         fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
         paper_demo_execute = (
             request.method == "POST"

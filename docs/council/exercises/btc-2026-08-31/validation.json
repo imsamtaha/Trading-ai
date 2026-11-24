@@ -1,0 +1,13 @@
+{
+  "source_copy_hash_matches": true,
+  "unique_seats": 9,
+  "packets_prepared": 9,
+  "responses_submitted": 0,
+  "assessments_performed": 0,
+  "risk_arithmetic_verified": true,
+  "entry_threshold_arithmetic_verified": true,
+  "market_sources_reverified": false,
+  "model_training_executed": false,
+  "runtime_ledger_modified": false,
+  "broker_execution_allowed": false
+}

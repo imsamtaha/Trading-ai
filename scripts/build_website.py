@@ -2,11 +2,21 @@
 from html.parser import HTMLParser
 from pathlib import Path
 import shutil
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.css", "assets/site.js",
-                "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js",
-                "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-main-logo.svg", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp"}
+                "assets/demo-model.js", "assets/google-auth.js",
+                "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp",
+                "assets/atlas-market.css", "assets/atlas-market.js", "assets/atlas-tiger-shield.webp",
+                "assets/atlas-tiger-shield-small.webp", "assets/just-ai-intelligence.webp",
+                "assets/just-ai-intelligence-mark.webp", "council/btc-2026-08-31.html"}
+EXTERNAL_LINKS = {
+    "https://justai-atlas.online/sam",
+    "https://t.me/JustAI_chatbot?start=atlas",
+    "https://www.tradingview.com/symbols/COINBASE-BTCUSD/",
+    "https://github.com/imsamtaha/Trading-ai/tree/main/docs/council/exercises/btc-2026-08-31",
+}
 
 
 class Links(HTMLParser):
@@ -29,17 +39,22 @@ def validate():
     source = ROOT / "web"
     found = {p.relative_to(source).as_posix() for p in source.rglob("*") if p.is_file()}
     assert found == PUBLIC_FILES, f"Unexpected or missing public files: {found ^ PUBLIC_FILES}"
-    for html_file in ("index.html", "centers/index.html"):
+    pages = {}
+    for html_file in sorted(name for name in PUBLIC_FILES if name.endswith(".html")):
         page = (source / html_file).read_text(encoding="utf-8")
         links = Links()
         links.feed(page)
+        pages[html_file] = links
+    for html_file, links in pages.items():
         for target in links.targets:
-            if target.startswith("#"):
-                assert target[1:] in links.ids, f"Missing anchor: {target}"
-            elif target.startswith(("https://justai-atlas.online/sam", "https://justai-atlas.online/traders#market-analysis")):
-                assert target in {"https://justai-atlas.online/sam", "https://justai-atlas.online/traders#market-analysis"}, f"Unexpected destination: {target}"
-            elif target != "/":
-                assert target.lstrip("/") in PUBLIC_FILES, f"Unexpected link: {target}"
+            if target in EXTERNAL_LINKS:
+                continue
+            url = urlsplit(target)
+            assert not url.scheme and not url.netloc, f"Unexpected destination: {target}"
+            name = "index.html" if url.path == "/" else url.path.lstrip("/") or html_file
+            assert name in PUBLIC_FILES, f"Unexpected link: {target}"
+            if url.fragment:
+                assert name in pages and url.fragment in pages[name].ids, f"Missing anchor: {target}"
     for name in PUBLIC_FILES:
         content = (source / name).read_bytes()
         for forbidden in ("sk_live_", "sk_test_", "sk-proj-", "SUPABASE_SERVICE_ROLE_KEY", "MT5_PASSWORD"):

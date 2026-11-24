@@ -33,12 +33,15 @@ h1{font-size:clamp(24px,3vw,39px);margin:7px 0 8px;letter-spacing:-.04em}h2{font
 @media(max-width:540px){.grid{grid-template-columns:1fr 1fr;gap:10px}.card{padding:14px}.card.wide{grid-column:1/-1}.card .value{font-size:22px}.topbar{display:block}.actions{margin-top:12px}.safety{align-items:flex-start}.fieldgrid{grid-template-columns:1fr 1fr}.field{padding:10px}.eyebrow{letter-spacing:.12em}}
 @media(prefers-reduced-motion:no-preference){.btn,.navbtn{transition:background .18s,border-color .18s,transform .18s}.btn:hover{transform:translateY(-1px)}}
 </style>
+<link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">
+<link rel="stylesheet" href="/assets/atlas-market.css">
 </head>
-<body>
+<body class="atlas-depth-page atlas-owner">
 <div class="shell">
 <aside aria-label="ATLAS navigation">
- <div class="brand"><div class="emblem" aria-hidden="true">A</div><div><strong>ATLAS</strong><span class="sub">JUST AI / OWNER</span></div></div>
+ <div class="brand"><img class="atlas-intelligence-mark" src="/assets/just-ai-intelligence-mark.webp" alt="" width="46" height="46"><div><strong>ATLAS</strong><span class="sub">JUST AI / OWNER</span></div></div>
  <nav id="nav" aria-label="Sections"></nav>
+ <a class="atlas-owner-case" href="/council/btc-2026-08-31.html" target="_blank" rel="noopener">Council exercise · تمرين المجلس</a>
  <div class="side-note" id="side-note"></div>
 </aside>
 <main>
@@ -53,18 +56,18 @@ h1{font-size:clamp(24px,3vw,39px);margin:7px 0 8px;letter-spacing:-.04em}h2{font
 <script>
 "use strict";
 const STRINGS={
- ar:{title:"مركز تحكّم المالك",subtitle:"قراءة فقط · مصادر PAPER موثّقة · لا يوجد تنفيذ عبر الوسيط",nav:["نظرة عامة","وكلاء المجلس","حساب MT5 التجريبي","الإشارات","ضوابط المخاطر","تقدّم التدريب","أدلة القرارات","سجل صفقات PAPER","صحة تشغيل Windows","Shadow Learning"],
- safe:"تنفيذ التداول الحقيقي معطّل",safeText:"هذه الواجهة لا تملك أي إجراء لإرسال الأوامر. جميع البيانات المعروضة ورقية ومحكومة بالمصدر وتاريخ التحقّق.",
+ ar:{title:"مركز تحكّم المالك",subtitle:"قراءة فقط · مصادر PAPER موثّقة · لا يوجد تنفيذ عبر الوسيط",nav:["نظرة عامة","وكلاء المجلس","الحسابات","الإشارات","ضوابط المخاطر","تقدّم التدريب","أدلة القرارات","سجل صفقات PAPER","صحة تشغيل Windows","Shadow Learning"],
+ safe:"تنفيذ التداول الحقيقي معطّل",safeText:"تعرض هذه الواجهة حسابات تجريبية ونتائج PAPER موثّقة مع مصدرها وتاريخ تحديثها.",
  side:"يُمنع عرض أرقام غير موثّقة كأنها نتائج فعلية. لا تعرض هذه الواجهة بيانات حسابات حقيقية.",
  history:"السجل",refresh:"تحديث",unavailable:"لا توجد بيانات PAPER موثّقة لهذا القسم.",search:"ابحث ضمن الجدول",all:"الكل",rows:"سجل",source:"المصدر",updated:"آخر تحديث",reason:"السبب",notAvailable:"غير متاح",before:"قبل",after:"بعد",change:"التغيّر",metric:"المؤشر",count:"عدد السجلات",verified:"موثّق المصدر",label:"حالة المعلومة",
- summaryTitles:["وكلاء المجلس","الإشارات المسجّلة","صفقات PAPER","عينات Shadow Learning"],agreement:"متوسط ثقة المجلس",conflict:"متوسط تعارض الوكلاء",na:"غير متاح",safety:"سلامة التنفيذ",status:"الحالة"},
- en:{title:"Owner Control Center",subtitle:"Read-only · attested PAPER sources · no broker execution",nav:["Overview","Council agents","MT5 demo","Signals","Risk controls","Training progress","Decision evidence","PAPER trade history","Windows runtime","Shadow Learning"],
- safe:"Live trading is disabled",safeText:"This interface has no order-placement actions. Data is PAPER-only and always tied to provenance and freshness.",
+ summaryTitles:["وكلاء المجلس","الإشارات المسجّلة","صفقات PAPER","عينات Shadow Learning"],agreement:"متوسط ثقة المجلس",conflict:"متوسط تعارض الوكلاء",na:"غير متاح",safety:"سلامة التنفيذ",status:"الحالة", workspace:"مساحة العمل الرئيسية", ctrader:"حساب cTrader التجريبي", mt5:"خيار MT5", paper:"سجل ونتائج PAPER", loadingAccounts:"جارٍ تحميل الحسابات", accountUnavailable:"معلومات الحساب غير متاحة"},
+ en:{title:"Owner Control Center",subtitle:"Read-only · attested PAPER sources · no broker execution",nav:["Overview","Council agents","Accounts","Signals","Risk controls","Training progress","Decision evidence","PAPER trade history","Windows runtime","Shadow Learning"],
+ safe:"Live trading is disabled",safeText:"This interface shows demo accounts and attested PAPER records with their source and update time.",
  side:"Unattested numbers are never presented as actual performance. No real account information is displayed.",
  history:"History",refresh:"Refresh",unavailable:"No attested PAPER records available in this section.",search:"Search table",all:"All",rows:"records",source:"Source",updated:"Updated",reason:"Reason",notAvailable:"Unavailable",before:"Before",after:"After",change:"Change",metric:"Metric",count:"Records",verified:"Source-attested",label:"Evidence status",
- summaryTitles:["Council agents","Recorded signals","PAPER trades","Shadow Learning samples"],agreement:"Average council confidence",conflict:"Average agent conflict",na:"Unavailable",safety:"Execution safety",status:"Status"}
+ summaryTitles:["Council agents","Recorded signals","PAPER trades","Shadow Learning samples"],agreement:"Average council confidence",conflict:"Average agent conflict",na:"Unavailable",safety:"Execution safety",status:"Status", workspace:"Primary workspace", ctrader:"cTrader Demo account", mt5:"MT5 option", paper:"PAPER records and results", loadingAccounts:"Loading accounts", accountUnavailable:"Account information is unavailable"}
 };
-const KEYS=["overview","council_agents","mt5_demo","signals","risk_controls","training_progress","decision_evidence","paper_trade_history","windows_runtime","shadow_learning"];
+const KEYS=["overview","council_agents","accounts","signals","risk_controls","training_progress","decision_evidence","paper_trade_history","windows_runtime","shadow_learning"];
 const TABLES={
  council_agents:["agent","decision","confidence","calibrated_confidence","weight","conflict_score","updated_at","source"],
  signals:["id","timestamp","symbol","decision","confidence","risk_gate","evidence_id","status"],
@@ -72,12 +75,11 @@ const TABLES={
  paper_trade_history:["trade_id","opened_at","closed_at","symbol","direction","status","result_r","evidence_id","source"]
 };
 const OBJ={
- mt5_demo:["status","account_type","broker","server","login_masked","timestamp"],
  risk_controls:["status","daily_loss_limit_pct","max_open_risk_pct","max_positions","margin_level_min_pct","daily_loss_actual_pct","veto_count"],
  windows_runtime:["status","heartbeat","cycle_seconds","process_count","service","last_error"]
 };
 const $=id=>document.getElementById(id);
-let language="ar",active="overview",payload=null,filterBy={},sortBy={},statusBy={},busy=false;
+let language="ar",active="overview",payload=null,filterBy={},sortBy={},statusBy={},busy=false,accounts=null,accountsBusy=false;
 const t=()=>STRINGS[language];
 function elem(tag,cl,text){const n=document.createElement(tag);if(cl)n.className=cl;if(text!==undefined)n.textContent=text;return n}
 function value(v){if(v===null||v===undefined||v==="")return "—";if(Array.isArray(v))return v.map(x=>typeof x==="object"?Object.entries(x).map(([k,n])=>k+": "+n).join(", "):String(x)).join("; ");return String(v)}
@@ -104,19 +106,47 @@ function renderSummary(parent){const d=current(),count=d?[
  parent.append(section(t().nav[4]));addFields(parent,d?.risk_controls||{},OBJ.risk_controls);
  parent.append(section(t().nav[8]));addFields(parent,d?.windows_runtime||{},OBJ.windows_runtime)
 }
+function renderAccounts(panel,evidence){
+ if(!accounts){
+  panel.append(elem("p","muted",accountsBusy?t().loadingAccounts:t().accountUnavailable));
+ }else{
+  panel.append(section(t().workspace));
+  addFields(panel,accounts,["primary_workspace","primary_provider"]);
+  panel.append(section(t().ctrader));
+  addFields(panel,accounts.ctrader_demo||{},["status","reason","environment","access","login_masked","broker","balance","currency","as_of"]);
+  panel.append(section(t().mt5));
+  addFields(panel,accounts.mt5||{},["status","workspace"]);
+  if(evidence?.mt5_demo){
+   addFields(panel,evidence.mt5_demo,["account_type","broker","server","login_masked","timestamp"]);
+  }
+ }
+ panel.append(section(t().paper));
+ if(!evidence){panel.append(noData());return}
+ addFields(panel,{paper_records:evidence.paper_trade_history?.length,training_samples:evidence.training_progress?.sample_count,evidence_as_of:payload.as_of},["paper_records","training_samples","evidence_as_of"]);
+ metricComparison(panel,evidence.training_progress);
+}
+async function refreshAccounts(){
+ if(accountsBusy)return;
+ accountsBusy=true;render();
+ try{
+  const response=await fetch("/sam/api/accounts",{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+  accounts=response.ok?await response.json():null;
+ }catch{accounts=null}
+ finally{accountsBusy=false;if(active==="accounts")render()}
+}
 function render(){const index=KEYS.indexOf(active),d=current(),out=$("content");$("page-title").textContent=active==="overview"?t().title:t().nav[index];$("page-subtitle").textContent=t().subtitle;$("safe-title").textContent=t().safe;$("safe-text").textContent=t().safeText;$("side-note").textContent=t().side;$("history").textContent=t().history;$("refresh").textContent=busy?"…":("↻ "+t().refresh);$("lang").textContent=language==="ar"?"English":"العربية";$("refresh").disabled=busy;
  $("state").textContent=payload?.status||"UNAVAILABLE";$("state").className="pill "+(payload?.status||"UNAVAILABLE");
  $("stamp").textContent=payload?.as_of?(t().updated+": "+new Date(payload.as_of).toLocaleString(language==="ar"?"ar-LB":"en-GB")):"";$("source").textContent=payload?.source_id?(t().source+": "+payload.source_id):"";
  $("message").textContent=payload?.reason||"";out.replaceChildren();
  if(active==="overview"){renderSummary(out);return}
- const panel=elem("article","card");if(TABLES[active])renderTable(panel,active);else if(active==="training_progress"||active==="shadow_learning"){const object=d?.[active]||{};const details=Object.keys(object).filter(k=>!["before","after","agent_weights"].includes(k));addFields(panel,object,details);panel.append(section(t().nav[index]+" · "+t().before+" / "+t().after));metricComparison(panel,object);if(active==="shadow_learning"&&object.agent_weights){panel.append(section("Agent weights"));addFields(panel,object.agent_weights,Object.keys(object.agent_weights))}}else addFields(panel,d?.[active]||{},OBJ[active]||[]);
+ const panel=elem("article","card");if(active==="accounts")renderAccounts(panel,d);else if(TABLES[active])renderTable(panel,active);else if(active==="training_progress"||active==="shadow_learning"){const object=d?.[active]||{};const details=Object.keys(object).filter(k=>!["before","after","agent_weights"].includes(k));addFields(panel,object,details);panel.append(section(t().nav[index]+" · "+t().before+" / "+t().after));metricComparison(panel,object);if(active==="shadow_learning"&&object.agent_weights){panel.append(section("Agent weights"));addFields(panel,object.agent_weights,Object.keys(object.agent_weights))}}else addFields(panel,d?.[active]||{},OBJ[active]||[]);
  out.append(panel)
 }
-function nav(){const n=$("nav");n.replaceChildren();KEYS.forEach((key,i)=>{const b=elem("button","navbtn"+(active===key?" active":""),t().nav[i]);b.type="button";b.addEventListener("click",()=>{active=key;nav();render()});n.append(b)})}
+function nav(){const n=$("nav");n.replaceChildren();KEYS.forEach((key,i)=>{const b=elem("button","navbtn"+(active===key?" active":""),t().nav[i]);b.type="button";b.addEventListener("click",()=>{active=key;nav();render();if(key==="accounts"&&!accounts)refreshAccounts()});n.append(b)})}
 async function refresh(){busy=true;render();try{const resp=await fetch("/sam/api/snapshot",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});if(!resp.ok)throw new Error("HTTP "+resp.status);payload=await resp.json()}catch(e){payload={status:"UNAVAILABLE",reason:"SNAPSHOT_FETCH_FAILED",verified:false,as_of:null,data:{}}}finally{busy=false;render()}}
 $("lang").addEventListener("click",()=>{language=language==="ar"?"en":"ar";document.documentElement.lang=language;document.documentElement.dir=language==="ar"?"rtl":"ltr";nav();render()});
 $("history").addEventListener("click",()=>{active="paper_trade_history";nav();render()});
-$("refresh").addEventListener("click",refresh);
+$("refresh").addEventListener("click",()=>{refresh();if(active==="accounts")refreshAccounts()});
 nav();render();refresh();
 </script>
 </body></html>

@@ -42,6 +42,10 @@ Original Drive references:
 - Council overview PDF: https://drive.google.com/file/d/1WnLDXpIUbpoS6pkQAQYw1GU7Osmevj1u/view
 - Earlier design: https://drive.google.com/file/d/1MmXxR-3qkgaBwQQqhHW5-PwGSVFEBsqE/view
 
+## Historical Council exercise
+
+[BTC/USD, 31 August 2026](exercises/btc-2026-08-31/SESSION.md) contains the original case material, nine seat assignments, response template, facilitator key and arithmetic checks. The case was prepared on 25 October 2026 and is awaiting submissions. The supplied market claims have not been independently verified. The exercise has no settled trade outcome and is excluded from runtime calibration.
+
 ## Training gates
 
 Candidate OOS accuracy must exceed max(0.525, training-fold majority baseline OOS + 0.005), improve the existing champion by at least 0.005, have OOS/train stability >= 0.80, and confidence-bin ECE <= 0.10. Invalid or non-finite metrics reject promotion. The 0.525 floor is an illustrative classification gate; it is not a statistical significance or profitability test. Costs, spread, slippage, regimes and net expectancy require separate real strategy evaluation.
@@ -58,22 +62,85 @@ From the original project directory with the existing venv, .env and open MT5 DE
 
 Inspect existing worker processes first and stop the old monitor before restarting; do not start a second copy against the same ledger. Keep risk and position limits unchanged. Confirm current heartbeat, unique newly settled examples in data/atlas_council_training.jsonl, and refreshed data/atlas_council_profile.json. No Windows process has been started by this repository change.
 
+## Android and Ubuntu PAPER Council
+
+Build an offline zipapp from a checked-out GitHub revision, using Python 3.10 or newer:
+
+```sh
+python scripts/build_atlas_mobile_council.py --output ATLAS_Paper_Council.pyz
+```
+
+Download the archive to Android and use Termux with Python installed. If necessary,
+run `termux-setup-storage` and grant access to Downloads.
+
+```sh
+python ~/storage/downloads/ATLAS_Paper_Council.pyz
+python ~/storage/downloads/ATLAS_Paper_Council.pyz --journal ~/storage/downloads/atlas_council_training.jsonl
+```
+
+On Ubuntu, run the same commands with your actual download path. The first
+command runs a synthetic self-test. The second reads a local copy of the settled
+PAPER journal and prints a calibration profile. Identical duplicate snapshots
+count once, and conflicting records or missing explicit PAPER markers stop
+the run. On Windows, the default journal path relative to the worker checkout
+is `data/atlas_council_training.jsonl`. Keep the copied journal private.
+
+The archive contains the Council, risk-to-Executive adapter, Executive and
+training modules and the nine-seat contract library. Its command-line interface
+runs offline calibration. It requires only Python and leaves the Windows MT5
+worker independent.
+
 ## Offline MLflow research
+
+Use the [repository trainer](../../atlas_training/train_agent.py) with a private CSV of historical candles. For the default five-fold walk-forward run, provide at least 110 rows for one instrument and timeframe. The CSV must have `time`, `open`, `high`, `low`, and `close` columns, unique timestamps, valid positive OHLC prices, and enough up and down closes for every training fold. Use PAPER daily summaries and training scorecards for reporting. Keep the CSV and generated reports under the Git-ignored `data/` directory.
+
+On Ubuntu, create or activate a Python virtual environment and install the training dependencies from the repository root:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-training.txt
+mkdir -p data
+```
+
+Start a local MLflow registry in that terminal:
+
+```sh
+mlflow server --host 127.0.0.1 --port 5000 \
+  --backend-store-uri sqlite:///data/atlas_training.sqlite \
+  --artifacts-destination ./data/mlflow-artifacts
+```
+
+With the local registry running, activate the same environment in a second terminal and run:
+
+```sh
+python -m atlas_training.train_agent --agent trend --csv data/XAUUSD_M15.csv \
+  --mlflow-uri http://127.0.0.1:5000 --no-auto-promote \
+  --council-report data/council_training_review.json
+```
+
+On Windows, use the repository's virtual environment and the same MLflow settings:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-training.txt
-.\.venv\Scripts\python.exe -m atlas_training.train_agent --agent trend --csv data/XAUUSD_M15.csv --mlflow-uri http://127.0.0.1:5000 --council-report data/council_training_review.json
+.\.venv\Scripts\python.exe -m atlas_training.train_agent --agent trend --csv data/XAUUSD_M15.csv --mlflow-uri http://127.0.0.1:5000 --no-auto-promote --council-report data/council_training_review.json
 ```
 
-Use actual ordered OHLC history on the worker. Do not label generated candles as MT5 history. The local validation used generated candles solely to test the pipeline. MLflow 3.17.2 is pinned to the tested release; the model is stored with skops and only the in-process fitted sklearn.tree._tree.Tree type is explicitly trusted. Reference: https://mlflow.org/docs/latest/ml/model-registry/tutorial .
+The run registers a challenger and writes the Council review report for STC-04 and STC-09. The report records `SHADOW_REVIEW` or `REJECTED` based on the validation gates.
+
+MLflow 3.17.2 is pinned to the tested release. The trainer stores the model with skops and explicitly trusts the in-process fitted `sklearn.tree._tree.Tree` type. [MLflow Model Registry documentation](https://mlflow.org/docs/latest/ml/model-registry/tutorial)
 
 ## Validation
 
 ```sh
-python -m pytest -q tests/test_training_harness.py tests/test_training_harness_safety.py tests/test_atlas_council_training.py tests/test_atlas_council_adapters.py tests/test_atlas_executive_paper_architecture.py
+python -m pytest -q tests/test_training_harness.py tests/test_training_harness_safety.py \
+  tests/test_atlas_council_training.py tests/test_atlas_council_adapters.py \
+  tests/test_atlas_executive_paper_architecture.py tests/test_nine_seat_paper_council.py
 ```
 
-42 focused tests passed locally. A complete SQLite-backed MLflow run registered challenger v1 and v2 on repeat runs and rejected the synthetic candidate: OOS 0.5368, majority baseline about 0.5737, train 1.0, stability 0.5368, ECE 0.2681. Champion was not created. These numbers are synthetic test output, not ATLAS performance.
+The 24 November 2026 preflight passed 78 tests. Both available PAPER CSV exports had daily summaries and lacked the required OHLC fields. A historical-data fit requires the candle CSV. [Verified source revision](https://github.com/imsamtaha/Trading-ai/tree/703b6d23d0e1df074ce15783739022aa62c48094)
+
+An earlier SQLite-backed integration check used generated candles. Repeat runs registered challenger versions 1 and 2, the gate rejected the synthetic candidate, and the registry had no champion. The synthetic run recorded 0.5368 out-of-sample accuracy, a majority baseline of about 0.5737, 1.0 training accuracy, 0.5368 stability, and 0.2681 calibration error.
 
 ## Connected services and remaining verification
 

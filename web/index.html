@@ -3,35 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#11100e">
+  <meta name="theme-color" content="#060e1e">
   <title>ATLAS Trading AI — Understand the market. Keep control.</title>
   <meta name="description" content="Explore ATLAS Trading AI: market context, clear decision explanations, and a free interactive demo. Sample data. No trading account needed.">
   <meta property="og:title" content="ATLAS Trading AI — Understand the market. Keep control.">
   <meta property="og:description" content="Try the ATLAS trading intelligence demo. Explore market context and see why waiting can be a decision. No account required.">
   <meta property="og:type" content="website">
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="/assets/atlas-main-logo.svg" as="image" type="image/svg+xml">
+  <link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">
   <link rel="stylesheet" href="/assets/site.css">
   <link rel="stylesheet" href="/assets/atlas-brand.css">
   <script src="/assets/demo-model.js" defer></script>
   <script src="/assets/site.js" defer></script>
   <script src="/assets/google-auth.js" defer></script>
 <link rel="stylesheet" href="/assets/just-ai-brand.css">
+  <link rel="stylesheet" href="/assets/atlas-market.css">
+  <script src="/assets/atlas-market.js" defer></script>
 </head>
-<body>
+<body class="atlas-depth-page">
 <a class="skip" href="#main">Skip to content</a>
 <header class="header wrap">
-  <a href="/" class="brand atlas-brand" aria-label="ATLAS Market home"><img class="brand-logo" src="/assets/atlas-main-logo.svg" alt="" width="74" height="47"><span>ATLAS<span class="brand-sub">TRADING INTELLIGENCE</span></span></a>
-  <nav aria-label="Main navigation"><button class="quiet language-switch" id="language" type="button" lang="ar" aria-label="التبديل إلى العربية">العربية</button><a href="#approach">How it works</a><a href="#questions">Questions</a><a class="button small" href="#account">Sign up <span aria-hidden="true">↗</span></a></nav>
+  <a href="/" class="brand atlas-brand" aria-label="ATLAS Market home"><img class="brand-logo atlas-intelligence-mark" src="/assets/just-ai-intelligence-mark.webp" alt="" width="60" height="60"><span>ATLAS<span class="brand-sub">TRADING INTELLIGENCE</span></span></a>
+  <nav aria-label="Main navigation"><a href="#market-analysis">Markets</a><a href="/council/btc-2026-08-31.html">Council exercise</a><a href="https://t.me/JustAI_chatbot?start=atlas" target="_blank" rel="noopener noreferrer">Open in Telegram</a><button class="quiet language-switch" id="language" type="button" lang="ar" aria-label="التبديل إلى العربية">العربية</button><a href="#approach">How it works</a><a href="#questions">Questions</a><a class="button small" href="#account">Sign up <span aria-hidden="true">↗</span></a></nav>
 </header>
 <main id="main">
+  <div class="wrap"><section class="atlas-market-board" id="market-analysis" aria-label="TradingView markets" data-atlas-market>
+    <picture class="atlas-market-art">
+      <source media="(max-width: 650px)" srcset="/assets/atlas-tiger-shield-small.webp">
+      <img src="/assets/atlas-tiger-shield.webp" width="600" height="450"
+        alt="ATLAS Intelligence by JUST AI" decoding="async" fetchpriority="high">
+    </picture>
+    <div data-atlas-market-content>
+      <p class="atlas-market-fallback"><a href="https://www.tradingview.com/symbols/COINBASE-BTCUSD/">Open BTC/USD in TradingView</a></p>
+    </div>
+  </section></div>
   <section class="hero wrap atlas-hero">
-    <div class="hero-copy"><div class="justai-page-credit"><div class="justai-signature" aria-label="JUST AI Design Studio"><img src="/assets/just-ai-icon.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>DESIGN STUDIO</small></span></div></div><div class="eyebrow"><span class="status-dot"></span> A CLEARER VIEW OF THE MARKET</div>
+    <div class="hero-copy"><div class="justai-page-credit"><div class="justai-signature" aria-label="JUST AI Intelligence"><img src="/assets/just-ai-intelligence-mark.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>INTELLIGENCE</small></span></div></div><div class="eyebrow"><span class="status-dot"></span> A CLEARER VIEW OF THE MARKET</div>
     <h1>More context. <br>Less guesswork.<br><span>Keep control.</span></h1>
     <p class="lead">Bring market structure, momentum, and risk into one view. Explore how ATLAS explains a setup—and when it chooses to wait.</p>
     <div class="hero-actions"><a class="button" href="#demo">Try the interactive demo <span aria-hidden="true">↗</span></a><a class="text-link" href="#approach">Meet ATLAS <span aria-hidden="true">→</span></a></div>
     <p class="micro">Free to explore · No account needed · No orders placed</p></div>
-    <aside class="hero-logo-card" aria-label="ATLAS principle"><img src="/assets/atlas-main-logo.svg" alt="ATLAS Trading AI main logo" width="1200" height="760"><div class="hero-logo-caption"><span class="mono">JUST AI / ATLAS</span><span>Trading Intelligence</span></div></aside>
+    <aside class="hero-logo-card" aria-label="ATLAS principle"><img src="/assets/just-ai-intelligence.webp" alt="JUST AI Intelligence" width="2560" height="2560"><div class="hero-logo-caption"><span class="mono">JUST AI / ATLAS</span><span>Trading Intelligence</span></div></aside>
   </section>
   <section class="workspace wrap" id="demo" aria-labelledby="demo-title">
     <div class="section-head"><div><p class="eyebrow">EXPLORE THE OBSERVATORY</p><h2 id="demo-title">One market. The full picture.</h2></div><span class="badge amber">Illustrative demo · sample data</span></div>
@@ -48,7 +59,7 @@
     </div>
   </section>
   <section class="approach wrap" id="approach" aria-labelledby="approach-title"><div class="section-head"><div><p class="eyebrow">BUILT AROUND UNDERSTANDING</p><h2 id="approach-title">From information to perspective.</h2></div><p class="section-summary">ATLAS Trading AI organizes the context behind a market decision.</p></div><div class="steps"><article><span class="step-number">01 / OBSERVE</span><h3>See the context.</h3><p>Bring price structure, technical indicators, and broader market information into a common view.</p></article><article><span class="step-number">02 / UNDERSTAND</span><h3>Read the reasoning.</h3><p>Look at the conditions supporting a setup, the conflicting evidence, and the reasons to wait.</p></article><article><span class="step-number">03 / KEEP CONTROL</span><h3>Make your own call.</h3><p>Explore read-only intelligence. The public demo has no broker connection and cannot execute a trade.</p></article></div></section>
-  <section class="questions wrap" id="questions" aria-labelledby="questions-title"><div><p class="eyebrow">BEFORE YOU EXPLORE</p><h2 id="questions-title">Clarity starts here.</h2><p class="muted">A few things to know about this preview.</p></div><div class="faqs"><details open><summary>Is this live market data?</summary><p>No. The public demo uses fixed, synthetic examples. Every price and scenario is illustrative, with no claim about current market conditions or future performance.</p></details><details><summary>Can ATLAS place trades from this website?</summary><p>No. This public website is read-only and has no access to a brokerage account. The project's MT5 worker runs separately in a private Windows environment.</p></details><details><summary>Does the demo require payment or registration?</summary><p>No. Explore all three markets and scenarios freely. Creating an account with Google is optional and does not start a paid subscription.</p></details><details><summary>Where is the subscriber dashboard?</summary><p>The connected dashboard is a separate service that requires a configured data connection and access controls. This public preview does not provide access to private account telemetry.</p></details><details><summary>Are these recommendations or return forecasts?</summary><p>No. ATLAS provides decision-support context. These examples are educational and are not personalized investment advice or a promise of returns.</p></details></div></section>
+  <section class="questions wrap" id="questions" aria-labelledby="questions-title"><div><p class="eyebrow">BEFORE YOU EXPLORE</p><h2 id="questions-title">Clarity starts here.</h2><p class="muted">A few things to know about this preview.</p></div><div class="faqs"><details open><summary>Where do the prices come from?</summary><p>The Market desk shows TradingView quotes and news. Timing varies by exchange. The interactive demo below uses fixed sample scenarios.</p></details><details><summary>Can ATLAS place trades from this website?</summary><p>No. This public website is read-only and has no access to a brokerage account. The project's MT5 worker runs separately in a private Windows environment.</p></details><details><summary>Does the demo require payment or registration?</summary><p>No. Explore all three markets and scenarios freely. Creating an account with Google is optional and does not start a paid subscription.</p></details><details><summary>Where is the subscriber dashboard?</summary><p>The connected dashboard is a separate service that requires a configured data connection and access controls. This public preview does not provide access to private account telemetry.</p></details><details><summary>Are these recommendations or return forecasts?</summary><p>No. ATLAS provides decision-support context. These examples are educational and are not personalized investment advice or a promise of returns.</p></details></div></section>
   <section class="account-section wrap" id="account" aria-labelledby="account-title">
     <div><p class="eyebrow">YOUR ATLAS ACCOUNT</p><h2 id="account-title">Sign up with Google.</h2><p class="muted">Already registered? Use the same button to sign in.</p></div>
     <div class="account-card">
@@ -61,6 +72,6 @@
   </section>
   <section class="closing wrap"><div><p class="eyebrow">START WITH A CLEARER VIEW</p><h2>Explore the reasoning.<br>Keep the decision yours.</h2></div><a class="button" href="#demo">Open the demo <span aria-hidden="true">↗</span></a></section>
 </main>
-<footer class="wrap"><div class="justai-signature" aria-label="JUST AI Design Studio"><img src="/assets/just-ai-icon.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>DESIGN STUDIO</small></span></div><div class="footer-top"><a class="brand atlas-brand footer-brand" href="/"><img class="brand-logo small" src="/assets/atlas-main-logo.svg" alt="" width="56" height="36"><span>ATLAS<span class="brand-sub">TRADING AI</span></span></a><p>Market intelligence. Human judgment.</p><button id="share" class="quiet" type="button">Copy demo link ↗</button></div><p class="fine-print">Educational sample data only. Trading involves risk, including loss of capital. No personalized investment advice or guaranteed outcomes. This preview uses no analytics cookies or advertising trackers.</p><p id="share-status" class="micro" role="status"></p></footer>
+<footer class="wrap"><div class="justai-signature" aria-label="JUST AI Intelligence"><img src="/assets/just-ai-intelligence-mark.webp" alt="" width="32" height="32"><span><strong>JUST <b>AI</b></strong><small>INTELLIGENCE</small></span></div><div class="footer-top"><a class="brand atlas-brand footer-brand" href="/"><img class="brand-logo small atlas-intelligence-mark" src="/assets/just-ai-intelligence-mark.webp" alt="" width="48" height="48"><span>ATLAS<span class="brand-sub">TRADING AI</span></span></a><p>Market intelligence. Human judgment.</p><button id="share" class="quiet" type="button">Copy demo link ↗</button></div><p class="fine-print">Market desk data and news are provided by TradingView. The Council exercise and demo are educational. Trading involves risk, including loss of capital.</p><p id="share-status" class="micro" role="status"></p></footer>
 </body></html>
 

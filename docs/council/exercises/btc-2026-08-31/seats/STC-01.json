@@ -1,0 +1,34 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "STC-01",
+  "seat_title": "Chair / Portfolio Manager",
+  "authority": "Decides",
+  "status": "PREPARED_NOT_RUN",
+  "instructions": "Use only source/btc-usd-original.md as supplied historical case material. Cutoff: 2026-08-31; later source review: 2026-10-16. External claims are supplied, not independently reverified here. Do not use later outcomes, invent candles, fills, probabilities, scores or market observations. Separate observation, inference, scenario and missing evidence. Return JSON matching response-template.json. This is PAPER_CASE_STUDY only. No broker action, runtime-weight change, model promotion or ledger insertion is permitted. Respect the Risk veto and Quant evidence block. Ask for missing evidence rather than loosening gates.",
+  "objective": "Combine the nine reviews into a conditional research decision without treating advisory votes as permission to execute.",
+  "tasks": [
+    "Separate supplied observations, interpretations and scenario assumptions.",
+    "Identify the conditions needed before this case can become a testable strategy.",
+    "Explain how a Quant block and Risk veto constrain the chair."
+  ],
+  "response": null,
+  "assessment": null,
+  "rubric": [
+    {
+      "criterion": "Evidence categories are separated",
+      "points": 2
+    },
+    {
+      "criterion": "Missing execution assumptions are explicit",
+      "points": 2
+    },
+    {
+      "criterion": "Blocking authority is respected",
+      "points": 2
+    },
+    {
+      "criterion": "Decision is conditional and non-executable",
+      "points": 2
+    }
+  ]
+}

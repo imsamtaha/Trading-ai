@@ -1,0 +1,13 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "REPLACE_WITH_ASSIGNED_SEAT",
+  "status": "NOT_SUBMITTED",
+  "evidence": [],
+  "interpretations": [],
+  "scenario_assumptions": [],
+  "missing_evidence": [],
+  "decision": null,
+  "rationale": null,
+  "blockers": [],
+  "broker_execution_allowed": false
+}

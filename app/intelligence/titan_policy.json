@@ -1,0 +1,27 @@
+{
+  "name": "TITAN COUNCIL",
+  "version": "1.0",
+  "mode": "paper_only",
+  "primary_assets": ["BTCUSD", "ETHUSD"],
+  "timeframes": {"4H": "Direction", "1H": "Market structure", "15M": "Liquidity mapping", "5M": "Setup validation", "1M": "Precision entry"},
+  "sessions": ["london_open", "new_york_open", "london_new_york_overlap"],
+  "regimes": ["trending", "ranging", "expansion", "accumulation", "distribution", "manipulation"],
+  "news_events": ["Interest rate decisions", "CPI", "PPI", "NFP", "FOMC", "Major crypto news", "Regulatory announcements"],
+  "score_weights": {"liquidity_sweep": 25, "choch": 20, "bos": 15, "displacement": 15, "order_block": 10, "fvg": 10, "volume_confirmation": 5},
+  "grades": {"S": 90, "A": 80, "B": 70, "C": 0},
+  "limits": {
+    "preferred_risk_pct": 0.5,
+    "max_risk_pct": 1.0,
+    "daily_loss_pct": 2,
+    "weekly_loss_pct": 4,
+    "monthly_drawdown_pct": 6,
+    "consecutive_losses": 2,
+    "preferred_positions": 1,
+    "max_positions": 2,
+    "minimum_rr": 3,
+    "preferred_rr": 4,
+    "exceptional_rr": 5
+  },
+  "process_dimensions": ["Structure analysis", "Liquidity analysis", "Risk management", "Entry timing", "Trade management", "Exit quality"],
+  "decision_without_evidence": "WAIT"
+}
