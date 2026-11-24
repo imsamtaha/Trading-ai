@@ -37,7 +37,7 @@ def _atlas_ultimate_html() -> str:
     if ctrader_selected():
         broker_entry = (
             '<section class="card" id="broker-connection">'
-            '<h2>cTrader Demo</h2><p>View the demo account and PAPER evidence in the owner workspace.</p>'
+            '<h2>FxPro cTrader Demo</h2><p>View-only demo account status and separately verified PAPER evidence in the private owner workspace. Broker orders remain disabled.</p>'
             '<a class="btn ghost atlas-3d" href="/sam">Owner workspace</a></section>'
         )
     else:
