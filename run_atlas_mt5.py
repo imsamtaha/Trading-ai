@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=False)
 
+from app.execution.provider_mode import mt5_connections_paused
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
 
 
@@ -40,6 +41,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if mt5_connections_paused():
+        print(json.dumps({"status": "PAUSED", "reason": "MT5_CONNECTIONS_PAUSED"}))
+        return 0
     monitor = AtlasMT5Monitor(
         symbols=_symbols(args.symbols),
         interval=args.interval,

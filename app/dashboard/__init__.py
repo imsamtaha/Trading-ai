@@ -11,7 +11,7 @@ from app.dashboard.fxpro_onboarding import fxpro_entry_card, router as fxpro_onb
 from app.dashboard.setups_panel import router as setups_panel_router
 from app.dashboard.trading_hub import enhance_atlas_html
 from app.dashboard.views import DASHBOARD_HTML
-from app.execution.provider_mode import ctrader_selected
+from app.execution.provider_mode import mt5_connections_paused
 
 router = APIRouter()
 CANONICAL_ATLAS_PATH = "/"
@@ -34,10 +34,10 @@ def _atlas_ultimate_html() -> str:
     starter_stripe = _stripe_button("watch")
     pro_stripe = _stripe_button("reader")
     elite_stripe = _stripe_button("pro")
-    if ctrader_selected():
+    if mt5_connections_paused():
         broker_entry = (
             '<section class="card" id="broker-connection">'
-            '<h2>cTrader Demo</h2><p>View the demo account and PAPER evidence in the owner workspace.</p>'
+            '<h2>cTrader Demo</h2><p>MT5 setups and connections are paused. View demo bridge status and PAPER evidence in the owner workspace.</p>'
             '<a class="btn ghost atlas-3d" href="/sam">Owner workspace</a></section>'
         )
     else:
@@ -59,7 +59,9 @@ def _atlas_ultimate_html() -> str:
 .plans-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}}.plan-card{{display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}}.plan-card:before{{content:"";position:absolute;inset:-80% 45% auto -30%;height:220px;background:radial-gradient(circle,#ff7a1a1f,transparent 68%);pointer-events:none}}.atlas-tech-bg{{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:900px;overflow:hidden}}.atlas-tech-bg:before{{content:"";position:absolute;left:-15%;right:-15%;bottom:-36%;height:72%;transform:rotateX(64deg);transform-origin:center top;background-image:linear-gradient(#ff7a1a14 1px,transparent 1px),linear-gradient(90deg,#91a4bd12 1px,transparent 1px);background-size:58px 58px}}.atlas-tech-bg:after{{content:"";position:absolute;width:560px;height:560px;right:-180px;top:20%;border:1px solid #ff7a1a20;border-radius:50%;box-shadow:0 0 80px #ff7a1a12,inset 0 0 80px #91a4bd0b}}@media(max-width:1180px){{.plans-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.plans-grid{{grid-template-columns:1fr}}}}
 </style>
 '''
-    scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/demo-panel.js"></script><script src="/ui/setups-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
+    scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
+    if not mt5_connections_paused():
+        scripts += '<script src="/ui/demo-panel.js"></script><script src="/ui/setups-panel.js"></script>'
     html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
     insert = ACCOUNT_PANEL + broker_entry + plans
     html = html.replace('</main>', insert + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', insert + '<div class="notice" id="disclaimer">')

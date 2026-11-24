@@ -17,6 +17,7 @@ from app.ai.analyst import analyze_market
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.mt5_state import MT5CockpitAdapter
+from app.execution.provider_mode import mt5_connections_paused, ctrader_selected
 from app.database.repository import get_account, get_trades
 from app.performance.metrics import calculate_metrics
 from app.dashboard import router as dashboard_router
@@ -49,6 +50,20 @@ async def dashboard_only_guard(request: Request, call_next):
     """
     import os
 
+    path = request.url.path.rstrip("/") or "/"
+    if mt5_connections_paused() and (
+        path.startswith(("/mt5/", "/api/mt5-demo/"))
+        or path in {
+            "/dashboard/atlas", "/dashboard/mt5-state", "/subscription/mt5-request",
+            "/api/runtime/demo-execution", "/api/runtime/learned-council",
+            "/api/demo-executive/start", "/api/execution-guard/evaluate",
+        }
+        or path.startswith("/api/execution-guard/confirm/")
+    ):
+        return JSONResponse(
+            status_code=503, content={"status": "PAUSED", "detail": "MT5 connections and setups are paused."},
+            headers={"Cache-Control": "no-store"},
+        )
     path = request.url.path
     if path in {"/dashboard/atlas", "/dashboard/mt5-state", "/mt5/cockpit-state"}:
         return JSONResponse(status_code=403, content={"detail": "Shared MT5 telemetry is disabled."})
@@ -108,7 +123,11 @@ def root():
 @app.get("/health")
 async def health():
     # Liveness must not wait for the worker pool used by broker/provider reads.
-    return {"status": "healthy", "service": "atlas-trading-api"}
+    return {
+        "status": "healthy", "service": "atlas-trading-api",
+        "mt5_paused": mt5_connections_paused(),
+        "broker_provider": "ctrader" if ctrader_selected() else None,
+    }
 
 
 @app.get("/market/{symbol}")

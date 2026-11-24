@@ -10,6 +10,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.website import router as website_router
 from app.owner_dashboard import router as owner_dashboard_router
+from app.integrations.ctrader_bridge import router as ctrader_bridge_router
 
 from app.data.market import get_price, get_candles
 from app.analysis.technical import analyze_candles
@@ -22,6 +23,7 @@ from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.auto import AutoExecutionCoordinator
 from app.execution.live_gate import LiveAuthorizationError, authorize_live_order
 from app.execution.mt5_state import MT5CockpitAdapter
+from app.execution.provider_mode import mt5_connections_paused, ctrader_selected
 from app.database.repository import get_account, get_trades
 from app.performance.metrics import calculate_metrics
 from app.dashboard import router as dashboard_router
@@ -46,6 +48,7 @@ app.include_router(agent_router)
 app.include_router(evolution_router)
 app.include_router(website_router)
 app.include_router(owner_dashboard_router)
+app.include_router(ctrader_bridge_router)
 
 
 @app.middleware("http")
@@ -53,11 +56,24 @@ async def dashboard_only_guard(request: Request, call_next):
     """Allow the unified ATLAS UI, public reads and analysis-only POSTs; block execution and billing writes."""
     import os
 
+    path = request.url.path.rstrip("/") or "/"
+    if mt5_connections_paused() and (
+        path.startswith(("/mt5/", "/connect/fxpro-mt5/"))
+        or path in {
+            "/connect/fxpro", "/connect/fxpro-mt5", "/dashboard/state",
+            "/dashboard/atlas", "/dashboard/mt5-state", "/dashboard/active-setups",
+            "/dashboard/demo-status", "/dashboard/trader-view", "/agent/paper/execute",
+        }
+    ):
+        return JSONResponse(
+            status_code=503, content={"status": "PAUSED", "detail": "MT5 connections and setups are paused."},
+            headers={"Cache-Control": "no-store"},
+        )
     if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":
         path = request.url.path
         read_paths = {
             "/", "/centers", "/centers/", "/atlas-ultimate", "/health", "/api", "/subscribe", "/connect/fxpro", "/connect/fxpro-mt5", "/connect/fxpro-mt5/status",
-            "/traders", "/traders/", "/council/btc-2026-08-31.html", "/council/curriculum.html",
+            "/traders", "/traders/", "/api/ctrader/market-data", "/council/btc-2026-08-31.html", "/council/curriculum.html",
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view",
@@ -144,7 +160,11 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "service": "atlas-ultimate-api"}
+    return {
+        "status": "healthy", "service": "atlas-ultimate-api",
+        "mt5_paused": mt5_connections_paused(),
+        "broker_provider": "ctrader" if ctrader_selected() else None,
+    }
 
 
 @app.get("/runtime/status")

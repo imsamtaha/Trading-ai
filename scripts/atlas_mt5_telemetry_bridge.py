@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 
 from app.dashboard.api import atlas_dashboard_state
+from app.execution.provider_mode import mt5_connections_paused
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 
 app = FastAPI(
@@ -64,6 +69,8 @@ def health() -> dict[str, Any]:
 @app.get("/telemetry")
 def telemetry(authorization: str | None = Header(default=None)) -> dict[str, Any]:
     _require_token(authorization)
+    if mt5_connections_paused():
+        raise HTTPException(status_code=503, detail="MT5 connections are paused.")
 
     # Force the Windows process into demo/read-only expectations before reading MT5.
     os.environ["ATLAS_LIVE_TRADING"] = "false"

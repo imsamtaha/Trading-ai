@@ -23,7 +23,11 @@ python -m scripts.run_ctrader_paper --symbols XAUUSD
 
 Use exact cTrader symbol names from the authorized demo account. The check verifies account access, candle retrieval, and a current two-sided quote. An inactive market can supply historical candles while the quote check waits for a current bid and ask. The worker closes its cTrader connection between cycles. Run one worker per state directory and use a separate directory for a different demo account.
 
-The owner account panel can use the same demo credentials on the private ATLAS API host. It shows the broker account separately from simulated PAPER balances.
+The protected Tiger Shield owner account panel at `/sam` can use the same demo credentials on the ATLAS API host. It shows the broker account separately from simulated PAPER balances. Run `python cTrader.py` from the checkout to verify the account before starting the bridge. The account number is the login shown in cTrader. The cTrader ID email is only used to sign in to cTrader during authorization.
+
+## Pause the previous MT5 worker
+
+On each Tiger Shield API and worker host, set `ATLAS_BROKER_PROVIDER=ctrader` and `ATLAS_MT5_CONNECTIONS_PAUSED=true` in the service environment. The Tiger Shield container has those defaults. Stop the previously running MT5 monitor and telemetry bridge on their original host and disable their scheduled starts. Restart the Tiger Shield API after changing its environment, then check `/health` for `mt5_paused: true`. Archived PAPER journals remain available in the owner workspace.
 
 ## Start training
 
@@ -52,8 +56,9 @@ in the host's secret store and start the read-only quote service.
 python -m uvicorn scripts.serve_ctrader_market:app --host 127.0.0.1 --port 8765
 ```
 
-Use your authorized HTTPS ingress to route only `/api/ctrader/market-data` to
-that service. In Sites, set `ATLAS_CTRADER_MARKET_URL` to the exact HTTPS
+The Tiger Shield API also serves the same bearer-protected GET at
+`/api/ctrader/market-data` when its private environment is configured. For a
+standalone bridge, use your authorized HTTPS ingress to route only that path. In Sites, set `ATLAS_CTRADER_MARKET_URL` to the exact HTTPS
 endpoint and set `ATLAS_CTRADER_MARKET_TOKEN` to the matching secret. Keep
 the Open API app secret and cTrader access token on Ubuntu. The service
 returns quotes and available hourly, four-hour, or daily closed candles.

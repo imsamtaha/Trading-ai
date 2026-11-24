@@ -8,6 +8,7 @@ type Connection = { connected: boolean; account_type?: string | null; account_ma
 type Runtime = { demo_execution: boolean; learned_council_enabled: boolean; live_execution: string };
 export default function ConnectPage() {
   const [language, setLanguage] = useState<"ar" | "en">("ar");
+  const [mt5Paused, setMt5Paused] = useState<boolean | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [owner, setOwner] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
@@ -16,6 +17,9 @@ export default function ConnectPage() {
   const ar = language === "ar";
   const refresh = useCallback(async () => {
     try {
+      const health = await atlasFetch<{ mt5_paused?: boolean }>(apiPath("/health"), { cache: "no-store" });
+      setMt5Paused(health.mt5_paused === true);
+      if (health.mt5_paused) return;
       const me = await atlasFetch<{ user: { role?: string } }>(apiPath("/api/me"), { credentials: "same-origin" });
       setSignedIn(true);
       const isOwner = me.user.role === "OWNER";
@@ -38,7 +42,13 @@ export default function ConnectPage() {
   }
   return <AtlasShell><main className="atlas-connect-page" dir={ar ? "rtl" : "ltr"} lang={language}>
     <div className="atlas-language-row"><button onClick={() => setLanguage("ar")}>العربية</button><span>|</span><button onClick={() => setLanguage("en")}>EN</button></div>
-    <header className="atlas-card"><span className="atlas-card-label">ATLAS × FxPro MT5</span>
+    {mt5Paused === null && <p role="status">{ar ? "حالة الربط غير متاحة بعد." : "Connection status unavailable."}</p>}
+    {mt5Paused === true && <section className="atlas-card">
+      <h1>{ar ? "جسر cTrader التجريبي" : "cTrader Demo bridge"}</h1>
+      <p>{ar ? "اتصالات MT5 متوقفة. حالة الحساب التجريبي متاحة للمالك للقراءة فقط." : "MT5 connections are paused. View read-only demo account status in the owner workspace."}</p>
+      <a href="/sam" className="atlas-primary-button">{ar ? "مساحة المالك" : "Owner workspace"}</a>
+    </section>}
+    {mt5Paused === false && <><header className="atlas-card"><span className="atlas-card-label">ATLAS × FxPro MT5</span>
       <h1>{ar ? "اربط حسابك بمجلس أطلس" : "Connect your account to ATLAS"}</h1>
       <p>{ar ? "صفحة مستقلة لربط MT5 ومتابعة حالة المجلس. الربط لا يرسل صفقة بحدّ ذاته." : "A dedicated MT5 connection and council status page. Connecting alone does not submit an order."}</p>
     </header>
@@ -52,5 +62,6 @@ export default function ConnectPage() {
         <a href="/subscribe">{ar ? "خطط الاشتراك" : "Subscription plans"}</a> · <a href="/dashboard">{ar ? "لوحة التداول والصفقات" : "Trading dashboard and positions"}</a> · <a href="/offline-contact.html">{ar ? "كود تواصل بلا إنترنت" : "Offline contact code"}</a>
         {notice && <p role="status">{notice}</p>}
       </section></>}
+    </>}
   </main></AtlasShell>;
 }

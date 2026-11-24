@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # Allow `python scripts/list_mt5_symbols.py` from the repository root.
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -24,6 +26,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    load_dotenv(ROOT / ".env", override=False)
     args = parse_args()
     broker = MT5Broker(MT5Config.from_env())
     try:

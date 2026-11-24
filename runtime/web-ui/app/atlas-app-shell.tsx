@@ -20,6 +20,7 @@ const preview = mapDashboardState({ status: "UNKNOWN" });
 export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refreshMs?: number; timeoutMs?: number } = {}) {
   const [state, setState] = useState<DashboardViewModel>(unavailable);
   const [backend, setBackend] = useState<BackendState>("checking");
+  const [mt5Paused, setMt5Paused] = useState<boolean | null>(null);
   const [sessionRequired, setSessionRequired] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [language, setLanguage] = useState<"ar" | "en">("ar");
@@ -37,13 +38,14 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
       const controller = new AbortController();
       controllers.add(controller);
       const [health, dashboard] = await Promise.allSettled([
-        atlasFetch<{ status?: string }>(apiPath("/health"), { cache: "no-store", signal: controller.signal }, timeoutMs),
+        atlasFetch<{ status?: string; mt5_paused?: boolean }>(apiPath("/health"), { cache: "no-store", signal: controller.signal }, timeoutMs),
         getDashboardState(controller.signal, timeoutMs),
       ]);
       controllers.delete(controller);
       if (!active) return;
 
       const healthy = health.status === "fulfilled" && health.value.status === "healthy";
+      if (health.status === "fulfilled") setMt5Paused(health.value.mt5_paused === true);
       if (dashboard.status === "rejected" && dashboard.reason instanceof AtlasApiError && dashboard.reason.status === 401) {
         setState(preview);
         setSessionRequired(true);
@@ -128,7 +130,9 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
       </div>
 
       <nav className="atlas-connection-link" aria-label={language === "ar" ? "روابط مساحة العمل" : "Workspace links"}>
-        <a href="/connect">{language === "ar" ? "ربط MT5 للبيانات" : "Connect MT5 data"}</a>
+        {mt5Paused === true
+          ? <a href="/connect">{language === "ar" ? "جسر cTrader التجريبي" : "cTrader Demo bridge"}</a>
+          : mt5Paused === false && <a href="/connect">{language === "ar" ? "ربط MT5 للبيانات" : "Connect MT5 data"}</a>}
         <span>·</span>
         <a href="/subscribe">{language === "ar" ? "الاشتراكات" : "Subscriptions"}</a>
         <span>·</span>
@@ -139,6 +143,7 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
 
       <DashboardScreen
         state={state}
+        mt5Paused={mt5Paused === true}
         candles={candles}
         symbol={symbol}
         timeframe={timeframe}
@@ -166,12 +171,12 @@ export function AtlasAppShell({ refreshMs = 30000, timeoutMs = 12000 }: { refres
             </div>
         </section> : null}
         operations={<>
-          {!sessionRequired && state.connection !== "connected" && <AccountConnection language={language} onConnected={() => setRefreshKey((key) => key + 1)} />}
+          {mt5Paused === false && !sessionRequired && state.connection !== "connected" && <AccountConnection language={language} onConnected={() => setRefreshKey((key) => key + 1)} />}
 
-          {!sessionRequired && state.connection === "connected" && state.account.mode === "DEMO" &&
+          {mt5Paused === false && !sessionRequired && state.connection === "connected" && state.account.mode === "DEMO" &&
             <ManualTrading key={refreshKey} language={language} />}
 
-          {!sessionRequired && state.connection === "connected" && state.account.mode === "REAL" &&
+          {mt5Paused === false && !sessionRequired && state.connection === "connected" && state.account.mode === "REAL" &&
             <section className="atlas-card atlas-paper-safety-banner" role="status">
               <strong>{language === "ar" ? "وضع الورق فقط" : "Paper-only workspace"}</strong>
               <p>{language === "ar"

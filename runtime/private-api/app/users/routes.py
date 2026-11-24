@@ -125,8 +125,10 @@ def user_dashboard(request: Request) -> dict[str, Any]:
     owner = _is_owner(user)
     from app.mt5_demo.routes import _service as mt5_service
     from app.mt5_demo.service import MT5DemoError
+    from app.execution.provider_mode import mt5_connections_paused
     from app.execution_guard.routes import _service as execution_guard_service
-    mt5 = mt5_service()
+    paused = mt5_connections_paused()
+    mt5 = None if paused else mt5_service()
     session_getter = getattr(mt5, "session_credentials", None)
     current_attacher = getattr(mt5, "attach_current_demo", None)
     if owner and callable(session_getter) and callable(current_attacher) and session_getter(user.user_id) is None:
@@ -134,7 +136,7 @@ def user_dashboard(request: Request) -> dict[str, Any]:
             current_attacher(user.user_id)
         except MT5DemoError:
             pass
-    dashboard = mt5.get_dashboard_state(user.user_id)
+    dashboard = {"connected": False, "status": "PAUSED"} if mt5 is None else mt5.get_dashboard_state(user.user_id)
     session = session_getter(user.user_id) if callable(session_getter) else None
     if owner and session and session.get("login") == 592031391 and session.get("server") == "FxPro-MT5 Demo":
         # History archived on 2026-10-02 at 23:10:28 UTC; open positions stay visible.
@@ -154,5 +156,5 @@ def user_dashboard(request: Request) -> dict[str, Any]:
                      "demo_executive": owner or paid_access(subscription),
                      "execution_guard": owner or paid_access(subscription)},
         "mt5": dashboard,
-        "execution_guard": execution_guard_service().status(user.user_id),
+        "execution_guard": {"status": "PAUSED"} if paused else execution_guard_service().status(user.user_id),
     }

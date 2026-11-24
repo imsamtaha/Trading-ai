@@ -8,6 +8,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.execution.provider_mode import mt5_connections_paused
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
 
 
@@ -29,6 +30,9 @@ def write_status(status: str, events: list[dict] | None = None) -> None:
 def main() -> None:
     from dotenv import load_dotenv
     load_dotenv(override=False)
+    if mt5_connections_paused():
+        print("MT5 connections are paused.")
+        return
     if os.getenv("ATLAS_LIVE_TRADING", "false").lower() != "false":
         raise ValueError("Demo session refuses live execution configuration.")
     os.environ["MT5_REQUIRE_DEMO"] = "true"

@@ -22,13 +22,13 @@ const MiniCard = ({ label, value, tone = "gold" }: { label: string; value: strin
   <article className={`atlas-mini-card atlas-mini-card--${tone}`}><span>{label}</span><strong>{value}</strong></article>
 );
 
-export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timeframe = "1h", signals = [], activity = [], headlines = [], briefingAvailable = false, positionsAvailable, signalsAvailable, activityAvailable, assistantAvailable = true, assistantLockedHref = "/login?returnTo=%2Fdashboard", intelligenceAvailable = true, language = "ar", onMarketChange, operations, marketBriefing, accessNotice, chartStatus }: {
-  state: DashboardViewModel; candles?: Candle[]; symbol?: string; timeframe?: string; signals?: SignalView[]; activity?: ActivityEvent[]; headlines?: Headline[]; briefingAvailable?: boolean;
+export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timeframe = "1h", signals = [], activity = [], headlines = [], briefingAvailable = false, positionsAvailable, signalsAvailable, activityAvailable, assistantAvailable = true, assistantLockedHref = "/login?returnTo=%2Fdashboard", intelligenceAvailable = true, language = "ar", onMarketChange, operations, marketBriefing, accessNotice, chartStatus, mt5Paused = false }: {
+  state: DashboardViewModel; mt5Paused?: boolean; candles?: Candle[]; symbol?: string; timeframe?: string; signals?: SignalView[]; activity?: ActivityEvent[]; headlines?: Headline[]; briefingAvailable?: boolean;
   positionsAvailable?: boolean; signalsAvailable?: boolean; activityAvailable?: boolean; assistantAvailable?: boolean; assistantLockedHref?: string; intelligenceAvailable?: boolean; language?: Language; operations?: ReactNode; marketBriefing?: MarketBriefing | null; accessNotice?: ReactNode; chartStatus?: string; onMarketChange?: (symbol: string, timeframe: string) => void;
 }) {
   const ar = language === "ar";
   const [activeNav, setActiveNav] = useState("markets");
-  const connected = state.connection === "connected";
+  const connected = !mt5Paused && state.connection === "connected";
   const chartPosition = connected ? state.positions.find((p) => p.symbol === symbol) : undefined;
   const chartSignal = connected ? signals.find((s) => s.symbol === symbol) : undefined;
   const signal = chartSignal?.direction ?? "OBSERVE";
@@ -46,7 +46,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
       <div className="atlas-mock-status">
         <span className="atlas-mode-pill">PAPER MODE</span>
         <span>{state.userRole === "OWNER" ? "OWNER" : (ar ? "خاص" : "Private")}</span>
-        <span className={connected ? "is-connected" : ""}>{connected ? (ar ? "بيانات MT5 متصلة" : "MT5 data connected") : (ar ? "MT5 غير متصل" : "MT5 disconnected")}</span>
+        <span className={connected ? "is-connected" : ""}>{mt5Paused ? (ar ? "MT5 متوقف" : "MT5 paused") : connected ? (ar ? "بيانات MT5 متصلة" : "MT5 data connected") : (ar ? "MT5 غير متصل" : "MT5 disconnected")}</span>
         {state.connection === "offline" && <span className="sr-only">Backend offline</span>}
       </div>
     </header>
@@ -109,7 +109,7 @@ export function DashboardScreen({ state, candles = [], symbol = "XAUUSD", timefr
     </section>
 
     {operations}
-    <ExecutionAgentPanel language={language} />
+    {!mt5Paused && <ExecutionAgentPanel language={language} />}
     {state.userRole === "OWNER" && <TrainingPanel language={language} />}
 
     <section className="atlas-lower-grid atlas-secondary-zone">

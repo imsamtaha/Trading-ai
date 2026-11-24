@@ -5,6 +5,8 @@ import json
 import os
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -169,6 +171,7 @@ def build_decision(results: dict[str, dict]) -> tuple[dict, dict, dict, dict]:
 
 
 def main() -> int:
+    load_dotenv(ROOT / ".env", override=False)
     if mt5 is None:
         print(json.dumps({"status": "ERROR", "error": "MetaTrader5 is available only on the Windows MT5 worker."}))
         return 1
