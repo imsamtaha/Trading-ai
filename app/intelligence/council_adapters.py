@@ -79,7 +79,7 @@ def confidence_opinion(
 
 
 def senior_risk_assessment(risk: Mapping[str, Any]) -> dict[str, Any]:
-    approved = bool(risk.get("approved", False))
+    approved = risk.get("approved") is True
     return {
         "agent": "Senior Risk Management Agent",
         "assessment": "RISK_ACCEPTABLE" if approved else "RISK_REJECT",
