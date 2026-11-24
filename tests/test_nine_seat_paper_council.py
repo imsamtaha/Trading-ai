@@ -366,6 +366,67 @@ def test_missing_chair_cannot_finalize():
         council.finalize()
 
 
+def test_supervisor_waits_when_required_reports_are_missing():
+    council = make_council()
+    council.submit_initial("macro", independent_reports()["macro"], snapshot_id=council.snapshot_id)
+    result = council.supervisor_decision()
+    assert result["decision"] == "WAIT"
+    assert result["reason"] == "Missing independent reports: market_structure, quant, news_sentiment"
+    assert (result["instrument"], result["timeframe"]) == ("XAUUSD", "15m")
+    assert result["snapshot_id"] == council.snapshot_id
+    assert result["mode"] == "paper"
+    assert result["broker_execution_allowed"] is False
+
+
+def test_supervisor_reports_veto_without_waiting_for_chair():
+    council = make_council()
+    submit_initial(council)
+    assert council.supervisor_decision()["reason"] == "Missing Risk Agent report"
+    council.submit_risk({
+        "status": "VETO", "reason": "synthetic loss limit reached",
+        "minimum_change": "wait for simulated risk budget reset",
+    })
+    result = council.supervisor_decision()
+    assert result["decision"] == "WAIT"
+    assert result["reason"] == (
+        "Risk veto: synthetic loss limit reached | Minimum change: wait for simulated risk budget reset"
+    )
+
+
+@pytest.mark.parametrize("verdict,targets,missing_flag,decision,reason_fragment", [
+    ("LONG", [130], None, "BUY", "Macro and quant"),
+    ("SHORT", [70], None, "SELL", "Macro and quant"),
+    ("LONG", [129, 140], None, "WAIT", "less than 3:1"),
+    ("LONG", [130], "structure_clear", "WAIT", "structure is unconfirmed"),
+    ("LONG", [130], "liquidity_identified", "WAIT", "Liquidity"),
+    ("LONG", [130], "smc_confirmed", "WAIT", "Smart Money Concepts"),
+    ("LONG", [130], "event_risk_acceptable", "WAIT", "News risk"),
+])
+def test_supervisor_requires_explicit_confirmation_and_three_to_one(
+    verdict, targets, missing_flag, decision, reason_fragment,
+):
+    council = make_council()
+    reports = independent_reports()
+    for field in ("structure_clear", "liquidity_identified", "smc_confirmed"):
+        reports["market_structure"][field] = field != missing_flag
+    if missing_flag != "event_risk_acceptable":
+        reports["news_sentiment"]["event_risk_acceptable"] = True
+    for seat in INITIAL_SEATS:
+        council.submit_initial(seat, reports[seat], snapshot_id=council.snapshot_id)
+    approve(council)
+    council.submit_execution({
+        "entry": 100, "stop": 90 if verdict == "LONG" else 110,
+        "take_profit": targets, "order_type": "limit",
+        "plan": "synthetic plan", "hazards": "synthetic spread",
+    })
+    red_team(council)
+    chair(council, verdict=verdict, pct=0.25)
+    result = council.supervisor_decision()
+    assert result["decision"] == decision
+    assert reason_fragment in result["reason"]
+    assert result["broker_execution_allowed"] is False
+
+
 def test_no_direct_action_methods_or_broker_integration():
     council = make_council()
     for forbidden in ("execute_trade", "place_order", "connect_mt5", "enable_live", "update_weights", "train"):

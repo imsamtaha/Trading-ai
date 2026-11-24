@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from math import isfinite
 from typing import Any, Mapping
 
@@ -245,6 +246,61 @@ class NineSeatPaperCouncil:
         else:
             data["position_size_pct"] = 0.0
         self._chair = data
+
+    def supervisor_decision(self) -> dict[str, Any]:
+        """Review the current snapshot against the Supervisor's PAPER gates."""
+        result = {
+            "instrument": self.instrument,
+            "timeframe": self.timeframe,
+            "timestamp": self.timestamp,
+            "snapshot_id": self.snapshot_id,
+            "mode": "paper",
+            "broker_execution_allowed": False,
+            "decision": "WAIT",
+            "reason": "",
+        }
+
+        def wait(reason: str) -> dict[str, Any]:
+            return {**result, "reason": reason}
+
+        risk = self._risk
+        if risk is not None and risk["status"] == "VETO":
+            return wait(f"Risk veto: {risk['reason']} | Minimum change: {risk['minimum_change']}")
+
+        missing = [seat for seat in INITIAL_SEATS if seat not in self._initial]
+        if missing:
+            return wait("Missing independent reports: " + ", ".join(missing))
+        if risk is None:
+            return wait("Missing Risk Agent report")
+        if risk["status"] != "APPROVE":
+            return wait(f"Risk approval pending: {risk['reason']} | Conditions: {risk['conditions']}")
+        if self._execution is None or self._red_team is None or self._chair is None:
+            return wait("Execution, Red Team and Chair reports are required")
+        if self.verified_market_snapshot is not True:
+            return wait("Market snapshot is unverified")
+        verdict = self._chair["verdict"]
+        if verdict == "NO TRADE":
+            return wait(self._chair["rationale"])
+
+        structure = self._initial["market_structure"]
+        news = self._initial["news_sentiment"]
+        for report, field, reason in (
+            (structure, "structure_clear", "Market structure is unconfirmed"),
+            (structure, "liquidity_identified", "Liquidity is unconfirmed"),
+            (structure, "smc_confirmed", "Smart Money Concepts confirmation is missing"),
+            (news, "event_risk_acceptable", "News risk is unconfirmed or unacceptable"),
+        ):
+            if report.get(field) is not True:
+                return wait(reason)
+
+        entry = Decimal(str(self._execution["entry"]))
+        stop = Decimal(str(self._execution["stop"]))
+        nearest_reward = min(abs(Decimal(str(target)) - entry) for target in self._execution["take_profit"])
+        if nearest_reward < 3 * abs(entry - stop):
+            return wait("Nearest target offers less than 3:1 reward to risk")
+
+        decision = {"LONG": "BUY", "SHORT": "SELL"}[verdict]
+        return {**result, "decision": decision, "reason": self._chair["rationale"]}
 
     def finalize(self) -> dict[str, Any]:
         if self._chair is None or self._risk is None:
