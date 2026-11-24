@@ -65,6 +65,19 @@ broker profit. An empty section means *unavailable*, not zero performance.
 
 ## cTrader demo workspace
 
+### Separate business, support, and Whish identities
+
+- ATLAS private cTrader owner: `business.samirtaha@gmail.com`.
+- The primary public/support mailbox **remains** `info@justai-atlas.online`.
+- Whish payment approval, manual review, and admin notification email **remain** `ImSamtaha.ai@gmail.com`; do not change the existing `ADMIN_EMAIL`, older Supabase Whish approval migration, or receipt destination.
+- Whish payment funds are received according to the configured Whish recipient, not an email address. No payout, banking, or payment credentials are changed here.
+- Intended FxPro **cTrader DEMO** account login: configure the owner-supplied login in the private environment variable `ATLAS_CTRADER_DEMO_LOGIN` (never in public source files). Grant only `SCOPE_VIEW` account authorization. Email ownership alone does not authenticate a cTrader account.
+
+The old MT5/FxPro integration stays paused on the ATLAS application. A separate historical Windows worker must be stopped independently if running; changing a Git branch does not stop an external process. cTrader Demo account balances are broker metadata only. Existing MT5/PAPER ledger records cannot be presented as FxPro cTrader trade history.
+
+Deployment/identity cutover requires login confirmation for the business email, OAuth consent for the specified demo account, validated read-only telemetry and owner authorization. Neither browser sign-in nor cTrader consent is completed by this code change.
+
+
 Choose `ATLAS_BROKER_PROVIDER=ctrader` on the private ATLAS application to
 select cTrader and pause MT5 connections. An independent Windows worker needs
 the same setting or a controlled stop on its own host. In an MT5 deployment,
