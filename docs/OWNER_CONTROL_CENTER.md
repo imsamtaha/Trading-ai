@@ -90,6 +90,8 @@ the source of the history and training figures.
 
 [cTrader Open API authentication](https://help.ctrader.com/open-api/account-authentication/)
 
+For cTrader market data, simulated entries, and Council training on Ubuntu, use the [cTrader demo bridge guide](CTRADER_PAPER_BRIDGE.md).
+
 ## Validation and acceptance
 
 ```

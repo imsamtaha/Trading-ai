@@ -14,6 +14,8 @@ from app.analysis.technical import analyze_candles
 from app.execution.atlas import AtlasExecutionService, ExecutionPolicy
 from app.execution.heartbeat import AtlasHeartbeat
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
+from app.integrations.ctrader_demo import DemoConnectionError
+from app.integrations.ctrader_market import CTraderMarketData
 from app.intelligence.shadow_selector import ShadowSelector
 from app.intelligence.confidence import SignalQualityEngine
 from app.intelligence.council_adapters import build_paper_council, record_settled_paper_outcome
@@ -49,12 +51,10 @@ TIMEFRAME_SECONDS = {
 
 
 class AtlasMT5Monitor:
-    """Forward-demo monitor that never submits an MT5 order.
+    """PAPER monitor with MT5 as the default market-data provider.
 
-    Qualified candidates are opened in a persistent paper ledger, then closed
-    only when a later MT5 quote reaches their stop loss or take profit. Every
-    open/close/error is journaled locally and published to Supabase whenever
-    the worker has server-side Supabase credentials.
+    A cTrader feed uses isolated local state and the same strategy, risk,
+    Council, ledger, and settled-outcome trainer.
     """
 
     def __init__(
@@ -64,12 +64,18 @@ class AtlasMT5Monitor:
         candle_limit: int = 200,
         cycle_seconds: int = 30,
         top_n: int = 30,
+        *,
+        market_data: CTraderMarketData | None = None,
+        state_dir: Path | None = None,
     ):
         if interval not in TIMEFRAME_MAP:
             raise ValueError(f"Unsupported ATLAS interval: {interval}")
 
-        config = MT5Config.from_env()
-        if not config.dry_run:
+        if market_data is not None and (not symbols or state_dir is None):
+            raise ValueError("cTrader PAPER requires explicit symbols and a state directory.")
+        self.market_source = "CTRADER_DEMO" if market_data is not None else "MT5"
+        self.provider_error_status = "CTRADER_ERROR" if market_data is not None else "MT5_ERROR"
+        if os.getenv("ATLAS_LIVE_TRADING", "false").lower() == "true":
             raise ValueError(
                 "ATLAS demo monitor refuses to start while ATLAS_LIVE_TRADING=true. "
                 "Set it to false for paper validation."
@@ -81,7 +87,9 @@ class AtlasMT5Monitor:
         self.cycle_seconds = max(10, int(cycle_seconds))
         self.top_n = max(1, int(top_n))
         self.strategy_mode = os.getenv("ATLAS_STRATEGY_MODE", "BALANCED").upper()
-        self.auto_discover = os.getenv("ATLAS_AUTO_DISCOVER_SYMBOLS", "true").lower() == "true"
+        self.auto_discover = (
+            market_data is None and os.getenv("ATLAS_AUTO_DISCOVER_SYMBOLS", "true").lower() == "true"
+        )
         self.preferred_canonical = {
             item.strip().upper()
             for item in os.getenv(
@@ -91,12 +99,13 @@ class AtlasMT5Monitor:
             if item.strip()
         }
         self.persist_all_signals = os.getenv("ATLAS_PERSIST_ALL_SIGNALS", "false").lower() == "true"
-        self.max_quote_age_seconds = max(
-            1,
-            int(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")),
+        self.max_quote_age_seconds = (
+            max(1, int(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")))
+            if market_data is None else 30
         )
-        self.quote_time_offset_seconds = int(
-            os.getenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "0")
+        self.quote_time_offset_seconds = (
+            int(os.getenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "0"))
+            if market_data is None else 0
         )
         if abs(self.quote_time_offset_seconds) > 14 * 3600:
             raise ValueError("ATLAS MT5 quote time offset must be within +/-14 hours.")
@@ -105,39 +114,53 @@ class AtlasMT5Monitor:
             int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
         )
 
-        self.broker = MT5Broker(config)
-        # Retained as an explicit invariant for code paths that inspect
-        # execution status. The demo monitor never calls this service.
-        self.execution = AtlasExecutionService(
-            broker=self.broker,
-            policy=ExecutionPolicy(enabled=False),
-        )
+        if market_data is None:
+            broker = MT5Broker(MT5Config.from_env())
+            self.broker = broker
+            self.execution = AtlasExecutionService(broker=broker, policy=ExecutionPolicy(enabled=False))
+            self.heartbeat = AtlasHeartbeat(broker)
+        else:
+            self.broker = market_data
+            self.execution = None
+            self.heartbeat = None
         self.decision_engine = UnifiedDecisionEngine()
-        self.ledger = MT5PaperLedger()
-        self.journal = SignalJournal()
-        self.heartbeat = AtlasHeartbeat(self.broker)
+        self.ledger = MT5PaperLedger(path=str(state_dir / "paper_ledger.json") if state_dir else None)
+        self.journal = SignalJournal(path=str(state_dir / "signals.jsonl") if state_dir else None)
         self.running = False
         self.universe: list[dict[str, Any]] = []
         self.account_equity = float(os.getenv("ATLAS_DEMO_ACCOUNT_EQUITY", "10000"))
+        if market_data is not None and (not math.isfinite(self.account_equity) or self.account_equity <= 0):
+            raise ValueError("PAPER starting equity must be finite and positive.")
         self.council_training_enabled = (
-            os.getenv("ATLAS_COUNCIL_TRAINING_ENABLED", "false").lower() == "true"
+            market_data is not None or os.getenv("ATLAS_COUNCIL_TRAINING_ENABLED", "false").lower() == "true"
         )
         self.council_training_journal = CouncilTrainingJournal(
-            os.getenv("ATLAS_COUNCIL_TRAINING_JOURNAL", "data/atlas_council_training.jsonl")
+            str(state_dir / "council_training.jsonl") if state_dir
+            else os.getenv("ATLAS_COUNCIL_TRAINING_JOURNAL", "data/atlas_council_training.jsonl")
         )
-        self.council_profile_path = Path(
-            os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json")
+        self.council_profile_path = (
+            state_dir / "council_profile.json" if state_dir
+            else Path(os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json"))
         )
         self.council_minimum_samples = max(
             1, int(os.getenv("ATLAS_COUNCIL_MINIMUM_SAMPLES", "5"))
         )
-        self.shadow_enabled = os.getenv("ATLAS_SHADOW_TRAINING_ENABLED", "false").lower() == "true"
+        default_shadow = "true" if market_data is not None else "false"
+        self.shadow_enabled = os.getenv("ATLAS_SHADOW_TRAINING_ENABLED", default_shadow).lower() == "true"
         self.shadow_selector = ShadowSelector()
-        self.shadow_report_path = Path(os.getenv("ATLAS_SHADOW_REPORT", "data/atlas_shadow_report.json"))
-        self.shadow_journal_path = Path(os.getenv("ATLAS_SHADOW_JOURNAL", "data/atlas_shadow_predictions.jsonl"))
+        self.shadow_report_path = (
+            state_dir / "shadow_report.json" if state_dir
+            else Path(os.getenv("ATLAS_SHADOW_REPORT", "data/atlas_shadow_report.json"))
+        )
+        self.shadow_journal_path = (
+            state_dir / "shadow_predictions.jsonl" if state_dir
+            else Path(os.getenv("ATLAS_SHADOW_JOURNAL", "data/atlas_shadow_predictions.jsonl"))
+        )
         self.shadow_closed_count = -1
         self.cycle_rotation = 0
-        self.accelerator_enabled = os.getenv("ATLAS_TRAINING_ACCELERATOR_ENABLED", "false").lower() == "true"
+        self.accelerator_enabled = (
+            market_data is None and os.getenv("ATLAS_TRAINING_ACCELERATOR_ENABLED", "false").lower() == "true"
+        )
         self.accelerator_node = os.getenv("ATLAS_NODE_EXE", "node")
         self.category_position_limit = max(0, int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0")))
         self.signal_quality_engine = SignalQualityEngine()
@@ -250,7 +273,7 @@ class AtlasMT5Monitor:
         }
 
     def _validate_quote_freshness(self, quote: dict[str, Any]) -> tuple[bool, str]:
-        """Fail closed when an MT5 quote has no trustworthy current timestamp."""
+        """Reject quotes without a trustworthy current timestamp."""
         time_msc = int(quote.get("time_msc", 0) or 0)
         time_sec = int(quote.get("time", 0) or 0)
 
@@ -259,18 +282,18 @@ class AtlasMT5Monitor:
         elif time_sec > 0:
             quote_timestamp = float(time_sec)
         else:
-            return False, "MT5 quote timestamp is missing."
+            return False, f"{self.market_source} quote timestamp is missing."
 
         quote_timestamp -= self.quote_time_offset_seconds
         age_seconds = datetime.now(timezone.utc).timestamp() - quote_timestamp
 
         if age_seconds < -5:
-            return False, "MT5 quote timestamp is unexpectedly in the future."
+            return False, f"{self.market_source} quote timestamp is unexpectedly in the future."
 
         if age_seconds > self.max_quote_age_seconds:
             return (
                 False,
-                f"MT5 quote is stale ({age_seconds:.1f}s old; "
+                f"{self.market_source} quote is stale ({age_seconds:.1f}s old; "
                 f"maximum {self.max_quote_age_seconds}s).",
             )
 
@@ -278,11 +301,13 @@ class AtlasMT5Monitor:
 
     def _record_event(self, event: dict[str, Any]) -> dict[str, Any]:
         """Write a local audit record and optionally publish its safe envelope."""
+        if self.market_source == "CTRADER_DEMO":
+            event["market_source"] = self.market_source
         payload = self.journal.append(event)
         status = str(event.get("status", "DRY_RUN"))
         is_material = status not in {"NO_TRADE", "SKIPPED"}
 
-        if is_material or self.persist_all_signals:
+        if self.heartbeat is not None and (is_material or self.persist_all_signals):
             decision = event.get("decision") or {}
             if not isinstance(decision, dict):
                 decision = {}
@@ -335,15 +360,23 @@ class AtlasMT5Monitor:
         return self.decision_engine.analyze(data)
 
     def analyze_symbol(self, symbol: str) -> dict[str, Any]:
-        if mt5 is None:
-            raise MT5ExecutionError("MT5 candles require the Windows worker.")
-        candles = self.broker.candles(
-            symbol, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit
-        )
-        if len(candles) < 50:
-            raise MT5ExecutionError(f"{symbol}: at least 50 candles are required.")
+        if isinstance(self.broker, CTraderMarketData):
+            candles = self.broker.candles(symbol, self.interval, self.candle_limit)
+            if len(candles) < 50:
+                raise DemoConnectionError("INSUFFICIENT_CANDLE_HISTORY")
+            candle_age = time.time() - candles[-1]["close_time"] / 1000
+            if candle_age > 2 * TIMEFRAME_SECONDS[self.interval]:
+                raise DemoConnectionError("RECENT_CLOSED_CANDLES_UNAVAILABLE")
+        else:
+            if mt5 is None:
+                raise MT5ExecutionError("MT5 candles require the Windows worker.")
+            candles = self.broker.candles(
+                symbol, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit
+            )
+            if len(candles) < 50:
+                raise MT5ExecutionError(f"{symbol}: at least 50 candles are required.")
         market_data = {
-            "symbol": symbol, "interval": self.interval, "source": "MT5",
+            "symbol": symbol, "interval": self.interval, "source": self.market_source,
             "count": len(candles), "candles": candles,
         }
         technical = analyze_candles(candles)
@@ -410,12 +443,12 @@ class AtlasMT5Monitor:
                     }
                     self._record_event(event)
                     events.append(event)
-            except (MT5ExecutionError, PaperLedgerError) as exc:
+            except (MT5ExecutionError, DemoConnectionError, PaperLedgerError) as exc:
                 event = {
                     "timestamp": timestamp,
                     "symbol": symbol,
                     "timeframe": self.interval,
-                    "status": "MT5_ERROR",
+                    "status": self.provider_error_status,
                     "reason": str(exc),
                     "decision": {"decision": "WAIT"},
                 }
@@ -683,12 +716,12 @@ class AtlasMT5Monitor:
                     event["shadow"] = shadow
                 self._record_event(event)
                 events.append(event)
-            except (MT5ExecutionError, PaperLedgerError) as exc:
+            except (MT5ExecutionError, DemoConnectionError, PaperLedgerError) as exc:
                 event = {
                     "timestamp": timestamp,
                     "symbol": symbol,
                     "timeframe": self.interval,
-                    "status": "MT5_ERROR",
+                    "status": self.provider_error_status,
                     "reason": str(exc),
                     "decision": {"decision": "WAIT"},
                 }
@@ -710,29 +743,33 @@ class AtlasMT5Monitor:
     def run_once(self) -> list[dict[str, Any]]:
         """Run one connected demo cycle and return its audit events."""
         try:
-            account = self.broker.connect()
-            self.account_equity = float(account["equity"])
-            self.heartbeat.publish_connection(account, "connected")
+            if isinstance(self.broker, CTraderMarketData):
+                self.broker.connect()
+            else:
+                account = self.broker.connect()
+                self.account_equity = float(account["equity"])
+                self.heartbeat.publish_connection(account, "connected")
             self.discover_symbols()
             return self.cycle()
         finally:
             self.broker.disconnect()
 
     def run_forever(self) -> None:
-        """Reconnect each cycle; transient MT5 failures never discard the ledger."""
+        """Reconnect each cycle and record transient provider failures."""
         self.running = True
-        print("ATLAS forward-demo: PAPER ONLY; no MT5 orders", flush=True)
+        print(f"ATLAS forward-demo: {self.market_source} market data, PAPER only", flush=True)
         try:
             while self.running:
                 try:
                     for event in self.run_once():
                         print(event, flush=True)
-                except MT5ExecutionError as exc:
-                    self.heartbeat.publish_connection({}, "error")
+                except (MT5ExecutionError, DemoConnectionError) as exc:
+                    if self.heartbeat is not None:
+                        self.heartbeat.publish_connection({}, "error")
                     event = self._record_event({
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                         "symbol": "ATLAS", "timeframe": self.interval,
-                        "status": "MT5_ERROR", "reason": str(exc),
+                        "status": self.provider_error_status, "reason": str(exc),
                         "decision": {"decision": "WAIT"},
                     })
                     print(event, flush=True)
