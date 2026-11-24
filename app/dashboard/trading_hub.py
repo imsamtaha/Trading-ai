@@ -3,6 +3,8 @@
 import os
 import re
 
+from app.execution.provider_mode import ctrader_selected
+
 DEFAULT_TELEGRAM_BOT_USERNAME = "JustAI_chatbot"
 
 HUB_STYLE = r"""
@@ -103,6 +105,17 @@ def enhance_atlas_html(html: str) -> str:
             'data-hub-en="Open in Telegram" data-hub-ar="افتح في تيليغرام">Open in Telegram</a>'
         )
     header = HUB_HEADER.replace("<!-- telegram-navigation -->", telegram_link)
+    if ctrader_selected():
+        header = header.replace("FxPro MT5 workspace", "cTrader demo workspace")
+        header = header.replace("مساحة عمل FxPro MT5", "مساحة عمل cTrader التجريبية")
+        header = header.replace(
+            "Your unified FxPro MT5 demo cockpit for markets, account telemetry, analysis and risk context.",
+            "Market analysis, cTrader demo account information and PAPER evidence.",
+        )
+        header = header.replace(
+            "واجهة موحّدة لحساب FxPro MT5 التجريبي والأسواق والتحليل وسياق المخاطر.",
+            "تحليل الأسواق ومعلومات حساب cTrader التجريبي وأدلة التداول الورقي.",
+        )
     html = html.replace("<body>", '<body class="atlas-depth-page">' + header, 1)
     html = html.replace('<div class="shell">', '<div class="shell">' + MARKET_BOARD, 1)
     return html.replace("</body>", HUB_SCRIPT + "</body>")

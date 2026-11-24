@@ -62,6 +62,21 @@ def test_owner_requires_auth_for_page_and_snapshot(monkeypatch):
     assert "LIVE TRADING DISABLED" in client.get("/sam", auth=AUTH).text
 
 
+def test_account_configuration_is_private_and_preserves_the_paused_mt5_option(monkeypatch):
+    _configured(monkeypatch)
+    monkeypatch.setenv("ATLAS_BROKER_PROVIDER", "ctrader")
+    monkeypatch.setenv("ATLAS_MT5_WORKSPACE_EMAIL", "legacy@example.test")
+    monkeypatch.delenv("ATLAS_CTRADER_ACCESS_TOKEN", raising=False)
+    assert client.get("/sam/api/accounts").status_code == 401
+    response = client.get("/sam/api/accounts", auth=AUTH)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["primary_workspace"] == AUTH[0]
+    assert response.json()["primary_provider"] == "cTrader"
+    assert response.json()["mt5"] == {"status": "PAUSED", "workspace": "legacy@example.test"}
+    assert response.json()["ctrader_demo"]["status"] == "NOT_CONFIGURED"
+
+
 def test_owner_refuses_unsafe_execution_configuration(monkeypatch):
     _configured(monkeypatch)
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "true")
