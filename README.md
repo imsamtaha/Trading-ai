@@ -100,6 +100,8 @@ The Paper-only learning path is implemented by:
 
 Training is conservative. Each agent begins at weight 1.0 and does not receive a learned weight until enough settled Paper examples exist. Learned weights are bounded so a small sample cannot dominate the Council.
 
+For an Ubuntu worker, use the [cTrader demo bridge](docs/CTRADER_PAPER_BRIDGE.md) to feed the PAPER Council or export OHLC for local MLflow training. The Windows MT5 PAPER runner is also available.
+
 ## Local API
 
 Create the Python environment, install requirements, then start Uvicorn with live trading disabled and dashboard-only enabled.
