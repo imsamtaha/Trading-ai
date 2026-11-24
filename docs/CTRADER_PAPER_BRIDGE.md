@@ -42,3 +42,20 @@ Install `requirements-training.txt` and start MLflow before the second command. 
 ## Use MT5 as the optional provider
 
 On the Windows MT5 host, use its existing private account configuration, set `ATLAS_BROKER_PROVIDER=mt5` and `ATLAS_MT5_CONNECTIONS_PAUSED=false`, and use the [MT5 PAPER launcher](../README_MT5.md). The private owner view reads its optional display identity from `ATLAS_MT5_WORKSPACE_EMAIL`. Keep that identity and the MT5 credentials on the authorized host.
+
+## Serve demo quotes to the dashboards
+
+With demo Open API access configured on Ubuntu, set a random `ATLAS_CTRADER_MARKET_TOKEN`
+in the host's secret store and start the read-only quote service.
+
+```sh
+python -m uvicorn scripts.serve_ctrader_market:app --host 127.0.0.1 --port 8765
+```
+
+Use your authorized HTTPS ingress to route only `/api/ctrader/market-data` to
+that service. In Sites, set `ATLAS_CTRADER_MARKET_URL` to the exact HTTPS
+endpoint and set `ATLAS_CTRADER_MARKET_TOKEN` to the matching secret. Keep
+the Open API app secret and cTrader access token on Ubuntu. The service
+returns quotes and available hourly, four-hour, or daily closed candles.
+The one-week view can show a current quote while weekly candle history is
+unavailable. Trading and account endpoints are outside this service.
