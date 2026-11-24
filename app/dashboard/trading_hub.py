@@ -1,5 +1,8 @@
 """Presentation-only enhancement for the canonical ATLAS customer dashboard."""
 
+import os
+import re
+
 HUB_STYLE = r"""
 <style id="atlas-hub-style">
 :root{--hub-orange:#ff7a1a;--hub-metal:#9aa8bb;--hub-deep:#05080d;--hub-panel:#0b121c}
@@ -51,6 +54,7 @@ HUB_HEADER = r"""
     <a class="atlas-3d" href="#hub-markets" data-hub-en="Markets & News" data-hub-ar="الأسواق والأخبار">Markets & News</a>
     <a class="atlas-3d" href="#demo-session" data-hub-en="Live Demo" data-hub-ar="تجريبي مباشر">Live Demo</a>
     <a class="atlas-3d" href="#plans" data-hub-en="Plans" data-hub-ar="الاشتراكات">Plans</a>
+    <!-- telegram-navigation -->
   </nav>
 </div>
 """
@@ -81,7 +85,16 @@ def enhance_atlas_html(html: str) -> str:
         '<link rel="icon" href="/assets/just-ai-intelligence-mark.webp" type="image/webp">'
     )
     html = html.replace("</head>", HUB_STYLE + assets + '<link rel="stylesheet" href="/assets/just-ai-brand.css">' + "</head>")
-    html = html.replace("<body>", '<body class="atlas-depth-page">' + HUB_HEADER, 1)
+    username = os.getenv("ATLAS_TELEGRAM_BOT_USERNAME", "").strip().removeprefix("@")
+    telegram_link = ""
+    if re.fullmatch(r"[a-z0-9_]{2,29}bot", username, re.IGNORECASE | re.ASCII):
+        telegram_link = (
+            f'<a class="atlas-3d" href="https://t.me/{username}?start=atlas" '
+            'target="_blank" rel="noopener noreferrer" '
+            'data-hub-en="Open in Telegram" data-hub-ar="افتح في تيليغرام">Open in Telegram</a>'
+        )
+    header = HUB_HEADER.replace("<!-- telegram-navigation -->", telegram_link)
+    html = html.replace("<body>", '<body class="atlas-depth-page">' + header, 1)
     html = html.replace('<div class="shell">', '<div class="shell">' + MARKET_BOARD, 1)
     return html.replace("</body>", HUB_SCRIPT + "</body>")
 

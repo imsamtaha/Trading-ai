@@ -66,6 +66,15 @@ def test_canonical_dashboard_is_trading_hub_with_section_navigation():
         assert f'href="{target}"' in html
 
 
+def test_telegram_navigation_requires_a_valid_configured_bot_username(monkeypatch):
+    monkeypatch.delenv("ATLAS_TELEGRAM_BOT_USERNAME", raising=False)
+    assert "https://t.me/" not in _atlas_ultimate_html()
+    monkeypatch.setenv("ATLAS_TELEGRAM_BOT_USERNAME", "@ExampleAtlasBot")
+    assert 'href="https://t.me/ExampleAtlasBot?start=atlas"' in _atlas_ultimate_html()
+    monkeypatch.setenv("ATLAS_TELEGRAM_BOT_USERNAME", "https://example.test/bot")
+    assert "https://t.me/" not in _atlas_ultimate_html()
+
+
 def test_trading_hub_has_premium_3d_and_mobile_ui_hooks():
     html = _atlas_ultimate_html()
     assert "atlas-hub-shell" in html
