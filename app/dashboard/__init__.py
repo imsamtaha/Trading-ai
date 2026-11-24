@@ -59,8 +59,35 @@ def _atlas_ultimate_html() -> str:
 .plans-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}}.plan-card{{display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}}.plan-card:before{{content:"";position:absolute;inset:-80% 45% auto -30%;height:220px;background:radial-gradient(circle,#ff7a1a1f,transparent 68%);pointer-events:none}}.atlas-tech-bg{{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:900px;overflow:hidden}}.atlas-tech-bg:before{{content:"";position:absolute;left:-15%;right:-15%;bottom:-36%;height:72%;transform:rotateX(64deg);transform-origin:center top;background-image:linear-gradient(#ff7a1a14 1px,transparent 1px),linear-gradient(90deg,#91a4bd12 1px,transparent 1px);background-size:58px 58px}}.atlas-tech-bg:after{{content:"";position:absolute;width:560px;height:560px;right:-180px;top:20%;border:1px solid #ff7a1a20;border-radius:50%;box-shadow:0 0 80px #ff7a1a12,inset 0 0 80px #91a4bd0b}}@media(max-width:1180px){{.plans-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.plans-grid{{grid-template-columns:1fr}}}}
 </style>
 '''
-    scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/demo-panel.js"></script><script src="/ui/setups-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
+    scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/setups-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
+    if not ctrader_selected():
+        scripts += '<script src="/ui/demo-panel.js"></script>'
     html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
+    if ctrader_selected():
+        # Keep legacy MT5 nodes for script compatibility but never display them as
+        # current cTrader account information. Do not request MT5 telemetry.
+        start = '<div id="hub-account" class="section-title">'
+        end = '<div id="hub-markets" class="section-title">'
+        if start not in html or end not in html:
+            raise ValueError("Cannot isolate the retired MT5 dashboard section")
+        html = html.replace(start, '<div id="legacy-mt5-paused" hidden aria-hidden="true">' + start, 1)
+        html = html.replace(end, '</div>' + end, 1)
+        html = html.replace(
+            'LIVE DEMO telemetry. ATLAS simulated demo execution is active; real-money trading is off.',
+            'FxPro cTrader Demo requires view-only authorization. MT5 is paused. '
+            'Historical MT5 PAPER records are not cTrader broker results.',
+            1,
+        )
+        html = html.replace(
+            'function el(i){return document.getElementById(i)}',
+            'const ctraderMode=true;function el(i){return document.getElementById(i)}',
+            1,
+        )
+        html = html.replace(
+            'async function refresh(){try{',
+            "async function refresh(){if(ctraderMode){el('status').textContent='CTRADER · VIEW ONLY';return;}try{",
+            1,
+        )
     html = html.replace('<body>', '<body><div class="atlas-tech-bg" aria-hidden="true"></div>')
     insert = ACCOUNT_PANEL + broker_entry + plans
     html = html.replace('</main>', insert + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', insert + '<div class="notice" id="disclaimer">')
