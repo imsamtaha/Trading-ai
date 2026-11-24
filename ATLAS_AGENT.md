@@ -105,5 +105,10 @@ The first ATLAS skill set is stored in `atlas-skills/`:
 - market-structure
 - risk-management
 - trade-review
+- [atlas-risk-sizing-slides](atlas-skills/atlas-risk-sizing-slides/SKILL.md) — presentations on model outputs, Senior Risk gates, and paper position sizing
 
 The skills guide orchestration and explanation. They never override deterministic engine outputs.
+
+## TITAN Council
+
+[Open the TITAN Council v1.0 paper profile](docs/TITAN_COUNCIL.md) for the SMC evidence workflow, risk gates and journaling.

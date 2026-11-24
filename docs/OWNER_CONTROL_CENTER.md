@@ -8,10 +8,11 @@ repository work. Do not claim a Sites URL or custom domain is live until its
 own deployment source and owner authentication are verified.
 
 The page is Arabic-default, mobile RTL, bilingual, and read-only. It provides
-Overview, Council Agents, MT5 DEMO status, Signals, Risk Controls, Training
+Overview, Council Agents, Accounts, Signals, Risk Controls, Training
 Progress, Decision Evidence, PAPER Trade History, Windows Runtime, and Shadow
 Learning, with Refresh, History, search, sorting and before/after comparison
-slots. Nothing writes to MT5, runs the worker, or touches broker credentials.
+slots. The Accounts view reads demo account information using private,
+view-only cTrader authorization.
 
 This change **does not delete** older public dashboards, billing code,
 compatibility routes, worker scripts, data, or existing Sites publications.
@@ -61,6 +62,33 @@ metrics remain empty unless separately evidenced and signed. Council
 confidence comes from actual training opinions; weights come from the PAPER
 profile. Profit/loss fields are risk-multiple PAPER estimates only, never
 broker profit. An empty section means *unavailable*, not zero performance.
+
+## cTrader demo workspace
+
+Choose `ATLAS_BROKER_PROVIDER=ctrader` on the private ATLAS application to
+select cTrader and pause MT5 connections. An independent Windows worker needs
+the same setting or a controlled stop on its own host. In an MT5 deployment,
+`ATLAS_MT5_CONNECTIONS_PAUSED=true` also blocks MT5.
+
+Set `ATLAS_OWNER_DASHBOARD_USER` to the intended primary workspace login and
+`ATLAS_MT5_WORKSPACE_EMAIL` to the optional MT5 identity. The optional identity
+is a private display label. The existing owner password remains the
+authentication mechanism.
+
+Configure the cTrader login shown in the app in `ATLAS_CTRADER_DEMO_LOGIN`.
+Store the approved application credentials `ATLAS_CTRADER_CLIENT_ID` and
+`ATLAS_CTRADER_CLIENT_SECRET`, and a fresh `ATLAS_CTRADER_ACCESS_TOKEN` from
+the cTrader Open API `accounts` authorization, in the private runtime secret
+store. Select the intended demo account on the consent screen. Rotate
+credentials through the Open API portal and update the runtime when required.
+
+The owner page’s Accounts tab queries the demo endpoint on request. It shows
+the masked cTrader login and account information with the existing signed
+PAPER history and training results alongside it. Broker demo activity is never
+imported as PAPER results. The existing signed Windows PAPER export remains
+the source of the history and training figures.
+
+[cTrader Open API authentication](https://help.ctrader.com/open-api/account-authentication/)
 
 ## Validation and acceptance
 

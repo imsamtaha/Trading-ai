@@ -1,8 +1,4 @@
-"""Private owner-only read surface for attested Windows PAPER evidence.
-
-No broker adapters, order-write functions, or mutating routes are imported here.
-Unknown, missing, unsigned and stale data never becomes live-performance evidence.
-"""
+"""Private owner-only views of signed PAPER evidence and broker demo account information."""
 from __future__ import annotations
 
 import hashlib
@@ -18,6 +14,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
+from app.execution.provider_mode import ctrader_selected, mt5_connections_paused
+from app.integrations.ctrader_demo import read_demo_account
 
 router = APIRouter(prefix="/sam", tags=["owner"])
 security = HTTPBasic(auto_error=False)
@@ -162,3 +161,19 @@ def owner_dashboard(_: None = Depends(owner_only)):
 def owner_snapshot(_: None = Depends(owner_only)):
     return JSONResponse(read_evidence(), headers={"Cache-Control": "no-store",
                                                    "X-Content-Type-Options": "nosniff"})
+
+
+@router.get("/api/accounts", include_in_schema=False)
+def owner_accounts(_: None = Depends(owner_only)):
+    return JSONResponse(
+        {
+            "primary_workspace": os.getenv("ATLAS_OWNER_DASHBOARD_USER", "").strip(),
+            "primary_provider": "cTrader" if ctrader_selected() else "MT5",
+            "ctrader_demo": read_demo_account(),
+            "mt5": {
+                "status": "PAUSED" if mt5_connections_paused() else "AVAILABLE",
+                "workspace": os.getenv("ATLAS_MT5_WORKSPACE_EMAIL", "").strip() or None,
+            },
+        },
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )

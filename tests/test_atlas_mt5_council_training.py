@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
 
 
@@ -137,6 +139,32 @@ def test_losing_long_paper_close_trains_opposite_realized_direction(tmp_path, mo
     examples = monitor.council_training_journal.load()
     assert len(examples) == 1
     assert examples[0].realized_direction == "SELL"
+
+
+@pytest.mark.parametrize("quote_override, reason", [
+    ({"time_msc": 1}, "stale"),
+    ({"time_msc": "invalid"}, "invalid"),
+    ({"bid": float("inf"), "ask": float("inf")}, "Invalid quote"),
+])
+def test_unusable_quote_cannot_close_or_train_paper_trade(tmp_path, monkeypatch, quote_override, reason):
+    monitor = _monitor(tmp_path, monkeypatch)
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: _fresh_quote())
+    timestamp = datetime.now(timezone.utc).isoformat()
+    opened = monitor._open_paper_trade(
+        timestamp=timestamp, symbol="EURUSD", candidate=_candidate(), decision=_decision(),
+    )
+    assert opened["status"] == "PAPER_TRADE_OPENED"
+    target = float(opened["trade"]["take_profit"])
+    bad_quote = {**_fresh_quote(bid=target, ask=target + 0.0001), **quote_override}
+    monkeypatch.setattr(monitor.broker, "quote", lambda symbol: bad_quote)
+
+    events = monitor._close_due_positions(timestamp)
+
+    assert len(events) == 1
+    assert events[0]["status"] == "MT5_ERROR"
+    assert reason in events[0]["reason"]
+    assert len(monitor.ledger.open_positions()) == 1
+    assert monitor.council_training_journal.load() == []
 
 
 def test_training_disabled_preserves_legacy_paper_path(tmp_path, monkeypatch):

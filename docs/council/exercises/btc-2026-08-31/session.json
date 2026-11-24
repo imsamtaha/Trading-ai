@@ -1,0 +1,77 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "title": "BTC/USD — 31 August 2026: nine-seat historical Council case",
+  "created_at": "2026-10-25T02:11:46.604814+00:00",
+  "historical_cutoff": "2026-08-31",
+  "source_review_date_as_supplied": "2026-10-16",
+  "status": "PREPARED_NOT_RUN",
+  "mode": "PAPER_CASE_STUDY",
+  "broker_execution_allowed": false,
+  "changes_trading_weights": false,
+  "model_training_executed": false,
+  "runtime_ledger_modified": false,
+  "automatic_promotion_allowed": false,
+  "source": {
+    "path": "source/btc-usd-original.md",
+    "sha256": "da05780944bfe01a2901ba44ee446fe87e6620b855ca328e6d39815b03b56e4b",
+    "verification": "USER_SUPPLIED_NOT_INDEPENDENTLY_REVERIFIED",
+    "raw_ohlcv_available": false,
+    "realized_outcome_available": false,
+    "point_in_time_archive": false
+  },
+  "seat_definition": {
+    "source": "atlas_senior_council.xlsx / Seats & Powers",
+    "sha256": "cd111fa19dca8df2ee67deb659ea1900996ca3e35895c2b48ac87b05bd83a351",
+    "role_mapping": "Exact workbook titles and powers; STC-01 through STC-09 are exercise IDs"
+  },
+  "baseline_score": 1.0,
+  "seat_count": 9,
+  "completed_seats": 0,
+  "seats": [
+    {
+      "id": "STC-01",
+      "title": "Chair / Portfolio Manager",
+      "packet": "seats/STC-01.json"
+    },
+    {
+      "id": "STC-02",
+      "title": "Macro Strategist",
+      "packet": "seats/STC-02.json"
+    },
+    {
+      "id": "STC-03",
+      "title": "Market Structure Analyst",
+      "packet": "seats/STC-03.json"
+    },
+    {
+      "id": "STC-04",
+      "title": "Quant Validator",
+      "packet": "seats/STC-04.json"
+    },
+    {
+      "id": "STC-05",
+      "title": "Risk Manager",
+      "packet": "seats/STC-05.json"
+    },
+    {
+      "id": "STC-06",
+      "title": "Execution Specialist",
+      "packet": "seats/STC-06.json"
+    },
+    {
+      "id": "STC-07",
+      "title": "News/Sentiment Analyst",
+      "packet": "seats/STC-07.json"
+    },
+    {
+      "id": "STC-08",
+      "title": "Red-Team (Devil's Advocate)",
+      "packet": "seats/STC-08.json"
+    },
+    {
+      "id": "STC-09",
+      "title": "Evaluator",
+      "packet": "seats/STC-09.json"
+    }
+  ]
+}

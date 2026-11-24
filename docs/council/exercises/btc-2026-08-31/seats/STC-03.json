@@ -1,0 +1,34 @@
+{
+  "session_id": "STC-BTC-20260831-CASE-001",
+  "seat_id": "STC-03",
+  "seat_title": "Market Structure Analyst",
+  "authority": "Advises",
+  "status": "PREPARED_NOT_RUN",
+  "instructions": "Use only source/btc-usd-original.md as supplied historical case material. Cutoff: 2026-08-31; later source review: 2026-10-16. External claims are supplied, not independently reverified here. Do not use later outcomes, invent candles, fills, probabilities, scores or market observations. Separate observation, inference, scenario and missing evidence. Return JSON matching response-template.json. This is PAPER_CASE_STUDY only. No broker action, runtime-weight change, model promotion or ledger insertion is permitted. Respect the Risk veto and Quant evidence block. Ask for missing evidence rather than loosening gates.",
+  "objective": "Assess the daily structure and indicator definitions while identifying unsupported timeframe claims.",
+  "tasks": [
+    "Explain close versus SMA20 and the simple-average RSI/ATR convention.",
+    "Recalculate retracements from the supplied swing endpoints.",
+    "Explain why the proposed entry is not a demonstrated multi-timeframe confirmation."
+  ],
+  "response": null,
+  "assessment": null,
+  "rubric": [
+    {
+      "criterion": "Daily scope respected",
+      "points": 2
+    },
+    {
+      "criterion": "Indicator method named correctly",
+      "points": 2
+    },
+    {
+      "criterion": "Retracement arithmetic correct",
+      "points": 2
+    },
+    {
+      "criterion": "Missing candles and trigger acknowledged",
+      "points": 2
+    }
+  ]
+}

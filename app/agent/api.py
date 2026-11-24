@@ -7,6 +7,8 @@ from app.agent.models import AgentRequest, MULTI_TIMEFRAMES
 from app.agent.right_hand import build_right_hand_plan, capabilities as right_hand_capabilities
 from app.agent.tool_bridge import ConnectorBridgeError, bridge_status, execute_tool
 from app.agent.tools import TOOLS, paper_execute
+from app.intelligence.titan_council import POLICY as TITAN_POLICY, TitanEvidence, evaluate_titan
+from app.intelligence.titan_review import TitanReview, review_titan
 
 
 router = APIRouter(prefix="/agent", tags=["atlas-agent"])
@@ -50,6 +52,9 @@ def capabilities():
     return {
         "mode": "paper_only",
         "live_execution": False,
+        "titan_policy": "/agent/titan/policy",
+        "titan_analysis": "/agent/titan/analyze",
+        "titan_review": "/agent/titan/review",
         "multi_timeframes": list(MULTI_TIMEFRAMES),
         "multi_timeframe_policy": "unanimous_signals_and_all_risk_approved",
         "right_hand": "/agent/right-hand/capabilities",
@@ -64,6 +69,21 @@ def capabilities():
             for tool in TOOLS.values()
         ],
     }
+
+
+@router.get("/titan/policy")
+def titan_policy():
+    return TITAN_POLICY
+
+
+@router.post("/titan/analyze")
+def titan_analyze(payload: TitanEvidence):
+    return evaluate_titan(payload)
+
+
+@router.post("/titan/review")
+def titan_review(payload: TitanReview):
+    return review_titan(payload)
 
 
 @router.get("/right-hand/capabilities")

@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from app.execution.provider_mode import mt5_connections_paused
+
 
 class RemoteMT5BridgeError(RuntimeError):
     """Raised when remote MT5 telemetry is unavailable or unsafe."""
@@ -28,6 +30,8 @@ def fetch_remote_mt5_telemetry() -> dict[str, Any]:
     identify a demo account, READ_ONLY mode, and broker_orders=false.
     """
 
+    if mt5_connections_paused():
+        raise RemoteMT5BridgeError("MT5 connections are paused.")
     base_url = _bridge_url()
     token = os.getenv("ATLAS_MT5_BRIDGE_TOKEN", "").strip()
     timeout = float(os.getenv("ATLAS_MT5_BRIDGE_TIMEOUT_SECONDS", "5"))
