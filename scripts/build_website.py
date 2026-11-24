@@ -8,8 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.css", "assets/site.js",
                 "assets/demo-model.js", "assets/favicon.svg", "assets/google-auth.js",
                 "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-main-logo.svg", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp",
-                "assets/atlas-market.css", "assets/atlas-market.js", "assets/atlas-tiger.webp",
-                "assets/atlas-tiger-small.webp", "assets/just-ai-intelligence.webp",
+                "assets/atlas-market.css", "assets/atlas-market.js", "assets/atlas-tiger-shield.webp",
+                "assets/atlas-tiger-shield-small.webp", "assets/just-ai-intelligence.webp",
                 "assets/just-ai-intelligence-mark.webp", "council/btc-2026-08-31.html"}
 EXTERNAL_LINKS = {
     "https://justai-atlas.online/sam",

@@ -15,7 +15,7 @@ def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
         for asset in (
             "site.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
             "atlas-brand.css", "atlas-main-logo.svg", "atlas-market.css", "atlas-market.js",
-            "atlas-tiger.webp", "atlas-tiger-small.webp", "just-ai-intelligence.webp",
+            "atlas-tiger-shield.webp", "atlas-tiger-shield-small.webp", "just-ai-intelligence.webp",
             "just-ai-intelligence-mark.webp",
         ):
             assert client.get(f"/assets/{asset}").status_code == 200
@@ -41,6 +41,8 @@ def test_market_link_and_historical_exercise_resolve_in_dashboard_only_mode(monk
     with TestClient(app) as client:
         page = client.get("/").text
         assert page.index('id="market-analysis"') < page.index('id="marketBoard"')
+        assert 'src="/assets/atlas-tiger-shield.webp"' in page
+        assert 'srcset="/assets/atlas-tiger-shield-small.webp"' in page
         assert "/assets/atlas-market.js" in page
         legacy = client.get("/traders", follow_redirects=False)
         assert legacy.status_code == 308

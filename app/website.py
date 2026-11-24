@@ -40,7 +40,7 @@ def website_asset(name: str):
     if name not in {
         "site.css", "centers.css", "site.js", "demo-model.js", "favicon.svg", "google-auth.js",
         "atlas-brand.css", "atlas-main-logo.svg", "atlas-news.js",
-        "atlas-market.css", "atlas-market.js", "atlas-tiger.webp", "atlas-tiger-small.webp",
+        "atlas-market.css", "atlas-market.js", "atlas-tiger-shield.webp", "atlas-tiger-shield-small.webp",
         "just-ai-brand.css", "just-ai-icon.webp", "just-ai-reference.webp",
         "just-ai-intelligence.webp", "just-ai-intelligence-mark.webp",
     }:

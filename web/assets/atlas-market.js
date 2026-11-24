@@ -89,20 +89,18 @@
           <a data-tv-link data-market-label="open" target="_blank" rel="noopener noreferrer"></a>
         </div>
       </section>`;
-    board.innerHTML = `
+    board.querySelector("[data-atlas-market-content]").innerHTML = `
       <header class="atlas-market-banner">
-        <picture class="atlas-market-art" aria-hidden="true">
-          <source media="(max-width: 650px)" srcset="/assets/atlas-tiger-small.webp">
-          <img src="/assets/atlas-tiger.webp" width="2560" height="1440" alt="" decoding="async">
-        </picture>
-        <div class="atlas-market-copy">
-          <h2 id="atlas-market-title" data-market-label="title"></h2>
-          <p data-market-label="timing"></p>
-        </div>
-        <div class="atlas-market-control">
-          <label for="atlas-instrument" data-market-label="market"></label>
-          <select id="atlas-instrument" dir="ltr">${Object.entries(instruments).map(([symbol, name]) =>
-            `<option value="${symbol}">${name}</option>`).join("")}</select>
+        <div class="atlas-market-toolbar">
+          <div class="atlas-market-copy">
+            <h2 id="atlas-market-title" data-market-label="title"></h2>
+            <p data-market-label="timing"></p>
+          </div>
+          <div class="atlas-market-control">
+            <label for="atlas-instrument" data-market-label="market"></label>
+            <select id="atlas-instrument" dir="ltr">${Object.entries(instruments).map(([symbol, name]) =>
+              `<option value="${symbol}">${name}</option>`).join("")}</select>
+          </div>
         </div>
       </header>
       <div class="atlas-market-grid">${makePanel("chart")}
