@@ -61,7 +61,7 @@ async def dashboard_only_guard(request: Request, call_next):
             "/ui/preferences.js", "/ui/agent-panel.js", "/ui/demo-panel.js", "/ui/setups-panel.js",
             "/dashboard", "/dashboard/", "/dashboard/state", "/dashboard/atlas",
             "/dashboard/demo-status", "/dashboard/trader-view",
-            "/sam", "/sam/", "/sam/api/snapshot", "/dashboard/mt5-state", "/dashboard/active-setups",
+            "/sam", "/sam/", "/sam/api/snapshot", "/sam/api/accounts", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
             "/agent/capabilities", "/agent/titan/policy", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",

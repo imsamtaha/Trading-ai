@@ -8,4 +8,5 @@ openai-agents
 PyYAML
 pytest
 httpx>=0.28,<1
+websockets>=12,<18
 MetaTrader5; sys_platform == "win32"

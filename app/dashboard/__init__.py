@@ -11,6 +11,7 @@ from app.dashboard.fxpro_onboarding import fxpro_entry_card, router as fxpro_onb
 from app.dashboard.setups_panel import router as setups_panel_router
 from app.dashboard.trading_hub import enhance_atlas_html
 from app.dashboard.views import DASHBOARD_HTML
+from app.execution.provider_mode import ctrader_selected
 
 router = APIRouter()
 CANONICAL_ATLAS_PATH = "/"
@@ -33,7 +34,14 @@ def _atlas_ultimate_html() -> str:
     starter_stripe = _stripe_button("watch")
     pro_stripe = _stripe_button("reader")
     elite_stripe = _stripe_button("pro")
-    fxpro_entry = fxpro_entry_card()
+    if ctrader_selected():
+        broker_entry = (
+            '<section class="card" id="broker-connection">'
+            '<h2>cTrader Demo</h2><p>View the demo account and PAPER evidence in the owner workspace.</p>'
+            '<a class="btn ghost atlas-3d" href="/sam">Owner workspace</a></section>'
+        )
+    else:
+        broker_entry = fxpro_entry_card()
     plans = f'''
 <section id="plans" class="card atlas-plans" style="margin-top:18px">
   <div class="label">ATLAS ULTIMATE ACCESS</div>
@@ -54,7 +62,7 @@ def _atlas_ultimate_html() -> str:
     scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/demo-panel.js"></script><script src="/ui/setups-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
     html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
     html = html.replace('<body>', '<body><div class="atlas-tech-bg" aria-hidden="true"></div>')
-    insert = ACCOUNT_PANEL + fxpro_entry + plans
+    insert = ACCOUNT_PANEL + broker_entry + plans
     html = html.replace('</main>', insert + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', insert + '<div class="notice" id="disclaimer">')
     html = html.replace('</body>', scripts + '</body>')
     return enhance_atlas_html(html)

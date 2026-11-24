@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from app.dashboard.market_briefing import get_market_briefing
 from app.data.market import get_candles
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
+from app.execution.provider_mode import mt5_connections_paused
 from app.intelligence.confidence import SignalQualityEngine
 from app.integrations.supabase_journal import SupabaseJournalError, SupabaseSignalJournal
 from app.integrations.mt5_bridge import RemoteMT5BridgeError, fetch_remote_mt5_telemetry
@@ -157,6 +158,8 @@ def market_briefing(language: Literal["ar", "en"] = "ar") -> dict[str, Any]:
 @router.get("/state")
 @router.get("/atlas")
 def atlas_dashboard_state() -> dict[str, Any]:
+    if mt5_connections_paused():
+        raise HTTPException(status_code=503, detail="MT5 connections are paused.")
     if os.getenv("ATLAS_MT5_BRIDGE_URL", "").strip():
         try:
             return fetch_remote_mt5_telemetry()
