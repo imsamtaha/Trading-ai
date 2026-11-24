@@ -106,6 +106,7 @@ def enhance_atlas_html(html: str) -> str:
         )
     header = HUB_HEADER.replace("<!-- telegram-navigation -->", telegram_link)
     if ctrader_selected():
+        header = header.replace('href="#demo-session" data-hub-en="Live Demo" data-hub-ar="تجريبي مباشر"', 'href="/sam" data-hub-en="cTrader Demo" data-hub-ar="حساب cTrader التجريبي"')
         header = header.replace("FxPro MT5 workspace", "FxPro cTrader Demo · read-only")
         header = header.replace("مساحة عمل FxPro MT5", "FxPro cTrader تجريبي · قراءة فقط")
         header = header.replace(
