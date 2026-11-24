@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">ATLAS Trading AI main logo</title>
+  <desc id="desc">Metallic ATLAS logo with graphite black background, silver pyramid A mark, and orange edge lighting.</desc>
+  <defs>
+    <radialGradient id="stageGlow" cx="50%" cy="46%" r="64%">
+      <stop offset="0" stop-color="#ff9d2e" stop-opacity="0.38"/>
+      <stop offset="0.42" stop-color="#1b1714"/>
+      <stop offset="1" stop-color="#070706"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.22" stop-color="#bfc0bc"/>
+      <stop offset="0.5" stop-color="#f6efe5"/>
+      <stop offset="0.78" stop-color="#8f918d"/>
+      <stop offset="1" stop-color="#ece9df"/>
+    </linearGradient>
+    <linearGradient id="orangeEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffbf69"/>
+      <stop offset="0.47" stop-color="#ff7a18"/>
+      <stop offset="1" stop-color="#b43e08"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="28" stdDeviation="20" flood-color="#000" flood-opacity="0.52"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="13" flood-color="#ff7a18" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="760" rx="48" fill="url(#stageGlow)"/>
+  <g opacity="0.72">
+    <path d="M66 108h188l-96 544H66zM946 108h188v544H946z" fill="#0f0f0e"/>
+    <path d="M90 111h18v462H90zM1092 111h18v462h-18z" fill="#ff7a18" opacity="0.75"/>
+  </g>
+  <ellipse cx="600" cy="365" rx="318" ry="310" fill="#11100e" stroke="url(#metal)" stroke-width="18"/>
+  <circle cx="600" cy="365" r="271" fill="none" stroke="#ff7a18" stroke-width="16" stroke-dasharray="148 54" opacity="0.94"/>
+  <path d="M600 82 280 548h150l170-257 170 257h150L600 82Z" fill="url(#metal)" filter="url(#shadow)"/>
+  <path d="M600 225 472 548h94l34-86 36 86h94L600 225Z" fill="#070706" opacity="0.9"/>
+  <path d="M386 518c110-58 244-78 430-56-79 42-201 72-368 84-48 4-72-2-62-28Z" fill="url(#metal)" filter="url(#shadow)"/>
+  <path d="M456 452c76-30 171-38 293-22" fill="none" stroke="#ff7a18" stroke-width="10" stroke-linecap="round" opacity="0.84"/>
+  <ellipse cx="600" cy="675" rx="470" ry="38" fill="none" stroke="#ff7a18" stroke-width="8" opacity="0.72"/>
+  <text x="600" y="674" text-anchor="middle" font-family="Orbitron, Montserrat, Arial Black, Arial, sans-serif" font-size="132" font-weight="900" letter-spacing="8" fill="url(#metal)" stroke="#19130d" stroke-width="4" paint-order="stroke fill" filter="url(#shadow)">ATLAS</text>
+</svg>
