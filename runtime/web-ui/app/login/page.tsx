@@ -27,7 +27,7 @@ export default function LoginPage() {
 
       <div className="atlas-login-foot">
         <p className="atlas-login-note">Your dashboard remains Paper-only. Account connection and product access are handled separately.</p>
-        <a className="atlas-login-back" href="/dashboard">← Back to dashboard preview</a>
+        <a className="atlas-login-back" href="/dashboard">← Open ATLAS dashboard</a>
       </div>
     </section>
   </main>;
