@@ -10,6 +10,15 @@ import sys
 import time
 import urllib.request
 
+from dotenv import load_dotenv
+
+# Also support the existing scheduled task's direct script invocation.
+ROOT = Path(__file__).resolve().parents[1]
+if __name__ == "__main__":
+    sys.path.insert(0, str(ROOT))
+
+from app.execution.provider_mode import mt5_connections_paused
+
 class FailureGate:
     def __init__(self, state=None):
         self.state = dict(state or {"failures": 0, "attempts": 0, "next": 0})
@@ -244,6 +253,10 @@ def main():
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--state-dir", required=False)
     args = parser.parse_args()
+    load_dotenv(ROOT / ".env", override=False)
+    if mt5_connections_paused():
+        print(json.dumps({"state": "PAUSED", "reason": "MT5_CONNECTIONS_PAUSED"}))
+        return
     if args.mt5_probe:
         print(json.dumps(mt5_probe()))
         return

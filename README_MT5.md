@@ -12,7 +12,11 @@ open/close/error event in Supabase when credentials are available.
 
 `MT5 Worker -> local JSONL + Supabase audit events`
 
-## Windows setup
+## Optional legacy Windows setup
+
+ATLAS defaults to cTrader with MT5 paused. Only use these instructions for an
+authorized legacy MT5 demo host. Its private environment must explicitly set
+`ATLAS_BROKER_PROVIDER=mt5` and `ATLAS_MT5_CONNECTIONS_PAUSED=false`.
 
 For the reconnecting background worker and dashboard, see
 [Demo operations and live-review handoff](docs/DEMO_OPERATIONS.md) and run

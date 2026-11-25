@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      legacy_windows:
+        description: Run optional legacy Windows compatibility tests
+        type: boolean
+        default: false
 
 jobs:
   pytest:
@@ -34,7 +40,7 @@ jobs:
           trap 'docker logs "$container_id"; docker rm --force "$container_id"' EXIT
           healthy=false
           for attempt in {1..30}; do
-            if curl --fail --silent --show-error http://127.0.0.1:8080/health | grep --quiet '"status":"healthy"'; then
+            if curl --fail --silent --show-error http://127.0.0.1:8080/health | python -c 'import json, sys; d = json.load(sys.stdin); sys.exit(not (d.get("status") == "healthy" and d.get("mt5_paused") is True and d.get("broker_provider") == "ctrader"))'; then
               healthy=true
               break
             fi
@@ -42,7 +48,8 @@ jobs:
           done
           test "$healthy" = "true"
           status=$(curl --silent --output /tmp/atlas-write-response.json --write-out '%{http_code}' --request POST http://127.0.0.1:8080/mt5/test-order)
-          test "$status" = "403"
+          test "$status" = "503"
+          python -c 'import json, sys; sys.exit(json.load(sys.stdin).get("status") != "PAUSED")' < /tmp/atlas-write-response.json
 
       - name: Set up Node for public demo validation
         uses: actions/setup-node@v4
@@ -60,6 +67,7 @@ jobs:
           python scripts/build_website.py
 
   journal-integrity-windows:
+    if: github.event_name == 'workflow_dispatch' && inputs.legacy_windows
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -94,4 +102,3 @@ jobs:
           ATLAS_LIVE_TRADING: 'false'
           ATLAS_DASHBOARD_ONLY: 'true'
         run: python -m pytest -q
-

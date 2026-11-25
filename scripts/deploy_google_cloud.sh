@@ -98,7 +98,7 @@ gcloud builds submit   --config cloudbuild.yaml   --region "$REGION"   --project
 
 CANDIDATE_TAG="candidate-${SOURCE_REVISION:0:12}"
 
-gcloud run deploy "$SERVICE"   --image "$IMAGE_URI"   --region "$REGION"   --project "$PROJECT_ID"   --platform managed   --allow-unauthenticated   --ingress all   --port 8080   --cpu 1   --memory 512Mi   --concurrency 40   --min-instances 0   --max-instances 3   --timeout 60   --service-account "$RUNTIME_IDENTITY"   --no-traffic   --tag "$CANDIDATE_TAG"   --clear-secrets   --clear-volumes   --clear-volume-mounts   --clear-cloudsql-instances   --clear-vpc-connector   --set-env-vars "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false,ATLAS_WHISH_ENABLED=true,ATLAS_WHISH_RECIPIENT=76420910,ATLAS_WHISH_SUPPORT=info@justai-atlas.online"   --labels "source-revision=$SOURCE_REVISION,managed-by=atlas-deploy-script"   --quiet
+gcloud run deploy "$SERVICE"   --image "$IMAGE_URI"   --region "$REGION"   --project "$PROJECT_ID"   --platform managed   --allow-unauthenticated   --ingress all   --port 8080   --cpu 1   --memory 512Mi   --concurrency 40   --min-instances 0   --max-instances 3   --timeout 60   --service-account "$RUNTIME_IDENTITY"   --no-traffic   --tag "$CANDIDATE_TAG"   --clear-secrets   --clear-volumes   --clear-volume-mounts   --clear-cloudsql-instances   --clear-vpc-connector   --set-env-vars "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_BROKER_PROVIDER=ctrader,ATLAS_MT5_CONNECTIONS_PAUSED=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false,ATLAS_WHISH_ENABLED=true,ATLAS_WHISH_RECIPIENT=76420910,ATLAS_WHISH_SUPPORT=info@justai-atlas.online"   --labels "source-revision=$SOURCE_REVISION,managed-by=atlas-deploy-script"   --quiet
 
 SERVICE_JSON="$(gcloud run services describe "$SERVICE"   --region "$REGION"   --project "$PROJECT_ID"   --format=json)"
 
@@ -120,7 +120,7 @@ fi
 
 healthy=0
 for attempt in {1..10}; do
-  if curl -fsS "$CANDIDATE_URL/health" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("status")=="healthy" else 1)' 2>/dev/null; then
+  if curl -fsS "$CANDIDATE_URL/health" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("status")=="healthy" and d.get("mt5_paused") is True and d.get("broker_provider")=="ctrader" else 1)' 2>/dev/null; then
     healthy=1
     break
   fi
@@ -133,8 +133,8 @@ if [[ "$healthy" -ne 1 ]]; then
 fi
 
 STATUS_CODE="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$CANDIDATE_URL/mt5/test-order")"
-if [[ "$STATUS_CODE" != "403" ]]; then
-  echo "ERROR: Safety check failed. POST /mt5/test-order returned $STATUS_CODE, expected 403."
+if [[ "$STATUS_CODE" != "503" ]]; then
+  echo "ERROR: Safety check failed. POST /mt5/test-order returned $STATUS_CODE, expected 503 while MT5 is paused."
   exit 1
 fi
 

@@ -29,7 +29,9 @@ The protected Tiger Shield owner account panel at `/sam` can use the same demo c
 
 ## Pause the previous MT5 worker
 
-On each Tiger Shield API and worker host, set `ATLAS_BROKER_PROVIDER=ctrader` and `ATLAS_MT5_CONNECTIONS_PAUSED=true` in the service environment. The Tiger Shield container has those defaults. Stop the previously running MT5 monitor and telemetry bridge on their original host and disable their scheduled starts. Restart the Tiger Shield API after changing its environment, then check `/health` for `mt5_paused: true`. Archived PAPER journals remain available in the owner workspace.
+On each Tiger Shield API and worker host, set `ATLAS_BROKER_PROVIDER=ctrader` and `ATLAS_MT5_CONNECTIONS_PAUSED=true` in the service environment. These are also the API and container defaults. The Windows watchdog exits in this mode before probing MT5 or recovering Windows tasks. For a host already running an earlier checkout, stop the MT5 monitor, telemetry bridge, and watchdog on that host and disable their scheduled starts. Restart the Tiger Shield API after changing its environment, then check `/health` for `mt5_paused: true` and `broker_provider: ctrader`. Archived PAPER journals remain available in the owner workspace.
+
+The regular GitHub checks run on Ubuntu. To run the Windows compatibility suite separately, dispatch the `tests` workflow with `legacy_windows` enabled.
 
 ## Start training
 

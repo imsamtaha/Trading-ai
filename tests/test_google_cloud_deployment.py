@@ -91,7 +91,10 @@ def test_operator_retries_health_and_checks_write_boundary():
     assert "Start-Sleep" in script
     assert "/mt5/test-order" in script
     assert "StatusCode" in script
-    assert "403" in script
+    assert "503" in script
+    assert "mt5_paused" in script
+    assert "ATLAS_BROKER_PROVIDER=ctrader" in script
+    assert "ATLAS_MT5_CONNECTIONS_PAUSED=true" in script
 
 
 def test_ci_parses_powershell_and_checks_container_write_boundary():
@@ -99,7 +102,9 @@ def test_ci_parses_powershell_and_checks_container_write_boundary():
 
     assert "Parse Google Cloud deployment script" in workflow
     assert "http://127.0.0.1:8080/mt5/test-order" in workflow
-    assert "403" in workflow
+    assert 'test "$status" = "503"' in workflow
+    assert 'get("status") != "PAUSED"' in workflow
+    assert "github.event_name == 'workflow_dispatch' && inputs.legacy_windows" in workflow
 
 
 def test_build_uses_dedicated_least_privileged_identity():
@@ -139,3 +144,32 @@ def test_each_release_refuses_to_reuse_service_accounts():
 
     assert "[Guid]::NewGuid" in script
     assert "Refusing to reuse existing service account" in script
+
+
+def test_default_runtime_pauses_mt5_before_broker_access(monkeypatch):
+    from unittest.mock import Mock
+
+    from fastapi.testclient import TestClient
+
+    from app import main
+    from app.execution.provider_mode import mt5_connections_paused
+
+    monkeypatch.delenv("ATLAS_BROKER_PROVIDER", raising=False)
+    monkeypatch.delenv("ATLAS_MT5_CONNECTIONS_PAUSED", raising=False)
+    monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
+    monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
+    broker_service = Mock(side_effect=AssertionError("MT5 route reached broker"))
+    monkeypatch.setattr(main, "_mt5_service", broker_service)
+
+    client = TestClient(main.app)
+    assert client.get("/health").json()["broker_provider"] == "ctrader"
+    assert client.get("/health").json()["mt5_paused"] is True
+    response = client.post("/mt5/test-order")
+    assert response.status_code == 503
+    assert response.json()["status"] == "PAUSED"
+    broker_service.assert_not_called()
+
+    monkeypatch.setenv("ATLAS_BROKER_PROVIDER", "mt5")
+    assert mt5_connections_paused()
+    monkeypatch.setenv("ATLAS_MT5_CONNECTIONS_PAUSED", "false")
+    assert not mt5_connections_paused()

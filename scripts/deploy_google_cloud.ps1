@@ -283,7 +283,7 @@ try {
         "--clear-vpc-connector",
         "--clear-network",
         "--clear-network-tags",
-        "--set-env-vars", "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false,ATLAS_WHISH_ENABLED=true,ATLAS_WHISH_RECIPIENT=76420910,ATLAS_WHISH_SUPPORT=info@justai-atlas.online",
+        "--set-env-vars", "ATLAS_LIVE_TRADING=false,ATLAS_DASHBOARD_ONLY=true,ATLAS_BROKER_PROVIDER=ctrader,ATLAS_MT5_CONNECTIONS_PAUSED=true,ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false,ATLAS_PUBLIC_ANALYSIS_ENABLED=false,ATLAS_WHISH_ENABLED=true,ATLAS_WHISH_RECIPIENT=76420910,ATLAS_WHISH_SUPPORT=info@justai-atlas.online",
         "--labels", "source-revision=$sourceRevision,managed-by=atlas-deploy-script",
         "--quiet"
     ) | Out-Host
@@ -305,9 +305,12 @@ try {
     }
 
     $candidateHealth = Wait-AtlasHealth -Url $candidateUrl
+    if ($candidateHealth.mt5_paused -ne $true -or $candidateHealth.broker_provider -ne "ctrader") {
+        throw "Candidate safety verification failed. Expected cTrader with MT5 paused."
+    }
     $StatusCode = Get-HttpStatus -Url "$candidateUrl/mt5/test-order"
-    if ($StatusCode -ne 403) {
-        throw "Candidate safety verification failed. Expected POST /mt5/test-order to return 403, received $StatusCode."
+    if ($StatusCode -ne 503) {
+        throw "Candidate safety verification failed. Expected POST /mt5/test-order to return 503 while MT5 is paused, received $StatusCode."
     }
 
     Invoke-Gcloud -Arguments @(

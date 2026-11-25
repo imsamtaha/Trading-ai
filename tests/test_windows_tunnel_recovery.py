@@ -38,3 +38,13 @@ def test_maintenance_suppresses_service_restarts(tmp_path):
     (tmp_path / "maintenance.json").write_text(json.dumps({"expires_at": 1100}))
     for _ in range(4):
         assert cycle(tmp_path, frontend=False)["actions"] == []
+
+
+def test_watchdog_exits_before_probing_legacy_services(monkeypatch, capsys):
+    monkeypatch.delenv("ATLAS_BROKER_PROVIDER", raising=False)
+    monkeypatch.delenv("ATLAS_MT5_CONNECTIONS_PAUSED", raising=False)
+    monkeypatch.setattr(w.sys, "argv", ["atlas_windows_watchdog.py", "--mt5-probe"])
+    with patch.object(w, "load_dotenv"), patch.object(w, "mt5_probe") as probe:
+        w.main()
+    probe.assert_not_called()
+    assert json.loads(capsys.readouterr().out)["state"] == "PAUSED"
