@@ -48,7 +48,7 @@ it("enables Google for a signed-out user and invokes OAuth when pressed", async 
   const google = screen.getByRole("button", { name: "Continue with Google" });
   await waitFor(() => expect(google).toBeEnabled());
   fireEvent.click(google);
-  await waitFor(() => expect(oauth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "http://localhost:3000/login?auth=callback&returnTo=%2Fdashboard%23ai", skipBrowserRedirect: true } }));
+  await waitFor(() => expect(oauth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "http://localhost:3000/login?auth=callback&returnTo=%2Fbackend%2Fapi%2Fme", skipBrowserRedirect: true } }));
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Google sign-in is unavailable"));
   expect(google).toBeEnabled();
   window.history.replaceState({}, "", "/login");

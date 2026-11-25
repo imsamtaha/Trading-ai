@@ -7,7 +7,7 @@ export default function LoginPage() {
       <div className="atlas-login-brand-shell"><AtlasWordmark /></div>
       <span className="atlas-login-mode">PAPER INTELLIGENCE WORKSPACE</span>
       <h2>One secure sign-in.<br />Your ATLAS workspace.</h2>
-      <p>Market intelligence, Council analysis, Paper monitoring, and training context in one focused dashboard.</p>
+      <p>Secure access to ATLAS APIs.</p>
       <div className="atlas-login-points" aria-label="ATLAS access features">
         <span>Paper-first workspace</span>
         <span>Private session</span>
@@ -21,13 +21,12 @@ export default function LoginPage() {
         <span className="atlas-login-secure-dot">Encrypted session</span>
       </div>
       <h1 id="login-title">Sign in to ATLAS</h1>
-      <p className="atlas-login-lead">Continue to your private dashboard. Signing in does not connect a broker or enable broker execution.</p>
+      <p className="atlas-login-lead">Sign in to ATLAS services. Signing in does not connect a broker or enable broker execution.</p>
 
       <PrivateLogin />
 
       <div className="atlas-login-foot">
-        <p className="atlas-login-note">Your dashboard remains Paper-only. Account connection and product access are handled separately.</p>
-        <a className="atlas-login-back" href="/dashboard">← Open ATLAS dashboard</a>
+        <p className="atlas-login-note">Sign-in grants access to services according to your account permissions.</p>
       </div>
     </section>
   </main>;

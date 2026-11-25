@@ -48,18 +48,16 @@ def _signed_file(path, *, source="PAPER", allow_broker=False, age=0):
 def test_owner_disabled_until_auth_is_configured(monkeypatch):
     monkeypatch.delenv("ATLAS_OWNER_DASHBOARD_USER", raising=False)
     monkeypatch.delenv("ATLAS_OWNER_DASHBOARD_PASSWORD", raising=False)
-    assert client.get("/sam").status_code == 503
+    assert client.get("/sam").status_code == 410
     assert client.get("/sam/api/snapshot").status_code == 503
 
 
-def test_owner_requires_auth_for_page_and_snapshot(monkeypatch):
+def test_owner_snapshot_requires_auth_after_page_retirement(monkeypatch):
     _configured(monkeypatch)
-    assert client.get("/sam").status_code == 401
+    assert client.get("/sam").status_code == 410
     assert client.get("/sam/api/snapshot").status_code == 401
     assert client.get("/sam/api/snapshot", auth=("owner", "wrong")).status_code == 401
-    assert client.get("/sam", auth=AUTH).status_code == 200
-    assert "dir=\"rtl\"" in client.get("/sam", auth=AUTH).text
-    assert "LIVE TRADING DISABLED" in client.get("/sam", auth=AUTH).text
+    assert client.get("/sam", auth=AUTH).status_code == 410
 
 
 def test_account_configuration_is_private_and_preserves_the_paused_mt5_option(monkeypatch):
@@ -80,7 +78,7 @@ def test_account_configuration_is_private_and_preserves_the_paused_mt5_option(mo
 def test_owner_refuses_unsafe_execution_configuration(monkeypatch):
     _configured(monkeypatch)
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "true")
-    assert client.get("/sam", auth=AUTH).status_code == 503
+    assert client.get("/sam", auth=AUTH).status_code == 410
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "false")
     assert client.get("/sam/api/snapshot", auth=AUTH).status_code == 503
@@ -193,7 +191,7 @@ def test_owner_routes_respect_dashboard_only_guard(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
     with TestClient(app) as app_client:
-        assert app_client.get("/sam").status_code == 401
+        assert app_client.get("/sam").status_code == 410
         assert app_client.get("/sam/api/snapshot", auth=AUTH).status_code == 200
         assert app_client.post("/sam/api/snapshot", auth=AUTH).status_code == 403
         assert app_client.post("/mt5/test-order").status_code == 403

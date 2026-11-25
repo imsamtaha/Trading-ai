@@ -4,23 +4,13 @@ from app.main import app
 from scripts.build_website import validate
 
 
-def test_public_home_and_assets_work_in_dashboard_only_mode(monkeypatch):
+def test_service_entry_and_public_auth_asset_work_in_read_only_mode(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     monkeypatch.setenv("ATLAS_LIVE_TRADING", "false")
     with TestClient(app) as client:
-        page = client.get("/")
-        assert page.status_code == 200
-        assert "text/html" in page.headers["content-type"]
-        assert "ATLAS ULTIMATE" in page.text
-        for asset in (
-            "site.css", "site.js", "demo-model.js", "google-auth.js",
-            "atlas-brand.css", "atlas-market.css", "atlas-market.js",
-            "atlas-tiger-shield.webp", "atlas-tiger-shield-small.webp", "just-ai-intelligence.webp",
-            "just-ai-intelligence-mark.webp",
-        ):
-            assert client.get(f"/assets/{asset}").status_code == 200
-        for retired_asset in ("atlas-main-logo.svg", "favicon.svg"):
-            assert client.get(f"/assets/{retired_asset}").status_code == 404
+        assert client.get("/").json()["api"] == "/api"
+        assert client.get("/assets/google-auth.js").status_code == 200
+        assert client.get("/assets/site.js").status_code == 404
         assert client.get("/api").json()["system"] == "ATLAS ULTIMATE"
 
 
@@ -38,18 +28,9 @@ def test_public_package_is_complete_and_has_no_private_configuration():
     validate()
 
 
-def test_market_link_and_historical_exercise_resolve_in_dashboard_only_mode(monkeypatch):
+def test_historical_council_exercise_remains_available(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     with TestClient(app) as client:
-        page = client.get("/").text
-        assert page.index('id="market-analysis"') < page.index('id="marketBoard"')
-        assert 'src="/assets/atlas-tiger-shield.webp"' in page
-        assert 'srcset="/assets/atlas-tiger-shield-small.webp"' in page
-        assert "/assets/atlas-market.js" in page
-        legacy = client.get("/traders", follow_redirects=False)
-        assert legacy.status_code == 308
-        assert legacy.headers["location"] == "/#market-analysis"
-        assert 'href="/#market-analysis"' in client.get("/centers").text
         exercise = client.get("/council/btc-2026-08-31.html")
         assert exercise.status_code == 200
         assert "Awaiting submissions" in exercise.text

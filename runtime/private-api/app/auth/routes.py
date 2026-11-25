@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
-from app.auth.supabase_auth import require_user, verify_access_token, supabase_publishable_key
+from app.auth.supabase_auth import verify_access_token, supabase_publishable_key
 from app.runtime_control.analytics import record_sign_in, record_sign_out
 
 router = APIRouter(tags=["auth"])
@@ -43,7 +43,7 @@ def login_page() -> HTMLResponse:
     <script>const cfg={config};const statusEl=document.getElementById('authStatus');
     if(!cfg.url||!cfg.anon_key)statusEl.textContent='Authentication is not configured.';
     const sb=(cfg.url&&cfg.anon_key)?supabase.createClient(cfg.url,cfg.anon_key):null;
-    async function completeGoogleLogin(response){{if(!sb||!response||!response.credential)return;statusEl.textContent='Signing in…';const r=await sb.auth.signInWithIdToken({{provider:'google',token:response.credential}});if(r.error){{statusEl.textContent=r.error.message;return;}}const token=r.data.session&&r.data.session.access_token;if(!token){{statusEl.textContent='Google sign-in did not create a session.';return;}}const session=await fetch('/auth/session',{{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{access_token:token}})}});location.replace(session.ok?'/app/dashboard':'/login');}}
+    async function completeGoogleLogin(response){{if(!sb||!response||!response.credential)return;statusEl.textContent='Signing in…';const r=await sb.auth.signInWithIdToken({{provider:'google',token:response.credential}});if(r.error){{statusEl.textContent=r.error.message;return;}}const token=r.data.session&&r.data.session.access_token;if(!token){{statusEl.textContent='Google sign-in did not create a session.';return;}}const session=await fetch('/auth/session',{{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{access_token:token}})}});location.replace(session.ok?'/api/me':'/login');}}
     window.addEventListener('load',()=>{{if(cfg.google_client_id&&window.google&&google.accounts&&google.accounts.id){{google.accounts.id.initialize({{client_id:cfg.google_client_id,callback:completeGoogleLogin,use_fedcm_for_prompt:true}});google.accounts.id.renderButton(document.getElementById('googleLogin'),{{theme:'outline',size:'large',text:'continue_with'}});}}else if(!cfg.google_client_id){{statusEl.textContent='Google sign-in is not configured.';}}}});
     document.getElementById('emailLogin').onsubmit=async(e)=>{{e.preventDefault();if(!sb)return;const email=document.getElementById('email').value;const r=await sb.auth.signInWithOtp({{email,options:{{emailRedirectTo:location.origin+'/auth/callback'}}}});statusEl.textContent=r.error?r.error.message:'Check your email for the sign-in link.'}};
     </script></body></html>'''
@@ -54,7 +54,7 @@ def login_page() -> HTMLResponse:
 def auth_callback() -> HTMLResponse:
     config = json.dumps(_public_auth_config())
     return HTMLResponse(f'''<!doctype html><html><body><p>Signing you in to ATLAS…</p><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
-    const cfg={config};const sb=supabase.createClient(cfg.url,cfg.anon_key);(async()=>{{const {{data}}=await sb.auth.getSession();const token=data.session&&data.session.access_token;if(!token){{location.replace('/login');return;}}const r=await fetch('/auth/session',{{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{access_token:token}})}});location.replace(r.ok?'/app/dashboard':'/login');}})();
+    const cfg={config};const sb=supabase.createClient(cfg.url,cfg.anon_key);(async()=>{{const {{data}}=await sb.auth.getSession();const token=data.session&&data.session.access_token;if(!token){{location.replace('/login');return;}}const r=await fetch('/auth/session',{{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{access_token:token}})}});location.replace(r.ok?'/api/me':'/login');}})();
     </script></body></html>''')
 
 
@@ -90,20 +90,7 @@ def logout() -> RedirectResponse:
     return response
 
 
-def _private_dashboard_response(request: Request) -> HTMLResponse | RedirectResponse:
-    try:
-        require_user(request)
-    except HTTPException:
-        return RedirectResponse("/login", status_code=303)
-    from app.dashboard.views import dashboard_view
-    return dashboard_view()
-
-
-@router.get("/dashboard", response_class=HTMLResponse)
-def protected_dashboard(request: Request):
-    return _private_dashboard_response(request)
-
-
-@router.get("/app/dashboard", response_class=HTMLResponse)
-def private_dashboard(request: Request):
-    return _private_dashboard_response(request)
+@router.api_route("/dashboard", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/app/dashboard", methods=["GET", "HEAD"], include_in_schema=False)
+def retired_dashboard():
+    return Response(status_code=410, headers={"Cache-Control": "no-store"})

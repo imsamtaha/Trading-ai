@@ -5,9 +5,9 @@ import shutil
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_FILES = {"index.html", "centers/index.html", "robots.txt", "assets/site.css", "assets/site.js",
+PUBLIC_FILES = {"robots.txt", "assets/site.css", "assets/site.js",
                 "assets/demo-model.js", "assets/google-auth.js",
-                "assets/centers.css", "assets/atlas-brand.css", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp",
+                "assets/atlas-brand.css", "assets/atlas-news.js", "assets/just-ai-brand.css", "assets/just-ai-icon.webp", "assets/just-ai-reference.webp",
                 "assets/atlas-market.css", "assets/atlas-market.js", "assets/atlas-tiger-shield.webp",
                 "assets/atlas-tiger-shield-small.webp", "assets/just-ai-intelligence.webp",
                 "assets/just-ai-intelligence-mark.webp", "council/btc-2026-08-31.html"}
@@ -47,7 +47,7 @@ def validate():
         pages[html_file] = links
     for html_file, links in pages.items():
         for target in links.targets:
-            if target in EXTERNAL_LINKS:
+            if target in EXTERNAL_LINKS or target == "/":
                 continue
             url = urlsplit(target)
             assert not url.scheme and not url.netloc, f"Unexpected destination: {target}"

@@ -6,12 +6,10 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_dashboard_includes_agent_panel_script(monkeypatch):
+def test_dashboard_page_is_gone(monkeypatch):
     monkeypatch.setenv("ATLAS_DASHBOARD_ONLY", "true")
     response = client.get("/dashboard")
-    assert response.status_code == 200
-    assert '/ui/agent-panel.js' in response.text
-    assert '/ui/preferences.js' in response.text
+    assert response.status_code == 410
 
 
 def test_agent_panel_script_is_read_only_ui(monkeypatch):

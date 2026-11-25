@@ -1,113 +1,16 @@
 import os
 
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.dashboard.api import router as api_router
 from app.dashboard.agent_panel import router as agent_panel_router
-from app.dashboard.account_panel import ACCOUNT_PANEL
 from app.dashboard.demo_panel import router as demo_panel_router
-from app.dashboard.fxpro_onboarding import fxpro_entry_card, router as fxpro_onboarding_router
+from app.dashboard.fxpro_onboarding import router as fxpro_onboarding_router
 from app.dashboard.setups_panel import router as setups_panel_router
-from app.dashboard.trading_hub import enhance_atlas_html
-from app.dashboard.views import DASHBOARD_HTML
-from app.execution.provider_mode import ctrader_selected
 
 router = APIRouter()
 CANONICAL_ATLAS_PATH = "/"
 LEGACY_ATLAS_PATH = "/atlas-ultimate"
-
-
-def _stripe_link(plan: str) -> str | None:
-    value = os.getenv(f"ATLAS_STRIPE_LINK_{plan.upper()}", "").strip()
-    return value if value.startswith("https://buy.stripe.com/") else None
-
-
-def _stripe_button(plan: str) -> str:
-    link = _stripe_link(plan)
-    if link:
-        return f'<a class="btn atlas-3d" href="{link}" target="_blank" rel="noopener">Pay with Stripe</a>'
-    return '<span class="btn ghost atlas-3d" aria-disabled="true" title="Stripe checkout becomes available after account verification">Stripe activation pending</span>'
-
-
-def _atlas_ultimate_html() -> str:
-    starter_stripe = _stripe_button("watch")
-    pro_stripe = _stripe_button("reader")
-    elite_stripe = _stripe_button("pro")
-    if ctrader_selected():
-        broker_entry = (
-            '<section class="card" id="broker-connection">'
-            '<h2>FxPro cTrader Demo</h2><p>View-only demo account status and separately verified PAPER evidence in the private owner workspace. Broker orders remain disabled.</p>'
-            '<a class="btn ghost atlas-3d" href="/sam">Owner workspace</a></section>'
-        )
-    else:
-        broker_entry = fxpro_entry_card()
-    plans = f'''
-<section id="plans" class="card atlas-plans" style="margin-top:18px">
-  <div class="label">ATLAS ULTIMATE ACCESS</div>
-  <h2 style="font-size:clamp(28px,4vw,48px);margin:8px 0 6px">Choose your intelligence level.</h2>
-  <p class="mini" style="max-width:820px;font-size:13px;line-height:1.6">Choose a paid ATLAS intelligence plan for customer access. Whish Pay and available card checkout are subscription payment methods only; FxPro account funding remains separate. There is no free customer tier.</p>
-  <div class="plans-grid">
-    <div class="card plan-card"><div class="label">ATLAS Starter</div><div class="big">$99<span class="mini"> / month</span></div><p class="mini">Live market intelligence · AI chart workspace · Editable indicators · Setup context · ATLAS AI question assistant.</p>{starter_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/watch">Pay with Whish Pay</a></div>
-    <div class="card plan-card" style="border-color:#ff7a1a66"><div class="label">ATLAS Pro</div><div class="big">$149<span class="mini"> / month</span></div><p class="mini">Everything in Starter · Live setup and signal overlays · Entry/reference zones · Targets · Stop/invalidation levels · Risk and confidence context.</p>{pro_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/reader">Pay with Whish Pay</a></div>
-    <div class="card plan-card"><div class="label">ATLAS Elite</div><div class="big">$299<span class="mini"> / month</span></div><p class="mini">Everything in Pro · Advanced multi-asset analysis · Risk/position monitoring · Exit and stop alerts · Priority intelligence · Advanced AI chart and assistant features.</p>{elite_stripe}<a class="btn ghost atlas-3d" href="/billing/whish/pro">Pay with Whish Pay</a></div>
-    <div class="card plan-card"><div class="label">Enterprise</div><div class="big">Custom</div><p class="mini">Manual application and review · Team access · Custom integrations and deployment planning · Commercial quote based on required services.</p><a class="btn ghost atlas-3d" href="mailto:info@justai-atlas.online?subject=ATLAS%20ULTIMATE%20Enterprise%20Application">Apply / Contact CEO</a></div>
-  </div>
-  <div class="notice">ATLAS subscription billing is separate from FxPro. Trading funds are never collected by this checkout. The customer workspace is analysis/demo oriented; real-money trading remains off in the public dashboard and outcomes are not guaranteed.</div>
-</section>
-<style>
-.plans-grid{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}}.plan-card{{display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}}.plan-card:before{{content:"";position:absolute;inset:-80% 45% auto -30%;height:220px;background:radial-gradient(circle,#ff7a1a1f,transparent 68%);pointer-events:none}}.atlas-tech-bg{{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:900px;overflow:hidden}}.atlas-tech-bg:before{{content:"";position:absolute;left:-15%;right:-15%;bottom:-36%;height:72%;transform:rotateX(64deg);transform-origin:center top;background-image:linear-gradient(#ff7a1a14 1px,transparent 1px),linear-gradient(90deg,#91a4bd12 1px,transparent 1px);background-size:58px 58px}}.atlas-tech-bg:after{{content:"";position:absolute;width:560px;height:560px;right:-180px;top:20%;border:1px solid #ff7a1a20;border-radius:50%;box-shadow:0 0 80px #ff7a1a12,inset 0 0 80px #91a4bd0b}}@media(max-width:1180px){{.plans-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.plans-grid{{grid-template-columns:1fr}}}}
-</style>
-'''
-    scripts = '<script src="/ui/preferences.js"></script><script src="/ui/agent-panel.js"></script><script src="/ui/setups-panel.js"></script><script src="/assets/google-auth.js" defer></script>'
-    if not ctrader_selected():
-        scripts += '<script src="/ui/demo-panel.js"></script>'
-    html = DASHBOARD_HTML.replace('href="/subscribe"', 'href="#plans"')
-    if ctrader_selected():
-        # Keep legacy MT5 nodes for script compatibility but never display them as
-        # current cTrader account information. Do not request MT5 telemetry.
-        start = '<div id="hub-account" class="section-title">'
-        end = '<div id="hub-markets" class="section-title">'
-        if start not in html or end not in html:
-            raise ValueError("Cannot isolate the retired MT5 dashboard section")
-        html = html.replace(start, '<div id="legacy-mt5-paused" hidden aria-hidden="true">' + start, 1)
-        html = html.replace(end, '</div>' + end, 1)
-        html = html.replace(
-            'LIVE DEMO telemetry. ATLAS simulated demo execution is active; real-money trading is off.',
-            'FxPro cTrader Demo requires view-only authorization. MT5 is paused. '
-            'Historical MT5 PAPER records are not cTrader broker results.',
-            1,
-        )
-        html = html.replace(
-            'function el(i){return document.getElementById(i)}',
-            'const ctraderMode=true;function el(i){return document.getElementById(i)}',
-            1,
-        )
-        html = html.replace(
-            'async function refresh(){try{',
-            "async function refresh(){if(ctraderMode){el('status').textContent='CTRADER · VIEW ONLY';return;}try{",
-            1,
-        )
-    html = html.replace('<body>', '<body><div class="atlas-tech-bg" aria-hidden="true"></div>')
-    insert = ACCOUNT_PANEL + broker_entry + plans
-    html = html.replace('</main>', insert + '</main>') if '</main>' in html else html.replace('<div class="notice" id="disclaimer">', insert + '<div class="notice" id="disclaimer">')
-    html = html.replace('</body>', scripts + '</body>')
-    return enhance_atlas_html(html)
-
-
-def atlas_ultimate_view() -> HTMLResponse:
-    """Compatibility callable used by tests and internal integrations."""
-    return HTMLResponse(_atlas_ultimate_html())
-
-
-@router.get(LEGACY_ATLAS_PATH, include_in_schema=False)
-def legacy_atlas_redirect() -> RedirectResponse:
-    return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
-
-
-@router.get("/dashboard", include_in_schema=False)
-def legacy_dashboard_redirect() -> RedirectResponse:
-    return RedirectResponse(url=CANONICAL_ATLAS_PATH, status_code=308)
 
 
 router.include_router(api_router)

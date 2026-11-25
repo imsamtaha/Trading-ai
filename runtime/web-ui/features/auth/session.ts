@@ -1,11 +1,11 @@
-﻿export function safeReturnTo(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+export function safeReturnTo(raw: string | null | undefined): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\") || /^\/(?:app\/)?dashboard(?:[/?#]|$)/.test(raw)) return "/backend/api/me";
   return raw;
 }
 
 export async function startGoogleOAuth(
   auth: { signInWithOAuth(input: { provider: "google"; options: { redirectTo: string; skipBrowserRedirect: true } }): Promise<{ data: { url?: string | null }; error?: { message: string } | null }> },
-  origin: string, supabaseUrl: string, returnTo = "/dashboard",
+  origin: string, supabaseUrl: string, returnTo = "/backend/api/me",
 ): Promise<string> {
   const safe = safeReturnTo(returnTo);
   const redirect = new URL("/login", origin);

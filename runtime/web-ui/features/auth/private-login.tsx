@@ -84,7 +84,7 @@ export function PrivateLogin() {
         }
       } else if (token) {
         setSignedIn(true);
-        setStatus("Signed in. Continue to your dashboard.");
+        setStatus("Signed in. Continue to your account.");
       }
     }).catch(() => {
       if (active) setStatus("Unable to restore the previous sign-in.");
@@ -170,7 +170,7 @@ export function PrivateLogin() {
     </form>
 
     {signedIn && <div className="atlas-signed-in-actions">
-      <a className="atlas-primary-button" href={currentReturnTo()}>Continue to dashboard</a>
+      <a className="atlas-primary-button" href={currentReturnTo()}>Continue to account</a>
       <button className="atlas-secondary-button" type="button" onClick={signOut} disabled={busy}>Sign out</button>
     </div>}
 

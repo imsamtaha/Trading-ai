@@ -151,7 +151,7 @@ def test_news_api_and_asset_work_in_dashboard_only_mode(monkeypatch):
     monkeypatch.setenv('ATLAS_DASHBOARD_ONLY', 'true')
     monkeypatch.setenv('ATLAS_MARKET_DATA_ENABLED', 'true')
     with TestClient(app) as client:
-        assert client.get('/assets/atlas-news.js').status_code == 200
+        assert client.get('/assets/atlas-news.js').status_code == 404
         body = client.get('/dashboard/market-briefing').json()
         assert body['language'] == 'ar'
         assert len(body['headlines']) == 3

@@ -1,12 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.dashboard import _atlas_ultimate_html
 from app.main import app
-
-
-def test_dashboard_loads_active_setups_panel_script():
-    html = _atlas_ultimate_html()
-    assert '/ui/setups-panel.js' in html
 
 
 def test_active_setups_endpoint_is_live_demo_and_available(monkeypatch):
