@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from scripts.build_website import validate
 
 
 def test_service_entry_and_public_auth_asset_work_in_read_only_mode(monkeypatch):
@@ -22,10 +21,6 @@ def test_public_assets_cannot_read_private_files_and_orders_stay_blocked(monkeyp
             assert client.get(path).status_code == 404
         assert client.post("/mt5/test-order").status_code == 403
         assert client.get("/mt5/positions").status_code == 403
-
-
-def test_public_package_is_complete_and_has_no_private_configuration():
-    validate()
 
 
 def test_historical_council_exercise_remains_available(monkeypatch):

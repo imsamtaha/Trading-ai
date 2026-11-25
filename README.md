@@ -37,7 +37,7 @@ app/billing
 Subscription and payment surfaces.
 
 app/dashboard
-Dashboard APIs and UI helpers.
+Compatibility routes for market, account and training data.
 
 app/data
 Market-data providers and normalization.
@@ -70,7 +70,7 @@ tests/
 Python and Node regression and safety tests.
 
 web/
-Public static website.
+Council reference material and assets used by the API and sign-in integration.
 
 frontend/
 Source for the browser authentication bundle.
@@ -108,15 +108,11 @@ Recommended local API port: 8012.
 
 Health endpoint: GET /health
 
-Public dashboard and website surfaces must not expose private broker telemetry or broker-write permissions.
+The public API must not expose private broker telemetry or broker-write permissions.
 
-## Public website
+## Hosting
 
-The public website is under web/.
-
-It may contain clearly labelled synthetic examples for explanation. Synthetic examples must never be represented as broker P/L, live account state, or verified performance.
-
-Build and validation utilities are under scripts/.
+Trading-ai provides the backend, authentication, and Council research. The live ATLAS service has its own source and deployment.
 
 ## MT5
 
