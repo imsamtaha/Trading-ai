@@ -2,6 +2,12 @@
 
 ATLAS is an AI-assisted market-intelligence and risk-control platform with a strict Paper-first boundary.
 
+## ATLAS INTELLIGENCE Dashboard
+
+[Open the ATLAS INTELLIGENCE Dashboard](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/)
+
+The dashboard is hosted on Sites and requires authorized sign-in. From the dashboard, open **Saved workspace** for preferences, watchlists, and simulated paper-trade history.
+
 ## Canonical architecture
 
 Market Data -> Specialist Analysis -> ATLAS Council -> Senior Risk Management -> Executive Agent -> PAPER TradeIntent -> Paper Journal -> Council Calibration
