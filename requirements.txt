@@ -9,4 +9,5 @@ PyYAML
 pytest
 httpx>=0.28,<1
 websockets>=12,<18
+filelock>=3.16,<4
 MetaTrader5; sys_platform == "win32"

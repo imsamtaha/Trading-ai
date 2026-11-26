@@ -83,12 +83,41 @@ store. Select the intended demo account on the consent screen. Rotate
 credentials through the Open API portal and update the runtime when required.
 
 The owner page’s Accounts tab queries the demo endpoint on request. It shows
-the masked cTrader login and account information with the existing signed
-PAPER history and training results alongside it. Broker demo activity is never
-imported as PAPER results. The existing signed Windows PAPER export remains
-the source of the history and training figures.
+the masked cTrader login alongside the PAPER history and training results
+from the configured signed snapshot. It accepts snapshots from the Windows
+PAPER exporter and the cTrader Demo PAPER worker.
 
 [cTrader Open API authentication](https://help.ctrader.com/open-api/account-authentication/)
+
+### cTrader Demo PAPER worker
+
+On the private ATLAS host, install `requirements.txt` and set
+`ATLAS_BROKER_PROVIDER=ctrader`, `ATLAS_LIVE_TRADING=false`, and the demo
+authorization settings above. Set `ATLAS_CTRADER_SYMBOLS` to the exact broker
+symbols separated by commas. The worker defaults to `EURUSD` on five-minute bars.
+
+```sh
+python run_atlas_ctrader.py --once
+python run_atlas_ctrader.py
+```
+
+Use the first command to check broker authorization, fresh quotes, and candle
+availability. A cycle can complete with zero trades when no setup qualifies.
+For ongoing operation, run the second command under the host's existing
+service manager. The worker uses cTrader Demo quotes to simulate entries and
+close positions at their recorded stop or target. The Council, Senior Risk,
+and Executive must approve entries. Council training defaults to enabled and
+records examples after settlement.
+
+The worker keeps account-bound state under `data/ctrader` by default.
+`ATLAS_CTRADER_STATE_DIR` selects a different private directory. Use a fresh
+directory for a different demo account. When given
+`ATLAS_OWNER_SNAPSHOT_HMAC_KEY`, the worker writes `atlas_owner_snapshot.json`
+in that directory. Set `ATLAS_OWNER_SNAPSHOT_PATH` on the private dashboard
+to the absolute path of that file. The dashboard checks its signature and
+displays the source, runtime status, PAPER history and training count.
+Preserve older Windows exports as historical evidence. Keep the state and
+signing key on the private host.
 
 ## Validation and acceptance
 

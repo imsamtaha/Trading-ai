@@ -25,6 +25,9 @@ Core rules:
 
 See docs/ATLAS_STRUCTURE.md for the final repository and runtime structure.
 
+For cTrader Demo market data and local PAPER settlement, see
+[cTrader Demo PAPER worker](docs/OWNER_CONTROL_CENTER.md#ctrader-demo-paper-worker).
+
 ## Repository layout
 
 app/analysis

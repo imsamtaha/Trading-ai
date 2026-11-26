@@ -113,7 +113,7 @@ def read_evidence() -> dict[str, Any]:
     if not hmac.compare_digest(signature, expected):
         return _missing("INVALID_SIGNATURE", "UNVERIFIED")
     if (raw.get("source_environment") != "PAPER"
-            or raw.get("data_origin") != "WINDOWS_PAPER"
+            or raw.get("data_origin") not in ("WINDOWS_PAPER", "CTRADER_DEMO_PAPER")
             or raw.get("broker_execution_allowed") is not False
             or not isinstance(raw.get("source_id"), str) or not raw["source_id"].strip()):
         return _missing("INVALID_PAPER_PROVENANCE", "UNVERIFIED")
@@ -142,6 +142,7 @@ def read_evidence() -> dict[str, Any]:
     return {
         "status": status, "reason": "EVIDENCE_OLDER_THAN_6_HOURS" if status == "STALE" else None,
         "verified": True, "as_of": stamped.isoformat(), "source_id": raw["source_id"],
+        "data_origin": raw["data_origin"],
         "source_environment": "PAPER",
         "safeguards": {"live_trading_enabled": False, "real_money_orders_allowed": False,
                        "broker_execution": "READ_ONLY"},
