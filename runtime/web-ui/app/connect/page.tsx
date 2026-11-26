@@ -36,7 +36,7 @@ export default function ConnectPage() {
       setRuntime(next);
     } catch { setNotice(ar ? "تعذّر تغيير وضع المجلس. تأكّد من تفعيل تنفيذ Demo." : "Unable to change council mode. Enable Demo execution first."); }
   }
-  return <AtlasShell><main className="atlas-connect-page" dir={ar ? "rtl" : "ltr"} lang={language}>
+  return <AtlasShell language={language}><section className="atlas-connect-page" dir={ar ? "rtl" : "ltr"} lang={language}>
     <div className="atlas-language-row"><button onClick={() => setLanguage("ar")}>العربية</button><span>|</span><button onClick={() => setLanguage("en")}>EN</button></div>
     <header className="atlas-card"><span className="atlas-card-label">ATLAS × FxPro MT5</span>
       <h1>{ar ? "اربط حسابك بمجلس أطلس" : "Connect your account to ATLAS"}</h1>
@@ -52,5 +52,5 @@ export default function ConnectPage() {
         <a href="/subscribe">{ar ? "خطط الاشتراك" : "Subscription plans"}</a> · <a href="/dashboard">{ar ? "لوحة التداول والصفقات" : "Trading dashboard and positions"}</a> · <a href="/offline-contact.html">{ar ? "كود تواصل بلا إنترنت" : "Offline contact code"}</a>
         {notice && <p role="status">{notice}</p>}
       </section></>}
-  </main></AtlasShell>;
+  </section></AtlasShell>;
 }

@@ -24,6 +24,7 @@ export default function LoginPage() {
       <p className="atlas-login-lead">Sign in to ATLAS services. Signing in does not connect a broker or enable broker execution.</p>
 
       <PrivateLogin />
+      <a href="/dashboard">Open Tiger Shield Command Center</a>
 
       <div className="atlas-login-foot">
         <p className="atlas-login-note">Sign-in grants access to services according to your account permissions.</p>
