@@ -1,0 +1,37 @@
+.center {
+  max-width: 80rem;
+  min-height: 100vh;
+  margin: auto;
+  padding: clamp(1rem, 3vw, 3rem);
+  color: var(--atlas-text);
+}
+.bar, .account header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.bar { padding-block-end: 1rem; }
+.bar strong { letter-spacing: .12em; font-size: .94rem; }
+.bar button, .account button { font: inherit; cursor: pointer; color: var(--atlas-text); background: #112947; border: 1px solid var(--atlas-border); border-radius: .6rem; padding: .55rem .85rem; }
+.hero, .account, .views a {
+  background: linear-gradient(130deg, #123357, #07182d 75%);
+  border: 1px solid var(--atlas-border);
+  border-radius: 1rem;
+}
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; overflow: hidden; }
+.hero img { width: 100%; height: auto; display: block; }
+.hero > div { padding: clamp(1.25rem, 4vw, 4rem); }
+.hero h1 { font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1.12; margin: 0; text-wrap: balance; }
+.hero p { color: var(--atlas-muted); line-height: 1.6; }
+.primary { display: inline-block; background: #ffd28b; color: #102036; padding: .8rem 1rem; font-weight: 700; border-radius: .6rem; }
+.views, .panels { display: grid; gap: .75rem; margin-block: 1rem; }
+.views { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.views a { display: grid; place-items: center; min-height: 4rem; padding: .7rem; text-align: center; font-weight: 650; }
+.views a:hover { border-color: #79dfff; }
+.account { padding: 1.25rem; }
+.account h2 { margin: 0; }
+.account header { margin-block-end: 1rem; flex-wrap: wrap; }
+.account a { color: #8ae4ff; text-decoration: underline; text-underline-offset: .2em; }
+.panels { grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
+@media (max-width: 52rem) { .views { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 40rem) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero img { max-height: 16rem; object-fit: contain; background: #07182d; }
+  .views { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

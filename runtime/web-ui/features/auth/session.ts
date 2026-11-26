@@ -1,4 +1,5 @@
 export function safeReturnTo(raw: string | null | undefined): string {
+  if (raw === "/dashboard") return raw;
   if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\") || /^\/(?:app\/)?dashboard(?:[/?#]|$)/.test(raw)) return "/backend/api/me";
   return raw;
 }
