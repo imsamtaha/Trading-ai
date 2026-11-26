@@ -2,15 +2,20 @@
 
 ATLAS is an AI-assisted market-intelligence and risk-control platform with a strict Paper-first boundary.
 
-## ATLAS INTELLIGENCE Command Center
+## ATLAS INTELLIGENCE · Tiger Shield Command Center
 
 [Open the private ATLAS INTELLIGENCE dashboard](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/) with an authorized account.
 
-[Market data](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#market) · [Training](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#training) · [Saved workspace](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#workspace) · [Connections](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#connections)
+[Market data](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#market) · [Training](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#training) · [Saved workspace](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#workspace) · [Tiger Shield Command Center](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#connections)
 
 - **Market data** provides exchange quotes. The portfolio and paper fills are simulated.
 - **Training** shows Council evidence and demo experiments. **Saved workspace** stores preferences, watchlists, and simulated fill history.
 - **Connections** shows integration status. Open [Agent Lab · مختبر الوكلاء](https://atlas-agent-lab-sam.imsamtaha-ai.chatgpt.site/) from the dashboard sidebar or directly to use the four-agent paper trading simulator.
+
+- **Bigdata.com** opens the [research workspace](https://app.bigdata.com/). The dashboard has no Bigdata.com feed.
+- **Supabase** migrations belong to [Trading-ai](supabase/migrations). The hosted dashboard uses its Sites database for Saved workspace.
+
+![ATLAS Tiger Shield](docs/assets/atlas-tiger-shield.webp)
 
 ## Canonical architecture
 
