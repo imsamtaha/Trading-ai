@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from math import isfinite
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
+from app.strategy.universe import classify_symbol, normalize_symbol
 
 if os.name == "nt":
     import msvcrt
@@ -27,6 +30,35 @@ class PaperLedgerError(RuntimeError):
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _replacement_backup(target: Path) -> Path:
+    return target.with_name(target.name + ".replacement.bak")
+
+
+def _win_replace_existing(temporary: Path, target: Path) -> None:
+    """Atomic Windows replacement when MoveFileEx cannot replace an open target.
+
+    Retain the original in a recovery backup if Windows only partly completes
+    replacement. The caller holds the ledger lock; an unresolved backup blocks
+    subsequent loads rather than allowing a missing ledger to become empty.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    backup = _replacement_backup(target)
+    if backup.exists():
+        raise OSError(f"Ledger recovery required: preserve and inspect {backup}")
+    replace = ctypes.WinDLL("kernel32", use_last_error=True).ReplaceFileW
+    replace.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p,
+        ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p,
+    ]
+    replace.restype = wintypes.BOOL
+    if not replace(str(target), str(temporary), str(backup), 0, None, None):
+        raise ctypes.WinError(ctypes.get_last_error())
+    # A crash or cleanup failure leaves the backup as a recovery interlock.
+    backup.unlink()
 
 
 class MT5PaperLedger:
@@ -56,18 +88,24 @@ class MT5PaperLedger:
         configured_daily_limit = (
             max_daily_entries
             if max_daily_entries is not None
-            else int(os.getenv("ATLAS_DEMO_MAX_DAILY_ENTRIES", "15"))
+            else int(os.getenv("ATLAS_DEMO_MAX_DAILY_ENTRIES", "50"))
         )
         if not 1 <= int(configured_open_limit) <= 5:
             raise PaperLedgerError("Paper open-position limit must be between 1 and 5.")
-        if not 1 <= int(configured_daily_limit) <= 15:
-            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 15.")
+        if not 1 <= int(configured_daily_limit) <= 100:
+            raise PaperLedgerError("Paper daily-entry limit must be between 1 and 100.")
 
+        self.category_position_limit = int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0"))
+        if not 0 <= self.category_position_limit <= 5:
+            raise PaperLedgerError("Category position limit must be between 0 and 5.")
         self.max_open_positions = int(configured_open_limit)
         self.max_daily_entries = int(configured_daily_limit)
         self._state = self._load()
 
     def _load(self) -> dict[str, list[dict[str, Any]]]:
+        backup = _replacement_backup(self.path)
+        if backup.exists():
+            raise PaperLedgerError(f"Ledger recovery required: preserve and inspect {backup}")
         if not self.path.exists():
             return {"open_positions": [], "closed_trades": []}
 
@@ -114,16 +152,34 @@ class MT5PaperLedger:
             raise PaperLedgerError(f"Cannot lock demo ledger {self.path}: {exc}") from exc
 
     def _persist(self) -> None:
-        temporary = self.path.with_suffix(f"{self.path.suffix}.tmp")
+        temporary = self.path.with_name(f"{self.path.name}.{os.getpid()}.{uuid4().hex}.tmp")
         try:
             with temporary.open("w", encoding="utf-8") as handle:
                 json.dump(self._state, handle, indent=2, sort_keys=True, default=str)
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            temporary.replace(self.path)
+            for attempt in range(6):
+                try:
+                    temporary.replace(self.path)
+                    break
+                except PermissionError:
+                    if attempt == 5:
+                        # Windows MoveFileEx can reject a target held open by a
+                        # reader even though ReplaceFileW can swap it atomically.
+                        if os.name == "nt" and self.path.is_file():
+                            _win_replace_existing(temporary, self.path)
+                            break
+                        raise
+                    time.sleep(0.02 * (2 ** attempt))
         except OSError as exc:
             raise PaperLedgerError(f"Cannot persist demo ledger {self.path}: {exc}") from exc
+        finally:
+            # Failed atomic swaps must not accumulate copies containing Paper data.
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass  # Preserve the original persistence error and fail closed.
 
     def open_positions(self) -> list[dict[str, Any]]:
         with self._locked_state():
@@ -217,6 +273,15 @@ class MT5PaperLedger:
                     f"Maximum open paper positions reached ({self.max_open_positions})."
                 )
 
+            category = (classify_symbol(normalize_symbol(symbol)) or ("UNKNOWN", 3))[0]
+            if self.category_position_limit and category in {"CRYPTO", "STOCKS"}:
+                count = sum(
+                    (classify_symbol(normalize_symbol(str(p["symbol"]))) or ("UNKNOWN", 3))[0] == category
+                    for p in self._state["open_positions"]
+                )
+                if count >= self.category_position_limit:
+                    raise PaperLedgerError(f"{category} concentration limit reached.")
+
             today = datetime.now(timezone.utc).date().isoformat()
             opened_today = sum(
                 1
@@ -240,7 +305,7 @@ class MT5PaperLedger:
         normalized = symbol.upper()
         bid = float(bid)
         ask = float(ask)
-        if bid <= 0 or ask <= 0 or ask < bid:
+        if not isfinite(bid) or not isfinite(ask) or bid <= 0 or ask <= 0 or ask < bid:
             raise PaperLedgerError(f"Invalid quote for {symbol}.")
 
         with self._locked_state():

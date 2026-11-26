@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 from app.billing import router
 from app.dashboard.preferences import router as preferences_router
-from app.dashboard import atlas_ultimate_view
 from app.subscription import subscribe
 
 
@@ -38,15 +37,10 @@ def test_whish_persists_pending_request_without_granting_access(tmp_path, monkey
     assert c.post("/billing/whish/pro/request", json={"email": "invalid"}).status_code == 422
 
 
-def test_preferences_and_whish_links_are_integrated_in_atlas_ultimate():
-    page = atlas_ultimate_view().body
-    assert b"/ui/preferences.js" in page
-    assert b"/billing/whish/reader" in page and b"/billing/whish/pro" in page
-    assert b'id="plans"' in page
-    assert b"Pay with Whish Pay" in page
+def test_preferences_and_billing_survive_dashboard_retirement():
     redirect = subscribe()
     assert redirect.status_code == 308
-    assert redirect.headers["location"] == "/#plans"
+    assert redirect.headers["location"] == "/billing/plans"
     c = client()
     assert "/ui/preferences.js" in c.get("/billing/whish/reader").text
     script = c.get("/ui/preferences.js")

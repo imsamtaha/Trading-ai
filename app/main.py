@@ -50,7 +50,7 @@ app.include_router(owner_dashboard_router)
 
 @app.middleware("http")
 async def dashboard_only_guard(request: Request, call_next):
-    """Allow the unified ATLAS UI, public reads and analysis-only POSTs; block execution and billing writes."""
+    """Allow public reads and gated analysis while blocking unauthorized writes."""
     import os
 
     if os.getenv("ATLAS_DASHBOARD_ONLY", "false").lower() == "true":

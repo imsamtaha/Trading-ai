@@ -36,6 +36,8 @@ class AtlasCTraderPaperMonitor(AtlasPaperMonitor):
         self.state_dir = state_dir
         super().__init__(symbols=symbols, state_dir=state_dir, **kwargs)
         self.auto_discover = False
+        self.shadow_enabled = False
+        self.accelerator_enabled = False
         if not math.isfinite(self.account_equity) or self.account_equity <= 0:
             raise ValueError("Set ATLAS_DEMO_ACCOUNT_EQUITY to positive finite simulation equity.")
         if not 50 <= self.candle_limit <= 500:
@@ -52,9 +54,7 @@ class AtlasCTraderPaperMonitor(AtlasPaperMonitor):
         return self.broker.candles(symbol, self.interval, self.candle_limit)
 
     def _validate_settlement_quote(self, quote: dict[str, Any], position: dict[str, Any]) -> None:
-        fresh, reason = self._validate_quote_freshness(quote)
-        if not fresh:
-            raise DemoConnectionError(reason)
+        super()._validate_settlement_quote(quote, position)
         opened_at = datetime.fromisoformat(position["opened_at"]).timestamp()
         if quote["time_msc"] <= opened_at * 1000:
             raise DemoConnectionError("CTRADER_QUOTE_PRECEDES_PAPER_ENTRY")

@@ -7,15 +7,9 @@ independent ChatGPT Sites publication has **not** been changed by this
 repository work. Do not claim a Sites URL or custom domain is live until its
 own deployment source and owner authentication are verified.
 
-The page is Arabic-default, mobile RTL, bilingual, and read-only. It provides
-Overview, Council Agents, Accounts, Signals, Risk Controls, Training
-Progress, Decision Evidence, PAPER Trade History, Windows Runtime, and Shadow
-Learning, with Refresh, History, search, sorting and before/after comparison
-slots. The Accounts view reads demo account information using private,
-view-only cTrader authorization.
-
-This change **does not delete** older public dashboards, billing code,
-compatibility routes, worker scripts, data, or existing Sites publications.
+The private API exposes `/sam/api/accounts` for demo account status and
+`/sam/api/snapshot` for signed PAPER history, training and worker status.
+The former `/sam` HTML page returns HTTP 410.
 
 ## Activation (private authenticated host only)
 
@@ -65,6 +59,19 @@ broker profit. An empty section means *unavailable*, not zero performance.
 
 ## cTrader demo workspace
 
+### Separate business, support, and Whish identities
+
+- ATLAS private cTrader owner: `business.samirtaha@gmail.com`.
+- The primary public/support mailbox **remains** `info@justai-atlas.online`.
+- Whish payment approval, manual review, and admin notification email **remain** `ImSamtaha.ai@gmail.com`; do not change the existing `ADMIN_EMAIL`, older Supabase Whish approval migration, or receipt destination.
+- Whish payment funds are received according to the configured Whish recipient, not an email address. No payout, banking, or payment credentials are changed here.
+- Intended FxPro **cTrader DEMO** account login: configure the owner-supplied login in the private environment variable `ATLAS_CTRADER_DEMO_LOGIN` (never in public source files). Grant only `SCOPE_VIEW` account authorization. Email ownership alone does not authenticate a cTrader account.
+
+The old MT5/FxPro integration stays paused on the ATLAS application. A separate historical Windows worker must be stopped independently if running; changing a Git branch does not stop an external process. cTrader Demo account balances are broker metadata only. Existing MT5/PAPER ledger records cannot be presented as FxPro cTrader trade history.
+
+Deployment/identity cutover requires login confirmation for the business email, OAuth consent for the specified demo account, validated read-only telemetry and owner authorization. Neither browser sign-in nor cTrader consent is completed by this code change.
+
+
 Choose `ATLAS_BROKER_PROVIDER=ctrader` on the private ATLAS application to
 select cTrader and pause MT5 connections. An independent Windows worker needs
 the same setting or a controlled stop on its own host. In an MT5 deployment,
@@ -82,10 +89,9 @@ the cTrader Open API `accounts` authorization, in the private runtime secret
 store. Select the intended demo account on the consent screen. Rotate
 credentials through the Open API portal and update the runtime when required.
 
-The owner page’s Accounts tab queries the demo endpoint on request. It shows
-the masked cTrader login alongside the PAPER history and training results
-from the configured signed snapshot. It accepts snapshots from the Windows
-PAPER exporter and the cTrader Demo PAPER worker.
+The private accounts endpoint queries the demo host on request and returns
+the masked cTrader login. The snapshot endpoint accepts signed snapshots
+from the Windows PAPER exporter and the cTrader Demo PAPER worker.
 
 [cTrader Open API authentication](https://help.ctrader.com/open-api/account-authentication/)
 

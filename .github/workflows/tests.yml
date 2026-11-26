@@ -44,20 +44,18 @@ jobs:
           status=$(curl --silent --output /tmp/atlas-write-response.json --write-out '%{http_code}' --request POST http://127.0.0.1:8080/mt5/test-order)
           test "$status" = "403"
 
-      - name: Set up Node for public demo validation
+      - name: Set up Node for authentication and data utility tests
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Validate public website
+      - name: Validate authentication and data utilities
         run: |
-          node --check web/assets/site.js
           node --check web/assets/atlas-news.js
           node --test tests/test_atlas_news.cjs
           node --test tests/test_demo_model.cjs
           node --test tests/test_google_auth.mjs
           node --check web/assets/google-auth.js
-          python scripts/build_website.py
 
   journal-integrity-windows:
     runs-on: windows-latest

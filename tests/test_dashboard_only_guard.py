@@ -25,7 +25,7 @@ def client(monkeypatch):
 
 
 @pytest.mark.parametrize("path", [
-    "/", "/health", "/dashboard", "/dashboard/", "/subscribe",
+    "/", "/health", "/subscribe",
     "/ui/preferences.js", "/ui/agent-panel.js", "/agent/capabilities",
     "/docs", "/openapi.json", "/billing/plans",
 ])

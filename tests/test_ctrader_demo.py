@@ -26,7 +26,7 @@ class DemoSession:
             2121: (2122, {
                 "ctidTraderAccountId": 987654321,
                 "trader": {
-                    "ctidTraderAccountId": 987654321, "brokerName": "Example Demo",
+                    "ctidTraderAccountId": 987654321, "brokerName": "FxPro Demo",
                     "balance": 178905, "moneyDigits": 2, "depositAssetId": 3,
                 },
             }),
@@ -91,6 +91,15 @@ def test_demo_rejects_live_accounts_and_trading_scope(monkeypatch, demo_env, sco
     monkeypatch.setattr(ctrader_demo, "connect", lambda *args, **kwargs: session)
     assert ctrader_demo.read_demo_account() == {"status": "UNAVAILABLE", "reason": reason}
     assert [request["payloadType"] for request in session.sent] == [2100, 2149]
+
+
+def test_ctrader_rejects_non_fxpro_broker(monkeypatch, demo_env):
+    session = DemoSession()
+    session.responses[2121][1]["trader"]["brokerName"] = "Other Broker"
+    monkeypatch.setattr(ctrader_demo, "connect", lambda *args, **kwargs: session)
+    assert ctrader_demo.read_demo_account() == {
+        "status": "UNAVAILABLE", "reason": "FXPRO_CTRADER_BROKER_REQUIRED"
+    }
 
 
 def test_ctrader_selection_pauses_mt5_before_connecting(demo_env, monkeypatch):

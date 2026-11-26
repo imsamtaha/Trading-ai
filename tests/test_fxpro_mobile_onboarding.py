@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 
-from app.dashboard import _atlas_ultimate_html
 from app.dashboard.fxpro_onboarding import (
     DEFAULT_FXPRO_URL,
     FXPRO_CONNECT_PATH,
@@ -8,13 +7,6 @@ from app.dashboard.fxpro_onboarding import (
     fxpro_open_account_url,
 )
 from app.main import app
-
-
-def test_dashboard_exposes_fxpro_mt5_entry():
-    html = _atlas_ultimate_html()
-    assert "FXPRO MT5 ENTRY" in html
-    assert "Connect with FxPro MT5" in html
-    assert f'href="{FXPRO_CONNECT_PATH}"' in html
 
 
 def test_fxpro_mt5_entry_is_available_in_dashboard_only_mode(monkeypatch):

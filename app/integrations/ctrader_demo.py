@@ -147,6 +147,8 @@ def _account_snapshot(client_id: str, client_secret: str, token: str, login: str
         if str(raw_balance).removeprefix("-").isascii() and str(raw_balance).removeprefix("-").isdecimal():
             balance = format(Decimal(str(raw_balance)).scaleb(-digits), "f")
     broker = trader.get("brokerName")
+    if not isinstance(broker, str) or "fxpro" not in broker.casefold():
+        raise DemoConnectionError("FXPRO_CTRADER_BROKER_REQUIRED")
     return {
         "status": "CONNECTED",
         "environment": "DEMO",

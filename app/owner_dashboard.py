@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.execution.provider_mode import ctrader_selected, mt5_connections_paused
@@ -20,7 +20,6 @@ from app.integrations.ctrader_demo import read_demo_account
 
 router = APIRouter(prefix="/sam", tags=["owner"])
 security = HTTPBasic(auto_error=False)
-WEB = Path(__file__).resolve().parent / "owner_ui" / "index.html"
 
 TABLE_KEYS = {
     "council_agents": ("agent", "decision", "confidence", "calibrated_confidence", "weight", "conflict_score", "updated_at", "source"),
@@ -150,12 +149,10 @@ def read_evidence() -> dict[str, Any]:
     }
 
 
-@router.get("", include_in_schema=False)
-@router.get("/", include_in_schema=False)
-def owner_dashboard(_: None = Depends(owner_only)):
-    return FileResponse(WEB, media_type="text/html",
-                        headers={"Cache-Control": "no-store", "X-Frame-Options": "DENY",
-                                 "X-Content-Type-Options": "nosniff"})
+@router.api_route("", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+def retired_owner_dashboard():
+    return Response(status_code=410, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/api/snapshot", include_in_schema=False)

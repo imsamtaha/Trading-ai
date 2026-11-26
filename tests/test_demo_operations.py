@@ -111,7 +111,7 @@ def test_state_alias_and_dashboard_scripts(status_paths, monkeypatch):
     monkeypatch.setattr(MT5Broker, 'connect', unavailable)
     client=TestClient(app)
     assert client.get('/dashboard/state').status_code == 503
-    assert '/ui/demo-panel.js' in client.get('/dashboard').text
+    assert client.get('/dashboard').status_code == 410
     assert client.get('/ui/demo-panel.js').status_code == 200
     assert client.post('/mt5/test-order',json={}).status_code == 403
     assert client.post('/agent/paper/execute',json={}).status_code == 403

@@ -214,7 +214,7 @@ dd{margin:2px 0;color:#eef3fa;overflow-wrap:anywhere}
         <div id="result" role="status" aria-live="polite"></div>
       </div>
 
-      <a class="back" href="/#plans">← Back to ATLAS plans</a>
+      <a class="back" href="/billing/plans">← Back to ATLAS plans</a>
     </div>
   </section>
 </main>
