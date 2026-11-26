@@ -2,13 +2,15 @@
 
 ATLAS is an AI-assisted market-intelligence and risk-control platform with a strict Paper-first boundary.
 
-## ATLAS INTELLIGENCE Dashboard
+## ATLAS INTELLIGENCE Command Center
 
-[Open the ATLAS INTELLIGENCE Dashboard](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/)
+[Open the private ATLAS INTELLIGENCE dashboard](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/) with an authorized account.
 
-The dashboard is hosted on Sites and requires authorized sign-in. From the dashboard, open **Saved workspace** for preferences, watchlists, and simulated paper-trade history.
+[Market data](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#market) · [Training](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#training) · [Saved workspace](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#workspace) · [Connections](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#connections)
 
-[Open ATLAS Agent Lab](https://atlas-agent-lab-sam.imsamtaha-ai.chatgpt.site/) to run the private four-agent paper trading simulator. Agent Lab is also available from the dashboard sidebar and Connections. Authorized sign-in is required.
+- **Market data** provides exchange quotes. The portfolio and paper fills are simulated.
+- **Training** shows Council evidence and demo experiments. **Saved workspace** stores preferences, watchlists, and simulated fill history.
+- **Connections** shows integration status. Open [Agent Lab · مختبر الوكلاء](https://atlas-agent-lab-sam.imsamtaha-ai.chatgpt.site/) from the dashboard sidebar or directly to use the four-agent paper trading simulator.
 
 ## Canonical architecture
 
