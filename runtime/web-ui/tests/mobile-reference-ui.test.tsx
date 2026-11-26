@@ -23,11 +23,11 @@ describe("approved mobile reference UI", () => {
     expect(document.querySelector(".atlas-sector-icon--activity .atlas-sector-logo")).toHaveAttribute("src", "/atlas-logo.webp");
   });
 
-  it("keeps five mobile navigation actions with Markets selected by default", () => {
+  it("keeps five mobile navigation actions with a direct market destination", () => {
     render(<MobileNav />);
     const nav = screen.getByRole("navigation", { name: "Mobile navigation" });
     expect(nav.querySelectorAll("a")).toHaveLength(5);
-    expect(screen.getByRole("link", { name: "الأسواق" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "الأسواق" })).toHaveAttribute("href", "https://atlas-tiger-shield-command-center.imsamtaha-ai.chatgpt.site/#market");
     expect(nav.querySelectorAll(".atlas-mobile-nav__icon")).toHaveLength(5);
   });
 

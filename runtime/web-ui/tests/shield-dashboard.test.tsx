@@ -10,7 +10,7 @@ beforeEach(() => { localStorage.clear(); vi.resetAllMocks(); });
 it("keeps the private account behind sign-in and remembers the workspace language", async () => {
   vi.mocked(getDashboardState).mockRejectedValue(new AtlasApiError("/api/user/dashboard", 401, "Sign in"));
   render(<DashboardPage />);
-  expect(await screen.findByRole("link", { name: "سجّل الدخول لعرض حسابك" })).toHaveAttribute("href", "/login");
+  expect(await screen.findByRole("link", { name: "سجّل الدخول لعرض حسابك" })).toHaveAttribute("href", "/login?returnTo=/dashboard");
   fireEvent.click(screen.getByRole("button", { name: "English" }));
   expect(screen.getByRole("main")).toHaveAttribute("dir", "ltr");
   expect(localStorage.getItem("atlas-dashboard-language")).toBe("en");

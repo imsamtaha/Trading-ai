@@ -10,14 +10,17 @@ import { RiskPanel } from "@/features/risk/risk-panel";
 import { ActivityPanel } from "@/features/activity/activity-panel";
 import styles from "./shield.module.css";
 
-const site = "https://atlas-tiger-shield-command-center.imsamtaha-ai.chatgpt.site/";
+import { commandCenterUrl as site } from "@/lib/navigation";
 const views = [
-  ["overview", "Paper portfolio", "المحفظة الورقية"],
-  ["market", "Market data", "بيانات السوق"],
-  ["trader", "Paper trader", "التداول الورقي"],
-  ["training", "Council training", "تدريب المجلس"],
-  ["workspace", "Saved workspace", "مساحة العمل المحفوظة"],
-  ["connections", "Connections", "مركز الربط"],
+  ["#overview", "Paper portfolio", "المحفظة الورقية"],
+  ["#market", "Market data", "بيانات السوق"],
+  ["#trader", "Paper trader", "التداول الورقي"],
+  ["#training", "Council training", "تدريب المجلس"],
+  ["#workspace", "Saved workspace", "مساحة العمل المحفوظة"],
+  ["#connections", "Connections", "مركز الربط"],
+  ["titan/", "TITAN Council", "مجلس تايتن"],
+  ["owner-paper.html", "Owner paper review", "مراجعة المالك الورقية"],
+  ["discover/", "Discover", "اكتشف"],
 ] as const;
 
 export default function DashboardPage() {
@@ -61,13 +64,13 @@ export default function DashboardPage() {
       </div>
     </section>
     <nav className={styles.views} aria-label={ar ? "مساحة العمل" : "Workspace"}>
-      {views.map(([hash, en, arabic]) => <a key={hash} href={site + "#" + hash}>{ar ? arabic : en}</a>)}
+      {views.map(([hash, en, arabic]) => <a key={hash} href={site + hash}>{ar ? arabic : en}</a>)}
     </nav>
     <section className={styles.account} aria-labelledby="account-title">
       <header><h2 id="account-title">{ar ? "حالة الحساب" : "Account status"}</h2><a href="/connect">{ar ? "إدارة الاتصال" : "Manage connection"}</a></header>
       <div role="status">
         {status === "loading" && (ar ? "جارٍ تحميل الحساب…" : "Loading account…")}
-        {status === "signedOut" && <a href="/login">{ar ? "سجّل الدخول لعرض حسابك" : "Sign in to view your account"}</a>}
+        {status === "signedOut" && <a href="/login?returnTo=/dashboard">{ar ? "سجّل الدخول لعرض حسابك" : "Sign in to view your account"}</a>}
         {status === "error" && <>{ar ? "تعذّر تحميل بيانات الحساب. " : "Account data is unavailable. "}<button onClick={() => { setStatus("loading"); setAttempt(n => n + 1); }}>{ar ? "إعادة المحاولة" : "Retry"}</button></>}
         {status === "ready" && (data?.connection === "connected" ? (ar ? "الحساب متصل" : "Account connected") : (ar ? "الحساب غير متصل" : "Account disconnected"))}
       </div>

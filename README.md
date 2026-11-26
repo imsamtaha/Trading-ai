@@ -6,7 +6,7 @@ ATLAS is an AI-assisted market-intelligence and risk-control platform with a str
 
 [Open the private ATLAS INTELLIGENCE dashboard](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/) with an authorized account.
 
-[Market data](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#market) · [Training](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#training) · [Saved workspace](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#workspace) · [Tiger Shield Command Center](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#connections)
+[Market data](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#market) · [Training](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#training) · [Saved workspace](https://atlas-intelligence.imsamtaha-ai.chatgpt.site/#workspace) · [Tiger Shield Command Center](https://atlas-tiger-shield-command-center.imsamtaha-ai.chatgpt.site/) · [TITAN Council](https://atlas-tiger-shield-command-center.imsamtaha-ai.chatgpt.site/titan/) · [Owner paper review](https://atlas-tiger-shield-command-center.imsamtaha-ai.chatgpt.site/owner-paper.html)
 
 - **Market data** provides exchange quotes. The portfolio and paper fills are simulated.
 - **Training** shows Council evidence and demo experiments. **Saved workspace** stores preferences, watchlists, and simulated fill history.

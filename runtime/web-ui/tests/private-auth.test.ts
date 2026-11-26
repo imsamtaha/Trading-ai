@@ -16,6 +16,10 @@ describe("private auth session", () => {
     expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "https://justai-atlas.online/login?auth=callback&returnTo=%2Fadmin%2Fruntime", skipBrowserRedirect: true } });
     expect(safeReturnTo("https://evil.example")).toBe("/backend/api/me");
   });
+  it("returns a signed-in dashboard visitor to the restored page", () => {
+    expect(safeReturnTo("/dashboard")).toBe("/dashboard");
+    expect(safeReturnTo("/dashboard/retired")).toBe("/backend/api/me");
+  });
   it("rejects an OAuth redirect outside the configured Supabase origin", async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ data: { url: "https://evil.example/auth/v1/authorize" }, error: null });
     await expect(startGoogleOAuth({ signInWithOAuth }, "https://justai-atlas.online", "https://example.supabase.co")).rejects.toThrow("OAuth");

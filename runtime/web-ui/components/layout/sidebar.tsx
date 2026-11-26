@@ -1,12 +1,10 @@
+"use client";
+import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/navigation";
 import { AtlasWordmark } from "@/components/brand/atlas-wordmark";
 
-const ARABIC_LABELS: Record<string, string> = {
-  dashboard: "لوحة التحكم", markets: "الأسواق", trade: "التداول", signals: "الإشارات",
-  risk: "المخاطر", analytics: "التحليلات", news: "الأخبار", ai: "ATLAS AI", account: "الحساب",
-};
-
 export function Sidebar({ language = "ar" }: { language?: "ar" | "en" }) {
+  const pathname = usePathname();
   return (
     <aside className="atlas-sidebar" data-testid="desktop-sidebar">
       <AtlasWordmark />
@@ -15,10 +13,10 @@ export function Sidebar({ language = "ar" }: { language?: "ar" | "en" }) {
           <a
             key={item.key}
             href={item.href}
+            aria-current={pathname === item.href ? "page" : undefined}
             className="atlas-nav-link"
-            aria-current={item.key === "dashboard" ? "page" : undefined}
           >
-            {language === "ar" ? ARABIC_LABELS[item.key] : item.label}
+            {language === "ar" ? item.ar : item.label}
           </a>
         ))}
       </nav>
