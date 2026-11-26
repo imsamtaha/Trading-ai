@@ -8,6 +8,8 @@ ATLAS is an AI-assisted market-intelligence and risk-control platform with a str
 
 The dashboard is hosted on Sites and requires authorized sign-in. From the dashboard, open **Saved workspace** for preferences, watchlists, and simulated paper-trade history.
 
+[Open ATLAS Agent Lab](https://atlas-agent-lab-sam.imsamtaha-ai.chatgpt.site/) to run the private four-agent paper trading simulator. Agent Lab is also available from the dashboard sidebar and Connections. Authorized sign-in is required.
+
 ## Canonical architecture
 
 Market Data -> Specialist Analysis -> ATLAS Council -> Senior Risk Management -> Executive Agent -> PAPER TradeIntent -> Paper Journal -> Council Calibration
