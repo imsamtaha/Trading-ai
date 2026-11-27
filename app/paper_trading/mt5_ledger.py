@@ -12,10 +12,12 @@ import os
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from math import isfinite
+from math import isclose, isfinite
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
+from app.risk.ledger_metrics import calculate_position_risk_state
+from app.risk.manager import calculate_risk
 from app.strategy.universe import classify_symbol, normalize_symbol
 
 if os.name == "nt":
@@ -224,6 +226,7 @@ class MT5PaperLedger:
         timeframe: str,
         decision: dict[str, Any],
         training_context: dict[str, Any] | None = None,
+        account_balance: float | None = None,
     ) -> dict[str, Any]:
         direction = direction.upper()
         if direction not in {"LONG", "SHORT"}:
@@ -295,6 +298,25 @@ class MT5PaperLedger:
                 raise PaperLedgerError(
                     f"Maximum daily paper entries reached ({self.max_daily_entries})."
                 )
+
+            if account_balance is not None:
+                portfolio = calculate_position_risk_state(
+                    self._state["open_positions"], self._state["closed_trades"], account_balance,
+                )
+                final_risk = calculate_risk(
+                    direction=direction, entry=entry, stop_loss=stop_loss,
+                    take_profit=take_profit, account_balance=account_balance,
+                    risk_percent=trade["risk_percent"],
+                    daily_realized_pnl=portfolio["daily_realized_pnl"],
+                    open_risk_percent=portfolio["open_risk_percent"],
+                )
+                if final_risk["approved"] is not True:
+                    raise PaperLedgerError(str(final_risk["reason"]))
+                if (
+                    not isclose(position_size, final_risk["position_size"], rel_tol=0, abs_tol=1e-8)
+                    or not isclose(risk_amount, final_risk["actual_risk_amount"], rel_tol=0, abs_tol=1e-8)
+                ):
+                    raise PaperLedgerError("Paper size or risk differs from the approved calculation.")
 
             self._state["open_positions"].append(trade)
             self._persist()

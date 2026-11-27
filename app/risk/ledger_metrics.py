@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Iterable, Mapping
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -41,6 +41,18 @@ def calculate_ledger_risk_state(
     divided by the current account balance. Legacy entries without a positive
     risk_amount fall back to their stored risk_percent.
     """
+    return calculate_position_risk_state(
+        ledger.open_positions(), ledger.closed_trades(), account_balance, now=now,
+    )
+
+
+def calculate_position_risk_state(
+    open_positions: Iterable[Mapping[str, Any]],
+    closed_trades: Iterable[Mapping[str, Any]],
+    account_balance: float,
+    *,
+    now: datetime | None = None,
+) -> dict[str, float]:
     balance = _safe_float(account_balance)
     if balance <= 0:
         raise ValueError("Account balance must be greater than zero.")
@@ -51,7 +63,7 @@ def calculate_ledger_risk_state(
     today = current.astimezone(timezone.utc).date()
 
     daily_realized_pnl = 0.0
-    for trade in ledger.closed_trades():
+    for trade in closed_trades:
         closed_at = _parse_utc(trade.get("closed_at"))
         if closed_at is None or closed_at.date() != today:
             continue
@@ -59,7 +71,7 @@ def calculate_ledger_risk_state(
 
     open_risk_amount = 0.0
     legacy_open_risk_percent = 0.0
-    for position in ledger.open_positions():
+    for position in open_positions:
         risk_amount = max(0.0, _safe_float(position.get("risk_amount")))
         if risk_amount > 0:
             open_risk_amount += risk_amount

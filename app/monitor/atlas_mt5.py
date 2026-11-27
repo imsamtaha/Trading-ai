@@ -6,6 +6,7 @@ import os
 import subprocess
 import time
 from datetime import datetime, timezone
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -16,14 +17,19 @@ from app.execution.heartbeat import AtlasHeartbeat
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError, mt5
 from app.intelligence.shadow_selector import ShadowSelector
 from app.intelligence.confidence import SignalQualityEngine
-from app.intelligence.council_adapters import build_paper_council, record_settled_paper_outcome
-from app.intelligence.council_training import AtlasCouncilTrainer, CouncilTrainingJournal, save_profile
+from app.intelligence.council_adapters import build_paper_council
+from app.intelligence.council_training import (
+    AtlasCouncilTrainer, CouncilTrainingJournal, merge_training_examples, save_profile,
+)
+from app.intelligence.paper_memory import (
+    SettledPaperSetup, paper_setups, read_paper_archive, sizing_evidence,
+)
 from app.intelligence.decision.engine import DecisionInput, UnifiedDecisionEngine
 from app.intelligence.journal import SignalJournal
 from app.paper_trading.mt5_ledger import MT5PaperLedger, PaperLedgerError
 from app.risk.ledger_metrics import calculate_ledger_risk_state
 from app.risk.manager import calculate_risk
-from app.strategies.router import generate_strategy_candidate
+from app.strategies.router import MODES, generate_strategy_candidate
 from app.strategy.universe import build_universe, diversify_universe, normalize_symbol, classify_symbol
 
 
@@ -142,6 +148,19 @@ class AtlasMT5Monitor:
         self.category_position_limit = max(0, int(os.getenv("ATLAS_CATEGORY_POSITION_LIMIT", "0")))
         self.signal_quality_engine = SignalQualityEngine()
         self.council_profile = self._load_council_profile()
+        self.paper_memory: list[SettledPaperSetup] = []
+        self.archived_paper: list[dict[str, Any]] = []
+        if self.council_training_enabled:
+            archive_path = os.getenv("ATLAS_COUNCIL_HISTORY_LEDGER")
+            try:
+                self.archived_paper = read_paper_archive(Path(archive_path) if archive_path else None)
+                self._refresh_paper_memory()
+                if self.paper_memory or self.council_training_journal.path.is_file():
+                    self._refresh_council_profile()
+            except (OSError, PaperLedgerError, TypeError, ValueError) as exc:
+                self.paper_memory = []
+                self.council_profile = None
+                print(f"Council history unavailable: {exc}", flush=True)
 
     @staticmethod
     def _safe_float(value: object, default: float = 0.0) -> float:
@@ -165,13 +184,21 @@ class AtlasMT5Monitor:
             return None
         return payload
 
+    def _refresh_paper_memory(self) -> None:
+        self.paper_memory = []
+        self.paper_memory = paper_setups(
+            chain(self.archived_paper, self.ledger.closed_trades()),
+            before=datetime.now(timezone.utc),
+        )
+
     def _refresh_council_profile(self) -> dict[str, Any] | None:
         if not self.council_training_enabled:
             return self.council_profile
-        examples = self.council_training_journal.load()
-        profile = AtlasCouncilTrainer(
-            minimum_samples=self.council_minimum_samples
-        ).fit(examples)
+        examples = merge_training_examples(
+            self.council_training_journal.load(),
+            (setup.example for setup in self.paper_memory),
+        )
+        profile = AtlasCouncilTrainer(minimum_samples=self.council_minimum_samples).fit(examples)
         save_profile(profile, str(self.council_profile_path))
         self.council_profile = profile
         return profile
@@ -216,33 +243,14 @@ class AtlasMT5Monitor:
     def _record_council_training_outcome(self, trade: dict[str, Any]) -> dict[str, Any] | None:
         if not self.council_training_enabled:
             return None
-        context = trade.get("training_context")
-        if not isinstance(context, dict):
+        if not isinstance(trade.get("training_context"), dict):
             return None
-        council = context.get("council")
-        trade_intent = context.get("trade_intent")
-        if not isinstance(council, dict) or not isinstance(trade_intent, dict):
-            return None
-
-        direction = "BUY" if str(trade.get("direction", "")).upper() == "LONG" else "SELL"
-        r_multiple = self._safe_float(trade.get("r_multiple"))
-        if r_multiple > 0:
-            realized_direction = direction
-        elif r_multiple < 0:
-            realized_direction = "SELL" if direction == "BUY" else "BUY"
-        else:
-            realized_direction = "HOLD"
-
-        record = record_settled_paper_outcome(
-            council=council,
-            trade_intent=trade_intent,
-            realized_direction=realized_direction,
-            journal=self.council_training_journal,
-        )
+        setup = SettledPaperSetup.from_trade(trade)
+        record = self.council_training_journal.append(setup.example)
         profile = self._refresh_council_profile() or {}
         return {
             "snapshot_id": record.get("snapshot_id"),
-            "realized_direction": realized_direction,
+            "realized_direction": setup.example.realized_direction,
             "total_examples": profile.get("total_examples", 0),
             "minimum_samples": profile.get(
                 "minimum_samples", self.council_minimum_samples
@@ -509,16 +517,17 @@ class AtlasMT5Monitor:
         stop_loss, take_profit = self._rebase_levels(candidate, entry)
         base_risk = candidate.get("metadata", {}).get("risk", {})
         ledger_risk = calculate_ledger_risk_state(self.ledger, self.account_equity)
-        risk = calculate_risk(
-            direction=candidate["direction"],
-            entry=entry,
-            stop_loss=stop_loss,
-            take_profit=take_profit,
-            account_balance=self.account_equity,
-            risk_percent=self._safe_float(base_risk.get("risk_percent"), 0.5),
-            daily_realized_pnl=ledger_risk["daily_realized_pnl"],
-            open_risk_percent=ledger_risk["open_risk_percent"],
-        )
+        base_risk_percent = self._safe_float(base_risk.get("risk_percent"), 0.5)
+        risk_inputs = {
+            "direction": candidate["direction"],
+            "entry": entry,
+            "stop_loss": stop_loss,
+            "take_profit": take_profit,
+            "account_balance": self.account_equity,
+            "daily_realized_pnl": ledger_risk["daily_realized_pnl"],
+            "open_risk_percent": ledger_risk["open_risk_percent"],
+        }
+        risk = calculate_risk(**risk_inputs, risk_percent=base_risk_percent)
         if risk.get("approved") is not True:
             return {
                 "timestamp": timestamp,
@@ -530,6 +539,33 @@ class AtlasMT5Monitor:
                 "decision": decision,
                 "risk": risk,
             }
+
+        experiment = None
+        mode = MODES.get(self.strategy_mode, MODES["BALANCED"])
+        raised_risk = min(mode.prime_risk_percent, round(base_risk_percent * 1.10, 6))
+        spread_in_r = (float(quote["ask"]) - float(quote["bid"])) / abs(entry - stop_loss)
+        if (
+            self.council_training_enabled and self.council_profile is not None
+            and raised_risk > base_risk_percent
+            and candidate.get("qualified") is True
+            and 70.0 <= self._safe_float(candidate.get("confidence")) <= 100.0
+            and risk["risk_reward"] >= 2.0 and 0 <= spread_in_r <= 0.10
+        ):
+            evidence = sizing_evidence(
+                self.paper_memory,
+                key=(symbol.upper(), str(candidate["strategy"]).upper(),
+                     self.interval.upper(), candidate["direction"]),
+                before=datetime.now(timezone.utc),
+            )
+            if evidence:
+                raised = calculate_risk(**risk_inputs, risk_percent=raised_risk)
+                if raised["approved"] and raised["position_size"] > risk["position_size"]:
+                    experiment = {
+                        **evidence,
+                        "base_risk_percent": base_risk_percent,
+                        "approved_risk_percent": raised_risk,
+                    }
+                    risk = raised
 
         training_context = None
         if self.council_training_enabled:
@@ -568,6 +604,9 @@ class AtlasMT5Monitor:
                     "trade_intent": trade_intent,
                 }
 
+        if experiment and training_context is not None:
+            training_context["paper_sizing_experiment"] = experiment
+
         trade = self.ledger.open_trade(
             symbol=symbol,
             direction=candidate["direction"],
@@ -581,6 +620,7 @@ class AtlasMT5Monitor:
             timeframe=self.interval,
             decision=decision,
             training_context=training_context,
+            account_balance=self.account_equity,
         )
         return {
             "timestamp": timestamp,
@@ -647,6 +687,11 @@ class AtlasMT5Monitor:
     def cycle(self) -> list[dict[str, Any]]:
         timestamp = datetime.now(timezone.utc).isoformat()
         events = self._close_due_positions(timestamp)
+        if self.council_training_enabled:
+            try:
+                self._refresh_paper_memory()
+            except (OSError, PaperLedgerError, TypeError, ValueError) as exc:
+                print(f"Paper sizing memory unavailable: {exc}", flush=True)
         self._refresh_shadow_training()
         if self.auto_discover:
             self.discover_symbols()

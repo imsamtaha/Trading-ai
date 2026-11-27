@@ -90,6 +90,37 @@ training modules and the nine-seat contract library. Its command-line interface
 runs offline calibration. It requires only Python and leaves the Windows MT5
 worker independent.
 
+## PAPER trade memory and sizing
+
+The Windows worker rebuilds setup history from closed records in the native
+PAPER ledger. Set `ATLAS_COUNCIL_HISTORY_LEDGER` to a private archived copy of
+an older ledger to include its eligible closed trades on startup. The worker
+reads the archive without adding its balances, open positions, or daily P&L
+to the active ledger. A matching Council snapshot, Executive PAPER intent,
+Senior Risk approval, finite outcome, and valid timestamps are required.
+Identical records count once. Conflicting snapshots prevent the affected
+history from being used.
+
+The PAPER sizing policy can request up to 10% more than a setup's usual risk budget,
+within the existing strategy mode's prime risk ceiling. Quotes must be
+fresh and the spread must be at most one tenth of the stop distance. The setup must pass the existing trade gates and have at least
+24 comparable settled trades in the prior 180 days, matched on symbol,
+strategy, timeframe and side. Both the earlier period and a later holdout
+must show at least 0.15 R average after a 0.10 R stress per trade and with
+gains capped at 2 R for this check. Earlier-period statistics exclude trades still open
+at the start of the holdout. Sizing falls back to its usual budget if the
+evidence or portfolio headroom is insufficient. The ledger checks portfolio
+limits again under its write lock before opening the PAPER position.
+
+Use the existing training command to prepare a local profile from a
+journal and an optional archive. Daily rollups and public price candles
+are useful for offline research, which has its own evaluation path.
+
+```sh
+python scripts/train_atlas_council.py --journal data/atlas_council_training.jsonl \
+  --history-ledger data/archived_paper_ledger.json --output data/atlas_council_profile.json
+```
+
 ## Offline MLflow research
 
 Use the [repository trainer](../../atlas_training/train_agent.py) with a private CSV of historical candles. For the default five-fold walk-forward run, provide at least 110 rows for one instrument and timeframe. The CSV must have `time`, `open`, `high`, `low`, and `close` columns, unique timestamps, valid positive OHLC prices, and enough up and down closes for every training fold. Use PAPER daily summaries and training scorecards for reporting. Keep the CSV and generated reports under the Git-ignored `data/` directory.

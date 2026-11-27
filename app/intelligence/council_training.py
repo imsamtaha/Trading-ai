@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import isfinite
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any, Iterable, Mapping
 
 
@@ -59,6 +60,16 @@ class PaperTrainingExample:
             execution_environment=str(payload.get("execution_environment", "PAPER")),
             broker_execution_allowed=bool(payload.get("broker_execution_allowed", False)),
         )
+
+
+def merge_training_examples(*sources: Iterable[PaperTrainingExample]) -> list[PaperTrainingExample]:
+    unique: dict[str, PaperTrainingExample] = {}
+    for source in sources:
+        for example in source:
+            previous = unique.setdefault(example.snapshot_id, example)
+            if previous != example:
+                raise ValueError("Conflicting PAPER outcomes for a duplicate snapshot")
+    return list(unique.values())
 
 
 class AtlasCouncilTrainer:
@@ -176,6 +187,12 @@ class CouncilTrainingJournal:
                     continue
                 try:
                     payload = json.loads(line, parse_constant=_reject_constant)
+                    if (
+                        not isinstance(payload, Mapping)
+                        or payload.get("execution_environment") != "PAPER"
+                        or payload.get("broker_execution_allowed") is not False
+                    ):
+                        raise ValueError("Missing explicit PAPER provenance")
                     examples.append(PaperTrainingExample.from_dict(payload))
                 except (json.JSONDecodeError, TypeError, ValueError) as exc:
                     raise ValueError(f"Invalid council training record at line {line_number}") from exc
@@ -185,5 +202,14 @@ class CouncilTrainingJournal:
 def save_profile(profile: Mapping[str, Any], path: str | None = None) -> Path:
     target = Path(path or os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json"))
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(dict(profile), indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
+    content = json.dumps(dict(profile), indent=2, sort_keys=True, allow_nan=False) + "\n"
+    temporary = None
+    try:
+        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+        temporary.replace(target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return target
