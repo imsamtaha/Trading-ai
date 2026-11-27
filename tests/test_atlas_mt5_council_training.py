@@ -1,8 +1,12 @@
-from datetime import datetime, timezone
+import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.intelligence.council_adapters import build_paper_council
+from app.intelligence.paper_memory import SettledPaperSetup
 from app.monitor.atlas_mt5 import AtlasMT5Monitor
+from app.paper_trading.mt5_ledger import PaperLedgerError
 
 
 def _monitor(tmp_path, monkeypatch):
@@ -187,3 +191,79 @@ def test_training_disabled_preserves_legacy_paper_path(tmp_path, monkeypatch):
     assert event["trade"]["training_context"] is None
     assert event["council"] is None
     assert event["trade_intent"] is None
+
+
+def _archived_trades(*, weak_holdout=False):
+    now = datetime.now(timezone.utc)
+    rows = []
+    for index in range(24):
+        opened = now - timedelta(days=30 - index)
+        outcome = -1.0 if index % 4 == 0 or (weak_holdout and index >= 16) else 1.5
+        context = build_paper_council(
+            symbol="EURUSD", snapshot_id=f"archive-{index}",
+            signal={"direction": "LONG", "confidence": 80.0},
+            risk={"approved": True}, data_quality=1.0,
+        )
+        rows.append({
+            "status": "CLOSED", "id": f"paper-{index}", "symbol": "EURUSD",
+            "strategy": "CONTINUATION_5M", "timeframe": "5m", "direction": "LONG",
+            "opened_at": opened.isoformat(),
+            "closed_at": (opened + timedelta(hours=1)).isoformat(),
+            "r_multiple": outcome, "training_context": context,
+        })
+    return rows
+
+
+@pytest.mark.parametrize(("weak_holdout", "applied"), [(False, True), (True, False)])
+def test_archived_paper_memory_only_increases_size_after_positive_holdout(
+    tmp_path, monkeypatch, weak_holdout, applied
+):
+    source = tmp_path / "archive.json"
+    trades = _archived_trades(weak_holdout=weak_holdout)
+    invalid = {**trades[0], "execution_environment": "LIVE"}
+    legacy = {**trades[0], "training_context": None}
+    source.write_text(json.dumps({"closed_trades": [*trades, trades[0], invalid, legacy]}))
+    monkeypatch.setenv("ATLAS_COUNCIL_HISTORY_LEDGER", str(source))
+    first = _monitor(tmp_path, monkeypatch)
+    assert first.ledger.closed_trades() == []
+    first.council_training_journal.append(SettledPaperSetup.from_trade(trades[0]).example)
+
+    # Reload from the persisted ledger archive and journal together.
+    monitor = _monitor(tmp_path, monkeypatch)
+    assert monitor.council_profile["total_examples"] == 24
+    assert monitor.ledger.closed_trades() == []
+    monkeypatch.setattr(monitor.broker, "quote", lambda _: _fresh_quote(bid=100.0, ask=100.01))
+    candidate = {**_candidate(), "entry": 100, "stop_loss": 97, "take_profit": 106}
+
+    event = monitor._open_paper_trade(
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        symbol="EURUSD", candidate=candidate, decision=_decision(),
+    )
+
+    assert event["status"] == "PAPER_TRADE_OPENED"
+    assert event["trade_intent"]["broker_execution_allowed"] is False
+    trade = event["trade"]
+    evidence = trade["training_context"].get("paper_sizing_experiment")
+    assert trade["risk_percent"] == (0.55 if applied else 0.5)
+    assert bool(evidence) is applied
+    if applied:
+        assert trade["position_size"] == pytest.approx(55 / 3)
+        assert evidence["holdout_samples"] == 8
+
+
+def test_position_limit_is_checked_under_ledger_lock(tmp_path, monkeypatch):
+    monitor = _monitor(tmp_path, monkeypatch)
+    monitor.ledger.open_trade(
+        symbol="XAUUSD", direction="LONG", entry=100, stop_loss=98, take_profit=104,
+        position_size=125, risk={"risk_percent": 2.5, "actual_risk_amount": 250},
+        strategy="test", confidence=85, timeframe="5m", decision={},
+    )
+
+    with pytest.raises(PaperLedgerError, match="Aggregate open-risk"):
+        monitor.ledger.open_trade(
+            symbol="EURUSD", direction="LONG", entry=100, stop_loss=98, take_profit=104,
+            position_size=27.5, risk={"risk_percent": 0.55, "actual_risk_amount": 55},
+            strategy="test", confidence=85, timeframe="5m", decision={}, account_balance=10000,
+        )
+
+    assert len(monitor.ledger.open_positions()) == 1

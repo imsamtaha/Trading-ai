@@ -125,6 +125,48 @@ def build_paper_council(
     return {"council": council, "trade_intent": trade_intent}
 
 
+def settled_paper_example(
+    *,
+    council: Mapping[str, Any],
+    trade_intent: Mapping[str, Any],
+    realized_direction: str,
+) -> PaperTrainingExample:
+    if str(trade_intent.get("execution_environment", "")).upper() != "PAPER":
+        raise ValueError("Only PAPER trade intents can train ATLAS Council")
+    if trade_intent.get("broker_execution_allowed") is not False:
+        raise ValueError("Broker-executed intents cannot train ATLAS Council")
+    snapshot_id = council.get("snapshot_id")
+    if not isinstance(snapshot_id, str) or not snapshot_id.strip() or trade_intent.get("snapshot_id") != snapshot_id:
+        raise ValueError("Council and trade intent snapshot_id must match")
+
+    opinions = council.get("opinions") or []
+    training_opinions: list[dict[str, Any]] = []
+    names = set()
+    for opinion in opinions:
+        if not isinstance(opinion, Mapping):
+            raise ValueError("A settled Council opinion must be an object")
+        agent = opinion.get("agent")
+        decision = opinion.get("decision")
+        confidence = opinion.get("confidence")
+        if (
+            not isinstance(agent, str) or not agent.strip() or agent.strip() in names
+            or decision not in ("BUY", "SELL", "HOLD")
+            or isinstance(confidence, bool) or not isinstance(confidence, (int, float))
+            or not 0.0 <= confidence <= 1.0
+        ):
+            raise ValueError("Invalid or duplicate settled Council opinion")
+        names.add(agent.strip())
+        training_opinions.append(
+            {"agent": agent.strip(), "decision": decision, "confidence": float(confidence)}
+        )
+
+    return PaperTrainingExample(
+        snapshot_id=snapshot_id,
+        realized_direction=realized_direction,
+        opinions=tuple(training_opinions),
+    )
+
+
 def record_settled_paper_outcome(
     *,
     council: Mapping[str, Any],
@@ -132,29 +174,7 @@ def record_settled_paper_outcome(
     realized_direction: str,
     journal: CouncilTrainingJournal | None = None,
 ) -> dict[str, Any]:
-    if str(trade_intent.get("execution_environment", "")).upper() != "PAPER":
-        raise ValueError("Only PAPER trade intents can train ATLAS Council")
-    if bool(trade_intent.get("broker_execution_allowed", True)):
-        raise ValueError("Broker-executed intents cannot train ATLAS Council")
-    if trade_intent.get("snapshot_id") != council.get("snapshot_id"):
-        raise ValueError("Council and trade intent snapshot_id must match")
-
-    opinions = council.get("opinions") or []
-    training_opinions: list[dict[str, Any]] = []
-    for opinion in opinions:
-        if not isinstance(opinion, Mapping):
-            continue
-        training_opinions.append(
-            {
-                "agent": str(opinion.get("agent", "")),
-                "decision": str(opinion.get("decision", "")),
-                "confidence": float(opinion.get("confidence", 0.0)),
-            }
-        )
-
-    example = PaperTrainingExample(
-        snapshot_id=str(council.get("snapshot_id", "")),
-        realized_direction=realized_direction,
-        opinions=tuple(training_opinions),
+    example = settled_paper_example(
+        council=council, trade_intent=trade_intent, realized_direction=realized_direction,
     )
     return (journal or CouncilTrainingJournal()).append(example)
