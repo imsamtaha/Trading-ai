@@ -65,3 +65,34 @@ limit. Passing these checks produces `REVIEW_REQUIRED`; it never enables live
 trading automatically. Live execution also requires out-of-sample validation,
 MT5 lot-size conversion tests, order reconciliation, daily-loss limits, and a
 manual owner approval.
+
+## Tiger Shield read-only provider status
+
+The Tiger Shield Connection Center uses authenticated GET requests to the
+provider status endpoints. Serve them from a private listener exposed over
+authenticated HTTPS to the Site. Set `ATLAS_PROVIDER_STATUS_TOKEN` on the
+service and the corresponding `ATLAS_MT5_DEMO_STATUS_TOKEN`,
+`ATLAS_MT5_REAL_STATUS_TOKEN` or `ATLAS_CTRADER_STATUS_TOKEN` in Sites.
+
+- Run the separate read-only Windows status service with
+  `python -m uvicorn scripts.atlas_provider_status:app --host 127.0.0.1 --port 8766`. Point
+  `ATLAS_MT5_DEMO_STATUS_URL` and `ATLAS_MT5_REAL_STATUS_URL` at the respective
+  `/status/mt5` URLs. Use separate bridge processes and terminal installations
+  for DEMO and REAL. Set `ATLAS_MT5_STATUS_ACCOUNT_TYPE` to `DEMO` or `REAL`,
+  and set that instance's `MT5_TERMINAL_PATH`, `MT5_LOGIN` and `MT5_SERVER`.
+  Sign in to the terminal with investor/read-only credentials. The status
+  route verifies the active account and environment. The existing
+  `/telemetry` route is DEMO-only and should not be routed to the real instance.
+- Point `ATLAS_CTRADER_STATUS_URL` at `/status/ctrader` on a service instance
+  with `ATLAS_CTRADER_DEMO_LOGIN`, `ATLAS_CTRADER_CLIENT_ID`,
+  `ATLAS_CTRADER_CLIENT_SECRET` and an `ATLAS_CTRADER_ACCESS_TOKEN` with
+  account-view permission. This route reads the matching FxPro demo account
+  without changing the active provider.
+- Set `ATLAS_PROVIDER_OWNER_EMAIL` and the optional
+  `ATLAS_CTRADER_ACCOUNT_EMAIL` privately in Sites. These email settings
+  identify the dashboard owner and the optional provider account. Provider
+  authorization comes from the terminal session or cTrader credentials.
+
+On the PAPER worker, `scripts/start_atlas_demo.ps1 -ShadowTraining` enables
+shadow evaluation alongside the default Council calibration. The shadow
+selection is observational and leaves the PAPER decision authority unchanged.
