@@ -3,6 +3,7 @@ param(
     [switch]$Once,
     [switch]$NoDashboard,
     [switch]$NoCouncilTraining,
+    [switch]$ShadowTraining,
     [int]$Port = 8000
 )
 
@@ -24,6 +25,7 @@ New-Item -ItemType Directory -Force (Join-Path $projectRoot "data") | Out-Null
 $env:ATLAS_LIVE_TRADING = "false"
 $env:ATLAS_ENVIRONMENT = "paper"
 $env:ATLAS_COUNCIL_TRAINING_ENABLED = if ($NoCouncilTraining) { "false" } else { "true" }
+if ($ShadowTraining) { $env:ATLAS_SHADOW_TRAINING_ENABLED = "true" }
 
 & $python scripts\verify_mt5.py
 if ($LASTEXITCODE -ne 0) {

@@ -128,8 +128,8 @@ def _account_snapshot(client_id: str, client_secret: str, token: str, login: str
     }
 
 
-def read_demo_account() -> dict[str, Any]:
-    if not ctrader_selected():
+def read_demo_account(*, require_selected: bool = True) -> dict[str, Any]:
+    if require_selected and not ctrader_selected():
         return {"status": "INACTIVE"}
     login = os.getenv("ATLAS_CTRADER_DEMO_LOGIN", "").strip()
     client_id = os.getenv("ATLAS_CTRADER_CLIENT_ID", "").strip()
