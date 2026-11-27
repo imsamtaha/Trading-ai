@@ -54,14 +54,13 @@ TIMEFRAME_SECONDS = {
 }
 
 
-class AtlasMT5Monitor:
-    """Forward-demo monitor that never submits an MT5 order.
+class AtlasPaperMonitor:
+    """Shared strategy, Council, risk and local settlement logic."""
 
-    Qualified candidates are opened in a persistent paper ledger, then closed
-    only when a later MT5 quote reaches their stop loss or take profit. Every
-    open/close/error is journaled locally and published to Supabase whenever
-    the worker has server-side Supabase credentials.
-    """
+    market_source: str
+    MarketError: type[RuntimeError]
+    require_council = False
+    training_default = "false"
 
     def __init__(
         self,
@@ -70,12 +69,12 @@ class AtlasMT5Monitor:
         candle_limit: int = 200,
         cycle_seconds: int = 30,
         top_n: int = 30,
+        state_dir: Path | None = None,
     ):
         if interval not in TIMEFRAME_MAP:
             raise ValueError(f"Unsupported ATLAS interval: {interval}")
 
-        config = MT5Config.from_env()
-        if not config.dry_run:
+        if os.getenv("ATLAS_LIVE_TRADING", "false").lower() == "true":
             raise ValueError(
                 "ATLAS demo monitor refuses to start while ATLAS_LIVE_TRADING=true. "
                 "Set it to false for paper validation."
@@ -97,41 +96,26 @@ class AtlasMT5Monitor:
             if item.strip()
         }
         self.persist_all_signals = os.getenv("ATLAS_PERSIST_ALL_SIGNALS", "false").lower() == "true"
-        self.max_quote_age_seconds = max(
-            1,
-            int(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")),
-        )
-        self.quote_time_offset_seconds = int(
-            os.getenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "0")
-        )
-        if abs(self.quote_time_offset_seconds) > 14 * 3600:
-            raise ValueError("ATLAS MT5 quote time offset must be within +/-14 hours.")
+        self.max_quote_age_seconds, self.quote_time_offset_seconds = self._quote_settings()
         self.reentry_cooldown_seconds = max(
             TIMEFRAME_SECONDS[interval],
             int(os.getenv("ATLAS_REENTRY_COOLDOWN_SECONDS", str(TIMEFRAME_SECONDS[interval]))),
         )
 
-        self.broker = MT5Broker(config)
-        # Retained as an explicit invariant for code paths that inspect
-        # execution status. The demo monitor never calls this service.
-        self.execution = AtlasExecutionService(
-            broker=self.broker,
-            policy=ExecutionPolicy(enabled=False),
-        )
         self.decision_engine = UnifiedDecisionEngine()
-        self.ledger = MT5PaperLedger()
-        self.journal = SignalJournal()
-        self.heartbeat = AtlasHeartbeat(self.broker)
+        self.ledger = MT5PaperLedger(str(state_dir / "atlas_demo_ledger.json") if state_dir else None)
+        self.journal = SignalJournal(str(state_dir / "atlas_signals.jsonl") if state_dir else None)
         self.running = False
         self.universe: list[dict[str, Any]] = []
         self.account_equity = float(os.getenv("ATLAS_DEMO_ACCOUNT_EQUITY", "10000"))
         self.council_training_enabled = (
-            os.getenv("ATLAS_COUNCIL_TRAINING_ENABLED", "false").lower() == "true"
+            os.getenv("ATLAS_COUNCIL_TRAINING_ENABLED", self.training_default).lower() == "true"
         )
         self.council_training_journal = CouncilTrainingJournal(
-            os.getenv("ATLAS_COUNCIL_TRAINING_JOURNAL", "data/atlas_council_training.jsonl")
+            str(state_dir / "atlas_council_training.jsonl") if state_dir
+            else os.getenv("ATLAS_COUNCIL_TRAINING_JOURNAL", "data/atlas_council_training.jsonl")
         )
-        self.council_profile_path = Path(
+        self.council_profile_path = state_dir / "atlas_council_profile.json" if state_dir else Path(
             os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json")
         )
         self.council_minimum_samples = max(
@@ -161,6 +145,9 @@ class AtlasMT5Monitor:
                 self.paper_memory = []
                 self.council_profile = None
                 print(f"Council history unavailable: {exc}", flush=True)
+
+    def _quote_settings(self) -> tuple[int, int]:
+        raise NotImplementedError
 
     @staticmethod
     def _safe_float(value: object, default: float = 0.0) -> float:
@@ -258,7 +245,7 @@ class AtlasMT5Monitor:
         }
 
     def _validate_quote_freshness(self, quote: dict[str, Any]) -> tuple[bool, str]:
-        """Fail closed when an MT5 quote has no trustworthy current timestamp."""
+        """Fail closed when a quote has no trustworthy current timestamp."""
         try:
             time_msc = int(quote.get("time_msc", 0) or 0)
             if time_msc:
@@ -266,23 +253,23 @@ class AtlasMT5Monitor:
             else:
                 quote_timestamp = float(int(quote.get("time", 0) or 0))
         except (TypeError, ValueError, OverflowError):
-            return False, "MT5 quote timestamp is invalid."
+            return False, f"{self.market_source} quote timestamp is invalid."
 
         if quote_timestamp < 0:
-            return False, "MT5 quote timestamp is invalid."
+            return False, f"{self.market_source} quote timestamp is invalid."
         if quote_timestamp == 0:
-            return False, "MT5 quote timestamp is missing."
+            return False, f"{self.market_source} quote timestamp is missing."
 
         quote_timestamp -= self.quote_time_offset_seconds
         age_seconds = datetime.now(timezone.utc).timestamp() - quote_timestamp
 
         if age_seconds < -5:
-            return False, "MT5 quote timestamp is unexpectedly in the future."
+            return False, f"{self.market_source} quote timestamp is unexpectedly in the future."
 
         if age_seconds > self.max_quote_age_seconds:
             return (
                 False,
-                f"MT5 quote is stale ({age_seconds:.1f}s old; "
+                f"{self.market_source} quote is stale ({age_seconds:.1f}s old; "
                 f"maximum {self.max_quote_age_seconds}s).",
             )
 
@@ -346,16 +333,15 @@ class AtlasMT5Monitor:
         )
         return self.decision_engine.analyze(data)
 
+    def _market_candles(self, symbol: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
     def analyze_symbol(self, symbol: str) -> dict[str, Any]:
-        if mt5 is None:
-            raise MT5ExecutionError("MT5 candles require the Windows worker.")
-        candles = self.broker.candles(
-            symbol, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit
-        )
+        candles = self._market_candles(symbol)
         if len(candles) < 50:
-            raise MT5ExecutionError(f"{symbol}: at least 50 candles are required.")
+            raise self.MarketError(f"{symbol}: at least 50 candles are required.")
         market_data = {
-            "symbol": symbol, "interval": self.interval, "source": "MT5",
+            "symbol": symbol, "interval": self.interval, "source": self.market_source,
             "count": len(candles), "candles": candles,
         }
         technical = analyze_candles(candles)
@@ -392,13 +378,11 @@ class AtlasMT5Monitor:
 
     def _close_due_positions(self, timestamp: str) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
-        symbols = {str(position["symbol"]) for position in self.ledger.open_positions()}
-        for symbol in symbols:
+        positions = {str(position["symbol"]): position for position in self.ledger.open_positions()}
+        for symbol, position in positions.items():
             try:
                 quote = self.broker.quote(symbol)
-                quote_fresh, quote_reason = self._validate_quote_freshness(quote)
-                if not quote_fresh:
-                    raise MT5ExecutionError(quote_reason)
+                self._validate_settlement_quote(quote, position)
                 for trade in self.ledger.close_due_positions(
                     symbol,
                     bid=float(quote["bid"]),
@@ -425,18 +409,23 @@ class AtlasMT5Monitor:
                     }
                     self._record_event(event)
                     events.append(event)
-            except (MT5ExecutionError, PaperLedgerError) as exc:
+            except (self.MarketError, PaperLedgerError) as exc:
                 event = {
                     "timestamp": timestamp,
                     "symbol": symbol,
                     "timeframe": self.interval,
-                    "status": "MT5_ERROR",
+                    "status": f"{self.market_source}_ERROR",
                     "reason": str(exc),
                     "decision": {"decision": "WAIT"},
                 }
                 self._record_event(event)
                 events.append(event)
         return events
+
+    def _validate_settlement_quote(self, quote: dict[str, Any], position: dict[str, Any]) -> None:
+        fresh, reason = self._validate_quote_freshness(quote)
+        if not fresh:
+            raise self.MarketError(reason)
 
     def _open_paper_trade(
         self,
@@ -568,7 +557,7 @@ class AtlasMT5Monitor:
                     risk = raised
 
         training_context = None
-        if self.council_training_enabled:
+        if self.require_council or self.council_training_enabled:
             try:
                 training_context = self._build_council_gate(
                     timestamp=timestamp,
@@ -630,7 +619,7 @@ class AtlasMT5Monitor:
             "reason": (
                 "Strategy, deterministic decision, Senior Risk, and ATLAS Council "
                 "approved a Paper entry."
-                if self.council_training_enabled
+                if training_context is not None
                 else "Qualified strategy, decision, and risk gates approved a paper entry."
             ),
             "candidate": candidate,
@@ -735,12 +724,12 @@ class AtlasMT5Monitor:
                     event["shadow"] = shadow
                 self._record_event(event)
                 events.append(event)
-            except (MT5ExecutionError, PaperLedgerError) as exc:
+            except (self.MarketError, PaperLedgerError) as exc:
                 event = {
                     "timestamp": timestamp,
                     "symbol": symbol,
                     "timeframe": self.interval,
-                    "status": "MT5_ERROR",
+                    "status": f"{self.market_source}_ERROR",
                     "reason": str(exc),
                     "decision": {"decision": "WAIT"},
                 }
@@ -758,6 +747,40 @@ class AtlasMT5Monitor:
                 self._record_event(event)
                 events.append(event)
         return events
+
+
+class AtlasMT5Monitor(AtlasPaperMonitor):
+    """MT5 forward-demo monitor with optional Supabase audit publication."""
+
+    market_source = "MT5"
+    MarketError = MT5ExecutionError
+
+    def __init__(
+        self,
+        symbols: list[str] | None = None,
+        interval: str = "5m",
+        candle_limit: int = 200,
+        cycle_seconds: int = 30,
+        top_n: int = 30,
+    ) -> None:
+        super().__init__(symbols, interval, candle_limit, cycle_seconds, top_n)
+        self.broker = MT5Broker(MT5Config.from_env())
+        self.execution = AtlasExecutionService(broker=self.broker, policy=ExecutionPolicy(enabled=False))
+        self.heartbeat = AtlasHeartbeat(self.broker)
+
+    def _quote_settings(self) -> tuple[int, int]:
+        max_age = max(1, int(os.getenv("ATLAS_MT5_MAX_QUOTE_AGE_SECONDS", "30")))
+        time_offset = int(os.getenv("ATLAS_MT5_QUOTE_TIME_OFFSET_SECONDS", "0"))
+        if abs(time_offset) > 14 * 3600:
+            raise ValueError("ATLAS MT5 quote time offset must be within +/-14 hours.")
+        return max_age, time_offset
+
+    def _market_candles(self, symbol: str) -> list[dict[str, Any]]:
+        if mt5 is None:
+            raise MT5ExecutionError("MT5 candles require the Windows worker.")
+        return self.broker.candles(
+            symbol, getattr(mt5, TIMEFRAME_MAP[self.interval]), self.candle_limit
+        )
 
     def run_once(self) -> list[dict[str, Any]]:
         """Run one connected demo cycle and return its audit events."""

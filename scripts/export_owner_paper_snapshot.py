@@ -1,4 +1,4 @@
-"""Export existing ATLAS Windows PAPER records to a signed, read-only owner snapshot.
+"""Export existing ATLAS PAPER records to a signed owner snapshot.
 
 Never sends MT5 orders; never creates trading outcomes, demo metrics or market data.
 A signed snapshot authenticates the file; it does not prove strategy performance.
@@ -42,13 +42,25 @@ def _journal(path: Path):
     return rows
 
 
-def collect(root: Path) -> dict:
-    status = _optional(root / os.getenv("ATLAS_DEMO_STATUS", "data/atlas_demo_status.json"))
-    ledger = _optional(root / os.getenv("ATLAS_DEMO_LEDGER", "data/atlas_demo_ledger.json"))
-    profile = _optional(root / os.getenv("ATLAS_COUNCIL_PROFILE", "data/atlas_council_profile.json"))
+def collect(root: Path, *, origin: str = "WINDOWS_PAPER") -> dict:
+    ctrader = origin == "CTRADER_DEMO_PAPER"
+
+    def source(name: str, filename: str) -> Path:
+        return root / (filename if ctrader else os.getenv(name, f"data/{filename}"))
+
+    status = _optional(source("ATLAS_DEMO_STATUS", "atlas_demo_status.json"))
+    ledger = _optional(source("ATLAS_DEMO_LEDGER", "atlas_demo_ledger.json"))
+    profile = _optional(source("ATLAS_COUNCIL_PROFILE", "atlas_council_profile.json"))
+    if ctrader and isinstance(status, dict):
+        if (status.get("market_source") != "CTRADER_DEMO" or status.get("broker_execution_allowed") is not False
+                or not (root / "ctrader_account.json").is_file()):
+            raise ValueError("cTrader worker status is missing demo PAPER provenance.")
+        if ledger is None:
+            ledger = {}
     if not isinstance(status, dict) or not isinstance(ledger, dict):
-        raise ValueError("Windows worker status and PAPER ledger must both exist and be valid.")
-    if (status.get("live_execution") is not False or status.get("mode") != "LIVE_DEMO"):
+        raise ValueError("Worker status and PAPER ledger must both exist and be valid.")
+    if (status.get("live_execution") is not False
+            or status.get("mode") != ("CTRADER_DEMO_PAPER" if ctrader else "LIVE_DEMO")):
         raise ValueError("Worker is not confirmed PAPER-only by the saved status.")
     trades = ledger.get("closed_trades", [])
     opens = ledger.get("open_positions", [])
@@ -57,7 +69,7 @@ def collect(root: Path) -> dict:
     stamped = status.get("updated_at")
     if not isinstance(stamped, str) or datetime.fromisoformat(stamped.replace("Z", "+00:00")).tzinfo is None:
         raise ValueError("Worker heartbeat missing timezone")
-    training = _journal(root / os.getenv("ATLAS_COUNCIL_TRAINING_JOURNAL", "data/atlas_council_training.jsonl"))
+    training = _journal(source("ATLAS_COUNCIL_TRAINING_JOURNAL", "atlas_council_training.jsonl"))
     training = [x for x in training if x.get("execution_environment") == "PAPER"
                 and x.get("broker_execution_allowed") is False]
     if profile is not None and (not isinstance(profile, dict)
@@ -88,7 +100,8 @@ def collect(root: Path) -> dict:
         history.append({"trade_id": trade["id"], "opened_at": trade.get("opened_at"),
                         "closed_at": trade.get("closed_at"), "symbol": trade.get("symbol"),
                         "direction": trade.get("direction"), "status": trade.get("status"),
-                        "result_r": trade.get("r_multiple"), "source": "mt5_demo_paper_ledger"})
+                        "result_r": trade.get("r_multiple"),
+                        "source": "ctrader_demo_paper_ledger" if ctrader else "mt5_demo_paper_ledger"})
     decisions = []
     for trade in trades:
         decision = trade.get("decision")
@@ -103,26 +116,28 @@ def collect(root: Path) -> dict:
                           "outcome": trade.get("exit_reason"),
                           "provenance": "paper_ledger"})
     signals = []
-    for item in _journal(root / os.getenv("ATLAS_SIGNAL_JOURNAL", "data/atlas_signals.jsonl")):
+    for item in _journal(source("ATLAS_SIGNAL_JOURNAL", "atlas_signals.jsonl")):
         if item.get("execution_environment") != "PAPER" or item.get("broker_execution_allowed") is not False:
             continue
+        decision = item.get("decision")
         signals.append({"id": item.get("decision_id"), "timestamp": item.get("timestamp"),
-                        "symbol": item.get("symbol"), "decision": item.get("decision"),
+                        "symbol": item.get("symbol"), "decision": decision.get("decision") if isinstance(decision, dict) else decision,
                         "confidence": item.get("confidence"), "risk_gate": item.get("risk_gate"),
                         "evidence_id": item.get("snapshot_id"), "status": item.get("status")})
     snapshot = {
-        "data_origin": "WINDOWS_PAPER", "source_environment": "PAPER",
+        "data_origin": origin, "source_environment": "PAPER",
         "broker_execution_allowed": False, "as_of": stamped,
         "source_id": "paper-status-" + hashlib.sha256(status["updated_at"].encode()).hexdigest()[:12],
         "data": {
-            "council_agents": agents, "mt5_demo": {"status": status.get("status"),
+            "council_agents": agents, "mt5_demo": {} if ctrader else {"status": status.get("status"),
               "account_type": "DEMO_REPORTED", "timestamp": stamped},
             "signals": signals[-500:], "risk_controls": {},
             "training_progress": {"sample_count": len(training),
                                   "training_profile_version": (profile or {}).get("version")},
             "decision_evidence": decisions[-500:], "paper_trade_history": history[-500:],
             "windows_runtime": {"status": status.get("status"), "heartbeat": stamped,
-                                "cycle_seconds": status.get("cycle_seconds")},
+                                "cycle_seconds": status.get("cycle_seconds"),
+                                **({"service": "cTrader Demo PAPER", "last_error": status.get("last_error")} if ctrader else {})},
             "shadow_learning": {"status": "PAPER_ONLY" if profile else "UNAVAILABLE",
                  "samples": len(training), "training_examples": len(training),
                  "updated_at": (profile or {}).get("generated_at"),
@@ -130,6 +145,21 @@ def collect(root: Path) -> dict:
         },
     }
     return snapshot
+
+
+def write_json_atomic(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, allow_nan=False, indent=2), encoding="utf-8")
+    temporary.replace(path)
+
+
+def export_snapshot(root: Path, path: Path, key: str, *, origin: str = "WINDOWS_PAPER") -> dict:
+    raw = collect(root, origin=origin)
+    canonical = json.dumps(raw, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    raw["signature"] = hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
+    write_json_atomic(path, raw)
+    return raw
 
 
 def main() -> int:
@@ -142,14 +172,8 @@ def main() -> int:
     key = os.getenv("ATLAS_OWNER_SNAPSHOT_HMAC_KEY", "")
     if len(key) < 32:
         raise SystemExit("ATLAS_OWNER_SNAPSHOT_HMAC_KEY must contain at least 32 characters")
-    raw = collect(Path(args.root))
-    canonical = json.dumps(raw, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
-    raw["signature"] = hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
     path = Path(args.output)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(raw, ensure_ascii=False, allow_nan=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
+    raw = export_snapshot(Path(args.root), path, key)
     print(json.dumps({"status": "EXPORTED_PAPER_ONLY", "path": str(path),
                       "worker_as_of": raw["as_of"], "paper_trades": len(raw["data"]["paper_trade_history"]),
                       "live_orders_sent": False}))
