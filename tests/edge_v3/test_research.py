@@ -42,3 +42,37 @@ def test_status_projection_is_bounded_and_requires_provenance(tmp_path):
     assert result['worker_verified'] is False and result['decision']=='ABSTAIN'
     report['broker_execution_allowed']=True;path.write_text(json.dumps(report))
     assert status(path)['report_state']=='UNAVAILABLE'
+
+
+def test_equivalent_baseline_timestamps_match_by_instant():
+    bars=sample()
+    baseline={b.time.isoformat().replace('+00:00','Z'):0 for b in bars}
+    a=evaluate_research(bars,old_council=baseline)
+    assert all('V2_1_BASELINE_UNAVAILABLE' not in c['gate_reasons'] for c in a['cost_stress'].values())
+    baseline[bars[30].time.isoformat()]=1
+    with pytest.raises(ValueError,match='Conflicting'):
+        evaluate_research(bars,old_council=baseline)
+
+
+def test_out_of_range_report_timezone_fails_closed(tmp_path):
+    path=tmp_path/'report.json'
+    path.write_text(json.dumps({'schema_version':1,'engine_version':'3.0-research.1',
+        'stage':'RESEARCH_ONLY','broker_execution_allowed':False,'live_activation_allowed':False,
+        'data_origin':'OHLC_COUNTERFACTUAL_BACKTEST','champion_unchanged':True,
+        'generated_at':'0001-01-01T00:00:00+23:00'}))
+    assert status(path)['report_state']=='UNAVAILABLE'
+
+
+def test_concurrent_registry_writers_keep_all_versions(tmp_path):
+    from hashlib import sha256
+    from concurrent.futures import ProcessPoolExecutor
+    reports=[]
+    for i in range(12):
+        config={'version':i}
+        reports.append({'stage':'RESEARCH_ONLY','broker_execution_allowed':False,
+            'champion_unchanged':True,'status':'REJECTED','config':config,
+            'model_id':sha256(json.dumps(config,sort_keys=True).encode()).hexdigest()})
+    path=tmp_path/'registry.json'
+    with ProcessPoolExecutor(max_workers=4) as pool:
+        list(pool.map(register_challenger,reports,[path]*len(reports)))
+    assert len(json.loads(path.read_text())['challengers'])==12

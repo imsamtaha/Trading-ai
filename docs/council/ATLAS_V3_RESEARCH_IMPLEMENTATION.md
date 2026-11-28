@@ -26,7 +26,7 @@ Use one symbol/timeframe per CSV, strictly increasing timezone-aware bar **close
 time,available_at,open,high,low,close,spread_bps,slippage_bps,fee_bps
 ```
 
-All three cost fields are round-trip totals in basis points. `available_at` must reflect when the observation actually became usable; future information is rejected. Do not fabricate zero costs. Labels use next-bar open and a fixed ATR-based stop. OHLC cannot resolve intrabar ordering: both barriers touched means stop first. This is a conservative prototype fill model, not execution evidence.
+All three cost fields are round-trip totals in basis points. `available_at` must reflect when the observation actually became usable; future information is rejected. Do not fabricate zero costs. Labels use next-bar open and a fixed ATR-based stop. OHLC cannot resolve intrabar ordering: both barriers touched means stop first when the open is between barriers. An opening gap beyond the target fills conservatively at the target. This is a conservative prototype fill model, not execution evidence.
 
 ```bash
 python scripts/evaluate_atlas_v3.py \
@@ -38,7 +38,7 @@ python scripts/evaluate_atlas_v3.py \
   --registry data/atlas_edge_v3_registry.json
 ```
 
-Declare every attempted configuration, including unsuccessful attempts (`--trials` currently accepts 1–10). Larger searches require a separately designed evaluation protocol. The v2 baseline maps exact ISO decision timestamps to saved sides `-1`, `0`, or `1`; missing observations reject the comparison, rather than inventing a flat baseline. At least 200 OOS decision slots are required; expect several thousand bars with the default non-overlapping horizon. Decision slots include abstentions and are not executed trades.
+Declare every attempted configuration, including unsuccessful attempts (`--trials` currently accepts 1–10). Larger searches require a separately designed evaluation protocol. The v2 baseline maps timezone-aware ISO decision timestamps (matched by UTC instant, including equivalent `Z` and offset forms) to saved sides `-1`, `0`, or `1`; missing observations reject the comparison, rather than inventing a flat baseline. At least 200 OOS decision slots are required; expect several thousand bars with the default non-overlapping horizon. Decision slots include abstentions and are not executed trades.
 
 The last 20% of bars is not evaluated by this run. Repeated researcher inspection or reuse of a holdout is outside the tool's ability to attest. Dataset hashes include the full supplied input for provenance. Synthetic inputs are explicitly marked and always rejected for promotion. A successful research card means SHADOW_REVIEW_REQUIRED, never production permission. STC-04 and STC-09 remain pending until actual independent reviews occur. A bootstrap lower bound is an estimate, not a bounded financial worst case.
 

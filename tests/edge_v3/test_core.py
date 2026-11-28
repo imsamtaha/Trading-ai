@@ -61,3 +61,12 @@ def test_event_schema_never_accepts_direction_or_future_news():
     assert validate_event(e,t)['direction_allowed'] is False
     with pytest.raises(ValueError):validate_event({**e,'decision':'BUY'},t)
     with pytest.raises(ValueError):validate_event({**e,'available_at':'2027-01-01T00:00:00Z'},t)
+
+
+@pytest.mark.parametrize('side,target',[(1,110),(-1,90)])
+def test_target_open_gap_precedes_intrabar_stop(side,target):
+    b=bars()
+    b[21]=replace(b[21],open=100,high=103,low=97,close=100)
+    b[22]=replace(b[22],open=target,high=115,low=85,close=100)
+    r=triple_barrier(b,20,side,5,horizon=3)
+    assert r['reason']=='TARGET_GAP' and r['gross_r']==2

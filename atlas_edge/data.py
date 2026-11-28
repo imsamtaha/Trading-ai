@@ -100,6 +100,8 @@ def triple_barrier(bars, index, side, stop_distance, target_r=2.0, horizon=10):
         b=bars[j]
         if side*(b.open-stop) <= 0:
             exit_price,reason,end=b.open,'STOP_GAP',j;break
+        if side*(b.open-target) >= 0:
+            exit_price,reason,end=target,'TARGET_GAP',j;break
         stop_hit = b.low <= stop if side==1 else b.high >= stop
         target_hit = b.high >= target if side==1 else b.low <= target
         if stop_hit: # Conservative stop-first when both barriers touch within one bar.
