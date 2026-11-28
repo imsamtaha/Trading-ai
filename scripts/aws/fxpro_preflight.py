@@ -50,7 +50,7 @@ def validate(require: str = "none") -> bool:
         print("Safety flags: PAPER ONLY / no broker orders")
 
     port = os.getenv("ATLAS_FXPRO_STATUS_PORT", "8766")
-    if not (port.isascii() and port.isdecimal() and 1 <= int(port) <= 65535):
+    if not (port.isascii() and port.isdecimal() and len(port) < 6 and 1 <= int(port) <= 65535):
         print("FAIL: invalid ATLAS_FXPRO_STATUS_PORT")
         ok = False
 
