@@ -1,4 +1,4 @@
-"""View-only connection to the cTrader Open API demo environment."""
+"""View-only FxPro cTrader account status for isolated DEMO and LIVE environments."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from app.execution.provider_mode import ctrader_selected
 
 
 DEMO_ENDPOINT = "wss://demo.ctraderapi.com:5036"
+LIVE_ENDPOINT = "wss://live.ctraderapi.com:5036"
 # Documented JSON payload types. The owner surface only uses these requests.
 APPLICATION_AUTH = (2100, 2101)
 ACCOUNTS_BY_ACCESS_TOKEN = (2149, 2150)
@@ -57,7 +58,7 @@ def _request(
     raise DemoConnectionError("PROVIDER_TIMEOUT")
 
 
-def _account_id(accounts: dict[str, Any], login: str) -> int:
+def _account_id(accounts: dict[str, Any], login: str, *, live: bool = False) -> int:
     scope = accounts.get("permissionScope")
     if scope != "SCOPE_VIEW" and not (type(scope) is int and scope == 0):
         raise DemoConnectionError("VIEW_ONLY_AUTHORIZATION_REQUIRED")
@@ -67,11 +68,14 @@ def _account_id(accounts: dict[str, Any], login: str) -> int:
     candidates = [
         row.get("ctidTraderAccountId") for row in rows
         if isinstance(row, dict)
-        and row.get("isLive", False) is False
+        and row.get("isLive") is live
         and str(row.get("traderLogin", "")) == login
     ]
     if len(candidates) != 1:
-        raise DemoConnectionError("DEMO_LOGIN_NOT_UNIQUE_OR_NOT_AUTHORIZED")
+        raise DemoConnectionError(
+            "LIVE_LOGIN_NOT_UNIQUE_OR_NOT_AUTHORIZED" if live
+            else "DEMO_LOGIN_NOT_UNIQUE_OR_NOT_AUTHORIZED"
+        )
     account_id = candidates[0]
     if isinstance(account_id, bool) or not str(account_id).isascii() or not str(account_id).isdecimal():
         raise DemoConnectionError("INVALID_PROVIDER_RESPONSE")
@@ -81,12 +85,16 @@ def _account_id(accounts: dict[str, Any], login: str) -> int:
     return account_id
 
 
-def _account_snapshot(client_id: str, client_secret: str, token: str, login: str) -> dict[str, Any]:
-    with connect(DEMO_ENDPOINT, open_timeout=4, close_timeout=1, max_size=2**20) as session:
+def _account_snapshot(
+    client_id: str, client_secret: str, token: str, login: str, *, live: bool = False,
+) -> dict[str, Any]:
+    # Two hardcoded environments: never route a LIVE account through the DEMO endpoint.
+    endpoint = LIVE_ENDPOINT if live else DEMO_ENDPOINT
+    with connect(endpoint, open_timeout=4, close_timeout=1, max_size=2**20) as session:
         deadline = time.monotonic() + 8
         _request(session, APPLICATION_AUTH, {"clientId": client_id, "clientSecret": client_secret}, deadline)
         accounts = _request(session, ACCOUNTS_BY_ACCESS_TOKEN, {"accessToken": token}, deadline)
-        account_id = _account_id(accounts, login)
+        account_id = _account_id(accounts, login, live=live)
         account_request = {"ctidTraderAccountId": account_id}
         authorized = _request(session, ACCOUNT_AUTH, {**account_request, "accessToken": token}, deadline)
         trader_result = _request(session, TRADER, account_request, deadline)
@@ -118,7 +126,7 @@ def _account_snapshot(client_id: str, client_secret: str, token: str, login: str
         raise DemoConnectionError("FXPRO_CTRADER_BROKER_REQUIRED")
     return {
         "status": "CONNECTED",
-        "environment": "DEMO",
+        "environment": "LIVE" if live else "DEMO",
         "access": "VIEW_ONLY",
         "login_masked": f"***{login[-4:]}",
         "broker": broker[:100] if isinstance(broker, str) else None,
@@ -139,6 +147,29 @@ def read_demo_account(*, require_selected: bool = True) -> dict[str, Any]:
         return {"status": "NOT_CONFIGURED", "reason": "DEMO_LOGIN_AND_VIEW_ONLY_CREDENTIALS_REQUIRED"}
     try:
         return _account_snapshot(client_id, client_secret, token, login)
+    except DemoConnectionError as exc:
+        return {"status": "UNAVAILABLE", "reason": str(exc)}
+    except (OSError, ValueError, TypeError, WebSocketException):
+        return {"status": "UNAVAILABLE", "reason": "PROVIDER_CONNECTION_FAILED"}
+
+
+def read_live_account() -> dict[str, Any]:
+    """Read an explicitly authorized FxPro LIVE cTrader account; never place orders.
+
+    LIVE is a distinct websocket session with separate SCOPE_VIEW credentials.
+    This path does not change the active provider or touch the PAPER ledger.
+    """
+    # Fail closed if any deployment tries to enable broker execution.
+    if os.getenv("ATLAS_LIVE_TRADING", "false").strip().lower() != "false":
+        return {"status": "UNAVAILABLE", "reason": "LIVE_TRADING_MUST_REMAIN_DISABLED"}
+    login = os.getenv("ATLAS_CTRADER_LIVE_LOGIN", "").strip()
+    client_id = os.getenv("ATLAS_CTRADER_LIVE_CLIENT_ID", "").strip()
+    client_secret = os.getenv("ATLAS_CTRADER_LIVE_CLIENT_SECRET", "").strip()
+    token = os.getenv("ATLAS_CTRADER_LIVE_ACCESS_TOKEN", "").strip()
+    if not (client_id and client_secret and token and login.isascii() and login.isdecimal()):
+        return {"status": "NOT_CONFIGURED", "reason": "LIVE_LOGIN_AND_VIEW_ONLY_CREDENTIALS_REQUIRED"}
+    try:
+        return _account_snapshot(client_id, client_secret, token, login, live=True)
     except DemoConnectionError as exc:
         return {"status": "UNAVAILABLE", "reason": str(exc)}
     except (OSError, ValueError, TypeError, WebSocketException):
