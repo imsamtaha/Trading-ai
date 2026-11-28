@@ -16,6 +16,7 @@ RUN python -m pip install --upgrade pip \
     && useradd --create-home --uid 10001 atlas
 
 COPY --chown=atlas:atlas app ./app
+COPY --chown=atlas:atlas atlas_edge ./atlas_edge
 COPY --chown=atlas:atlas web ./web
 
 USER atlas

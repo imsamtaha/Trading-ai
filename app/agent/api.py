@@ -51,6 +51,7 @@ class PaperExecutionPayload(BaseModel):
 def capabilities():
     return {
         "mode": "paper_only",
+        "edge_v3": {"stage":"RESEARCH_ONLY", "policy":"/agent/v3/policy", "status":"/agent/v3/status", "evaluate":"/agent/v3/evaluate", "live_activation_allowed":False},
         "live_execution": False,
         "titan_policy": "/agent/titan/policy",
         "titan_analysis": "/agent/titan/analyze",

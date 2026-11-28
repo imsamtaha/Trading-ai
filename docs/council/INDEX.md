@@ -178,3 +178,5 @@ An earlier SQLite-backed integration check used generated candles. Repeat runs r
 Bigdata.com can supply advisory research through the connected ChatGPT tools. No unattended provider credential or server adapter has been established by this change. Preserve source timestamps and UNAVAILABLE status when inputs are absent. Do not turn market research into broker orders.
 
 Sites lists an older private dashboard prototype with no custom domain attached. The original justai-atlas.online/sam deployment source remains unresolved. This change does not publish over that domain or replace it with the older prototype. Production worker heartbeat, Windows execution, live MLflow endpoint and original website deployment still require verification on the original host.
+
+Implementation status: [v3 research measuring stick](ATLAS_V3_RESEARCH_IMPLEMENTATION.md). This is separate from historical designs and does not activate trading.

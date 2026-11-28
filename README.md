@@ -167,3 +167,5 @@ Supabase migrations are historical database state and must not be deleted merely
 ## Product boundary
 
 ATLAS provides market intelligence, risk controls, Paper simulation, monitoring, and decision-support context. It does not guarantee outcomes. Public and subscriber surfaces must not silently acquire broker execution permissions.
+
+ATLAS Council v3 research implementation and activation requirements: [documentation](docs/council/ATLAS_V3_RESEARCH_IMPLEMENTATION.md).
