@@ -1,0 +1,27 @@
+# Example for an EC2/Lightsail Linux host, NOT for AWS CloudShell.
+# Review User, paths and IAM/secret injection before installing.
+# Provision /etc/atlas/fxpro-status.env outside Git with mode 0600.
+# Never put values in this example or expose port 8766 publicly.
+[Unit]
+Description=ATLAS FxPro cTrader DEMO/LIVE read-only status
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=atlas
+Group=atlas
+WorkingDirectory=/opt/atlas/Trading-ai
+Environment=HOME=/home/atlas
+EnvironmentFile=/etc/atlas/fxpro-status.env
+ExecStart=/usr/bin/bash /opt/atlas/Trading-ai/scripts/aws/start_fxpro_readonly.sh
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
