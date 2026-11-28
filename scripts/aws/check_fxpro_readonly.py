@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 PROFILES = {
     "demo": ("ATLAS_PROVIDER_STATUS_TOKEN", "DEMO", "/status/ctrader/demo"),
@@ -29,7 +29,7 @@ def check(mode: str) -> bool:
         method="GET",
     )
     try:
-        with urlopen(request, timeout=12) as response:
+        with build_opener(ProxyHandler({})).open(request, timeout=12) as response:
             data = json.load(response)
     except HTTPError as exc:
         print(f"{environment}: UNAVAILABLE (HTTP {exc.code})")
