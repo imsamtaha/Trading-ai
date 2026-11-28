@@ -96,3 +96,70 @@ service and the corresponding `ATLAS_MT5_DEMO_STATUS_TOKEN`,
 On the PAPER worker, `scripts/start_atlas_demo.ps1 -ShadowTraining` enables
 shadow evaluation alongside the default Council calibration. The shadow
 selection is observational and leaves the PAPER decision authority unchanged.
+
+## FxPro cTrader DEMO and LIVE account status on Linux (no MT5 terminal)
+
+ATLAS also supports two **strictly read-only** FxPro cTrader account connections
+from AWS/Linux. These are status readers, **not** broker execution engines.
+They do not place DEMO orders or LIVE orders, and they do not feed broker
+balances into the PAPER trading ledger.
+
+Official cTrader docs:
+- [Separate endpoints](https://help.ctrader.com/open-api/proxies-endpoints/):
+  `demo.ctraderapi.com:5036` and `live.ctraderapi.com:5036` for JSON/WebSocket.
+- [Account authentication](https://help.ctrader.com/open-api/account-authentication/):
+  request OAuth `scope=accounts` (view-only), **never** `scope=trading`.
+
+### Credentials (private runtime only)
+
+Each environment requires its own authorized FxPro cTrader account login and
+**view-only** access token, plus the associated Open API application's client
+ID and secret. Never put tokens, passwords or private IDs into GitHub,
+ChatGPT messages, browser JavaScript, or public Site settings.
+
+| Connection | Runtime settings | Read-only endpoint |
+| --- | --- | --- |
+| DEMO | `ATLAS_CTRADER_DEMO_LOGIN`, `ATLAS_CTRADER_CLIENT_ID`, `ATLAS_CTRADER_CLIENT_SECRET`, `ATLAS_CTRADER_ACCESS_TOKEN` | `GET /status/ctrader/demo` (also `/status/ctrader` for legacy clients) |
+| LIVE | `ATLAS_CTRADER_LIVE_LOGIN`, `ATLAS_CTRADER_LIVE_CLIENT_ID`, `ATLAS_CTRADER_LIVE_CLIENT_SECRET`, `ATLAS_CTRADER_LIVE_ACCESS_TOKEN` | `GET /status/ctrader/live` |
+
+The private API service requires `ATLAS_PROVIDER_STATUS_TOKEN` for the
+DEMO route and an **independent** `ATLAS_PROVIDER_LIVE_STATUS_TOKEN` for the
+LIVE route. The LIVE route refuses DEMO status tokens, unauthorized accounts,
+DEMO accounts, non-FxPro broker accounts, and OAuth trading scopes.
+Neither status route accepts POST or provides order placement.
+
+Keep these PAPER guards in the server environment:
+
+```bash
+export ATLAS_LIVE_TRADING=false
+export ATLAS_ENVIRONMENT=paper
+export ATLAS_DASHBOARD_ONLY=true
+export ATLAS_AGENT_PAPER_EXECUTION_ENABLED=false
+
+# Set credentials and distinct status tokens privately before starting.
+# Use AWS Secrets Manager or private environment variables; never commit them.
+python3 -m uvicorn scripts.atlas_provider_status:app --host 127.0.0.1 --port 8766
+```
+
+Verify from the same host after configuring the view-only credentials:
+
+```bash
+curl -fsS -H "Authorization: Bearer $ATLAS_PROVIDER_STATUS_TOKEN" \
+  http://127.0.0.1:8766/status/ctrader/demo
+curl -fsS -H "Authorization: Bearer $ATLAS_PROVIDER_LIVE_STATUS_TOKEN" \
+  http://127.0.0.1:8766/status/ctrader/live
+```
+
+A successful response is marked `"access": "READ_ONLY"` and
+`"brokerOrders": false`. It contains only environment, timestamp, broker,
+currency, and balance; it does **not** return account numbers or access tokens.
+Before configured authorization, the route returns 401 or 503 instead.
+
+To display both independently inside a separately deployed Tiger Shield Site,
+wire its server-side integration to `ATLAS_CTRADER_STATUS_URL` and
+`ATLAS_CTRADER_LIVE_STATUS_URL`, with matching server-side bearer tokens.
+Protect external access with authenticated HTTPS and never expose this
+localhost listener to the public Internet. Site wiring and credential
+authorization are **not** performed by this source-code change.
+
+Tests: `python3 -m pytest tests/test_ctrader_demo.py tests/test_ctrader_live_status.py tests/test_provider_status.py -q`.
