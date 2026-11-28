@@ -43,6 +43,13 @@ def record_web_visit(payload: VisitPayload, request: Request) -> JSONResponse:
     return response
 
 
+@router.get("/edge-v3")
+def edge_v3_status(request: Request) -> JSONResponse:
+    _require_owner(request)
+    from .edge_v3 import overview
+    return JSONResponse(overview(),headers={"Cache-Control":"private, no-store"})
+
+
 @router.get("/training")
 def training_status(request: Request) -> JSONResponse:
     _require_owner(request)

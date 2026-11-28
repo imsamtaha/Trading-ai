@@ -29,6 +29,7 @@ from app.subscription import router as subscription_router
 from app.billing import router as billing_router
 from app.dashboard.preferences import router as preferences_router
 from app.agent.api import router as agent_router
+from app.agent.edge_v3 import router as edge_v3_router
 from app.evolution.api import router as evolution_router, engine as evolution_engine
 
 
@@ -43,6 +44,7 @@ app.include_router(subscription_router)
 app.include_router(billing_router)
 app.include_router(preferences_router)
 app.include_router(agent_router)
+app.include_router(edge_v3_router)
 app.include_router(evolution_router)
 app.include_router(website_router)
 app.include_router(owner_dashboard_router)
@@ -63,12 +65,12 @@ async def dashboard_only_guard(request: Request, call_next):
             "/dashboard/demo-status", "/dashboard/trader-view",
             "/sam", "/sam/", "/sam/api/snapshot", "/sam/api/accounts", "/dashboard/mt5-state", "/dashboard/active-setups",
             "/dashboard/market-briefing", "/dashboard/markets", "/mt5/cockpit-state",
-            "/agent/capabilities", "/agent/titan/policy", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
+            "/agent/v3/policy", "/agent/v3/status", "/agent/capabilities", "/agent/titan/policy", "/agent/right-hand/capabilities", "/agent/right-hand/tools",
             "/billing/methods", "/billing/plans", "/billing/whish/watch", "/billing/whish/reader", "/billing/whish/pro",
             "/evolution/status", "/runtime/status",
             "/docs", "/openapi.json",
         }
-        analysis_paths = {"/agent/decision", "/agent/titan/analyze", "/agent/titan/review", "/agent/right-hand/plan", "/agent/right-hand/chat"}
+        analysis_paths = {"/agent/v3/evaluate","/agent/decision", "/agent/titan/analyze", "/agent/titan/review", "/agent/right-hand/plan", "/agent/right-hand/chat"}
         fxpro_demo_verify = request.method == "POST" and path == "/connect/fxpro-mt5/verify"
         paper_demo_execute = (
             request.method == "POST"

@@ -1,4 +1,5 @@
 "use client";
+import {EdgeV3Panel} from "@/features/training/edge-v3-panel";
 import { useEffect, useRef, useState } from "react";
 import { atlasFetch, AtlasApiError } from "@/lib/api/client";
 import { apiPath } from "@/lib/api/config";
@@ -24,6 +25,7 @@ function formatTimestamp(value?: string | null) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
 }
 export default function RuntimePage() {
+  const [showEdge,setShowEdge]=useState(false);
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Checking backend…");
@@ -204,6 +206,13 @@ export default function RuntimePage() {
         <div className="atlas-runtime-note-card"><span>Backend note</span><small>Disabling orders does not close existing positions. A stopped backend needs the local Windows launcher.</small></div>
       </div>
     </section>
+
+    {ownerReady&&<section className="atlas-card atlas-runtime-box">
+      <h2>Council v3 · Research</h2>
+      <p>Cost-adjusted evidence only. This does not activate trading or replace the current Council.</p>
+      <button type="button" onClick={()=>setShowEdge(!showEdge)}>{showEdge?"Hide v3 evidence":"Review v3 evidence"}</button>
+      {showEdge&&<EdgeV3Panel/>}
+    </section>}
 
     <section className="atlas-card atlas-runtime-box atlas-runtime-footer">
       <a href="/dashboard">Dashboard</a>
