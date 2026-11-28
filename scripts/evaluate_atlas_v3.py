@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--horizon',type=int,default=10)
     parser.add_argument('--folds',type=int,default=3)
     parser.add_argument('--trials',type=int,required=True,help='Total configurations tried, including unsuccessful trials')
-    parser.add_argument('--v2-baseline',type=Path,help='JSON mapping decision close-time ISO timestamps to saved v2.1 sides (-1/0/1)')
+    parser.add_argument('--v2-baseline',type=Path,help='JSON mapping timezone-aware decision close-time ISO timestamps (matched by instant) to saved v2.1 sides (-1/0/1)')
     parser.add_argument('--registry',type=Path,help='Optional separate research-only challenger registry JSON')
     parser.add_argument('--output',type=Path,default=Path('data/atlas_edge_v3_report.json'))
     args=parser.parse_args()

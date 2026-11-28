@@ -18,6 +18,16 @@ def evaluate_research(bars, *, sleeve='trend', horizon=10, folds=3, trials=1, ol
     if sleeve not in {'trend','mean_reversion','breakout'}: raise ValueError('Unknown sleeve')
     if type(horizon) is not int or not 1<=horizon<=100: raise ValueError('Invalid horizon')
     if type(trials) is not int or not 1<=trials<=10: raise ValueError('Declare 1–10 total tried configurations per run family')
+    if old_council is not None:
+        normalized={}
+        for key,value in old_council.items():
+            instant=timestamp(key)
+            if type(value) is not int or value not in (-1,0,1):
+                raise ValueError('v2.1 sides must be -1, 0, 1')
+            if instant in normalized and normalized[instant]!=value:
+                raise ValueError('Conflicting v2.1 decisions for the same timestamp')
+            normalized[instant]=value
+        old_council=normalized
     cutoff=int(len(bars)*.8)
     development=bars[:cutoff]
     events=[];rng=random.Random(7)
@@ -30,7 +40,7 @@ def evaluate_research(bars, *, sleeve='trend', horizon=10, folds=3, trials=1, ol
         candidate=hypotheses[side or 1]
         trend=snapshot['sleeves']['trend'];random_side=rng.choice([-1,1])
         key=snapshot['time']
-        old_side=old_council.get(key) if old_council is not None else None
+        old_side=old_council.get(timestamp(key)) if old_council is not None else None
         if old_side is not None and (type(old_side) is not int or old_side not in (-1,0,1)):
             raise ValueError('v2.1 sides must be -1, 0, 1')
         events.append({**candidate,'time':key,'side':side,'bucket':min(4,int(abs(snapshot['features']['normalized_deviation']))),

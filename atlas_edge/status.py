@@ -44,6 +44,6 @@ def status(report_path=None, now=None):
                       research_status=raw['status'],cost_stress=summaries,
                       report_authority='LOCAL_OPERATOR_SUPPLIED_NOT_INDEPENDENTLY_ATTESTED',
                       reason_codes=['RESEARCH_ONLY','INDEPENDENT_REVIEWS_PENDING','RUNTIME_NOT_VERIFIED']+(['REPORT_OLDER_THAN_24_HOURS'] if stale else []))
-    except (OSError,ValueError,KeyError,TypeError,AttributeError):
+    except (OSError,ValueError,KeyError,TypeError,AttributeError,OverflowError):
         result['reason_codes']=['MISSING_OR_INVALID_RESEARCH_REPORT']
     return result
