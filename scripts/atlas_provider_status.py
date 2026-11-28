@@ -12,16 +12,19 @@ from typing import Any
 from fastapi import FastAPI, Header, HTTPException, Response
 
 from app.execution.mt5 import MT5Broker, MT5Config, MT5ExecutionError
-from app.integrations.ctrader_demo import read_demo_account
+from app.integrations.ctrader_demo import read_demo_account, read_live_account
 
 app = FastAPI(title="ATLAS read-only provider status", docs_url=None, redoc_url=None, openapi_url=None)
 _mt5_session = Lock()
 _account_modes = {"DEMO": 0, "REAL": 2}
 
 
-def _require_reader(authorization: str | None, response: Response) -> None:
+def _require_reader(
+    authorization: str | None, response: Response,
+    *, token_name: str = "ATLAS_PROVIDER_STATUS_TOKEN",
+) -> None:
     response.headers["Cache-Control"] = "private, no-store"
-    expected = os.getenv("ATLAS_PROVIDER_STATUS_TOKEN", "").strip()
+    expected = os.getenv(token_name, "").strip()
     if not expected:
         raise HTTPException(503, "Provider status is not configured.")
     if not compare_digest((authorization or "").encode(), f"Bearer {expected}".encode()):
@@ -80,8 +83,11 @@ def mt5_status(response: Response, authorization: str | None = Header(default=No
 
 
 @app.get("/status/ctrader")
+@app.get("/status/ctrader/demo")
 def ctrader_status(response: Response, authorization: str | None = Header(default=None)):
     _require_reader(authorization, response)
+    if os.getenv("ATLAS_LIVE_TRADING", "false").strip().lower() != "false":
+        raise HTTPException(503, "Read-only cTrader status is unavailable.")
     account = read_demo_account(require_selected=False)
     if (account.get("status"), account.get("environment"), account.get("access")) != (
         "CONNECTED", "DEMO", "VIEW_ONLY",
@@ -89,5 +95,22 @@ def ctrader_status(response: Response, authorization: str | None = Header(defaul
         raise HTTPException(503, "Read-only cTrader status is unavailable.")
     return _snapshot(
         mode="DEMO", as_of=account["as_of"], balance=account.get("balance"),
+        currency=account.get("currency"), broker=account.get("broker"),
+    )
+
+
+@app.get("/status/ctrader/live")
+def ctrader_live_status(response: Response, authorization: str | None = Header(default=None)):
+    # Dedicated secret: a demo or MT5 status token never grants LIVE account visibility.
+    _require_reader(authorization, response, token_name="ATLAS_PROVIDER_LIVE_STATUS_TOKEN")
+    if os.getenv("ATLAS_LIVE_TRADING", "false").strip().lower() != "false":
+        raise HTTPException(503, "Read-only cTrader LIVE status is unavailable.")
+    account = read_live_account()
+    if (account.get("status"), account.get("environment"), account.get("access")) != (
+        "CONNECTED", "LIVE", "VIEW_ONLY",
+    ):
+        raise HTTPException(503, "Read-only cTrader LIVE status is unavailable.")
+    return _snapshot(
+        mode="LIVE", as_of=account["as_of"], balance=account.get("balance"),
         currency=account.get("currency"), broker=account.get("broker"),
     )
