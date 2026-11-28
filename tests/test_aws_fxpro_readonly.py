@@ -99,7 +99,7 @@ def test_bad_port_fails_closed():
     assert run_preflight(ATLAS_FXPRO_STATUS_PORT="0").returncode == 1
     assert run_preflight(ATLAS_FXPRO_STATUS_PORT="not-a-port").returncode == 1
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not available")
+@pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") is None, reason="AWS/Linux-only Bash syntax check")
 def test_startup_scripts_parse_as_bash():
     for script in ("setup_fxpro_readonly.sh", "start_fxpro_readonly.sh"):
         result = subprocess.run(
